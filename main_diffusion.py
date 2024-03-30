@@ -7,6 +7,7 @@ from torch_geometric.transforms import BaseTransform, Compose, RadiusGraph
 import pytorch_lightning as pl
 from diffusion.lattice_dataset import CrystalDataset
 from lightning_wrappers.callbacks import EMA, EpochTimer
+from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from lightning_wrappers.md17 import PONITA_MD17
 
 
@@ -127,21 +128,22 @@ if __name__ == "__main__":
 
     dataset = CrystalDataset()
     
-    # Create train, val, test split
-    test_idx = list(range(min(len(dataset),100000)))  # The whole dataset consist sof 100,000 samples
-    train_idx = test_idx[::100]  # Select every other 100th sample for training
-    del test_idx[::100]   # and remove these from the test set
-    val_idx = train_idx[::20]  # Select every 20th sample from the train set for validation
-    del train_idx[::20]  # and remove these from the train set
+    # # Create train, val, test split
+    # test_idx = list(range(min(len(dataset),100000)))  # The whole dataset consist sof 100,000 samples
+    # train_idx = test_idx[::100]  # Select every other 100th sample for training
+    # del test_idx[::100]   # and remove these from the test set
+    # val_idx = train_idx[::20]  # Select every 20th sample from the train set for validation
+    # del train_idx[::20]  # and remove these from the train set
 
-    # Dataset and loaders
-    datasets = {'train': dataset[train_idx], 'val': dataset[val_idx], 'test': dataset[test_idx]}
+    # # Dataset and loaders
+    # datasets = {'train': dataset[train_idx], 'val': dataset[val_idx], 'test': dataset[test_idx]}
+    datasets = {'train': dataset, 'val': dataset, 'test': dataset} # TODO: Remove this line and uncomment the above lines
     dataloaders = {
         split: DataLoader(dataset, batch_size=args.batch_size, shuffle=(split == 'train'), num_workers=args.num_workers)
         for split, dataset in datasets.items()}
     
     # ------------------------ Load and initialize the model
-    model = PONITA_MD17(args)
+    model = PONITA_DIFFUSION(args)
     model.set_dataset_statistics(datasets['train'])
 
     # ------------------------ Weights and Biases logger

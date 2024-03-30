@@ -54,17 +54,9 @@ def load_dataset(file_path) -> list[Configuration]:
     return dataset
 
 class CrystalDataset(Dataset):
-    """Face Landmarks dataset."""
-
     def __init__(self, cutoff: int = 5.0):
-        """
-        Arguments:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
         configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
+        # configs = load_dataset("datasets/alexandria_hdf5/alexandria_ps_000.h5")
         z_table = get_atomic_number_table_from_zs(
             z
             for config in configs
@@ -74,6 +66,7 @@ class CrystalDataset(Dataset):
         self.z_table = z_table
         self.cutoff = cutoff
         self.num_atomic_states = len(z_table)
+        # print("finished loading dataset")
 
     # maybe we should move this to utils? oh. it does depend on self.z_table though
     def one_hot_encode_atomic_numbers(self, atomic_numbers: np.ndarray) -> np.ndarray:
@@ -123,5 +116,4 @@ class CrystalDataset(Dataset):
             A0=A0,
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
             L0=torch.tensor(L0, dtype=torch.get_default_dtype()),
-            num_atoms=len(A0),
         )
