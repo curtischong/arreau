@@ -11,7 +11,10 @@
             "program": "main_diffusion.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": [],
+            "args": [
+                "--num_timesteps=100",
+                "--gpus=0", // force it to use cpu (for development)
+            ],
         }
     ]
 }

@@ -102,6 +102,8 @@ if __name__ == "__main__":
                         help='Initial layer scale factor in ConvNextBlock, 0 means do not use layer scale')
     parser.add_argument('--multiple_readouts', type=eval, default=True,
                         help='Whether or not to readout after every layer')
+    parser.add_argument('--num_timesteps', type=int,
+                        help='the number of diffusion timesteps')
     
     # Parallel computing stuff
     parser.add_argument('-g', '--gpus', default=1, type=int,

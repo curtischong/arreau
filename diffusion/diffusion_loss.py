@@ -1,9 +1,8 @@
 import torch
 
-from mace.data.diffusion_helpers import VP, GaussianFourierProjection, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
 from torch_scatter import scatter
 
-from mace.modules.diffusion_mace import DiffusionMACE
+from diffusion.diffusion_helpers import VP, GaussianFourierProjection, VE_pbc, frac_to_cart_coords, subtract_cog
 
 
 pos_sigma_min = 0.001
@@ -50,7 +49,7 @@ class DiffusionLoss:
         return error
 
 
-    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model: DiffusionMACE, edge_index, shifts, ptr, frac=False):
+    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model, edge_index, shifts, ptr, frac=False):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         # t_emb = self.t_emb(t)
         # h_time = torch.cat([h_t, t_emb], dim=1)
@@ -75,15 +74,15 @@ class DiffusionLoss:
         h = h / self.norm_h
         return x, h, lengths
     
-    def __call__(self, batch, model, t_int = None):
+    def __call__(self, model, batch):
         """
         input x has to be cart coords.
         """
-        x = batch["positions"]
-        h = batch["A0"]
-        lattice = batch["L0"]
+        x = batch.pos
+        h = batch.x
+        lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
-        num_atoms = batch["num_atoms"]
+        num_atoms = batch.num_atoms
         edge_index = batch["edge_index"]
         shifts = batch["shifts"]
         ptr = batch["ptr"]

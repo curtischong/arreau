@@ -119,4 +119,5 @@ class CrystalDataset(Dataset):
             # A0=A0,
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
             L0=torch.tensor(L0, dtype=torch.get_default_dtype()),
+            num_atoms=len(config.atomic_numbers),
         )
