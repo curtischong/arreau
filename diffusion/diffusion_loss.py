@@ -74,6 +74,31 @@ class DiffusionLoss:
         h = h / self.norm_h
         return x, h, lengths
     
+    def noise_inputs(self, x, h, lattice, num_atoms, t_int=None):
+        """
+        input x has to be cart coords.
+        """
+
+        x, h, lattice = self.normalize(x, h, lattice)
+
+        # Sample a timestep t.
+        if t_int is None:
+            t_int = torch.randint(
+                1, self.T + 1, size=(num_atoms, 1), device=x.device
+            ).long()
+        else:
+            t_int = (
+                torch.ones((num_atoms, 1), device=x.device).long() * t_int
+            )
+        t_int = t_int.repeat(num_atoms)
+
+        # Sample noise.
+        frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
+            x, t_int, lattice, num_atoms
+        )
+        h_t, eps_h = self.type_diffusion(h, t_int)
+
+    
     def __call__(self, model, batch):
         """
         input x has to be cart coords.
