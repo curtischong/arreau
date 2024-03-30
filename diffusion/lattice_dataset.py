@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 import torch
 from diffusion.atomic_data import AtomicData
+from torch_geometric.data import Data
 
 from diffusion.tools.atomic_number_table import atomic_numbers_to_indices, get_atomic_number_table_from_zs, to_one_hot
 from diffusion.tools.neighborhood import get_neighborhood
@@ -68,9 +69,6 @@ class CrystalDataset(Dataset):
         self.num_atomic_states = len(z_table)
         # print("finished loading dataset")
 
-    def num_atomic_states(self):
-        return len(self.z_table)
-
     # maybe we should move this to utils? oh. it does depend on self.z_table though
     def one_hot_encode_atomic_numbers(self, atomic_numbers: np.ndarray) -> np.ndarray:
         atomic_number_indices = atomic_numbers_to_indices(atomic_numbers, z_table=self.z_table)
@@ -111,12 +109,14 @@ class CrystalDataset(Dataset):
         L0 = config.L0 # TODO(curtis): use the noised Lt
         cell_info = self.get_cell_info(Xt=X0, Lt=L0)
 
-        return AtomicData(
+        #  Data(pos=loc, x=x, vec=vec, y=loc_end)
+        return Data(
+            pos=torch.tensor(cell_info["positions"], dtype=torch.get_default_dtype()),
             edge_index=torch.tensor(cell_info["edge_index"], dtype=torch.long),
-            positions=torch.tensor(cell_info["positions"], dtype=torch.get_default_dtype()),
             shifts=torch.tensor(cell_info["shifts"], dtype=torch.get_default_dtype()),
             unit_shifts=torch.tensor(cell_info["unit_shifts"], dtype=torch.get_default_dtype()),
-            A0=A0,
+            x=A0,
+            # A0=A0,
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
             L0=torch.tensor(L0, dtype=torch.get_default_dtype()),
         )

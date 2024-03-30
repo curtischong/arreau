@@ -46,9 +46,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # Input/output specifications:
         in_channels_scalar = num_atomic_states + 1 # atomic_number + variance
-        in_channels_vec = 3 # cartesian_pos
+        in_channels_vec = 0 # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states # atomic_number
-        out_channels_vec = 3  # cartesian_pos
+        out_channels_vec = 3  # The cartesian_pos score (gradient of where the atom should be in the next step)
 
         # Make the model
         self.model = Ponita(in_channels_scalar + in_channels_vec,
