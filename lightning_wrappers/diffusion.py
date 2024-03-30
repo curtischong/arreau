@@ -88,7 +88,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # print('Min-max range of distances between atoms in the dataset:', self.min_dist, '-', self.max_dist)
 
     def forward(self, graph):
-        # Only utilize the scalar (energy) prediction
         pred, _ = self.model(graph)
         return pred.squeeze(-1)
 
