@@ -15,7 +15,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
     """
     """
 
-    def __init__(self, args):
+    def __init__(self, args, num_atomic_states: int):
         super().__init__()
 
         # Store some of the relevant args
@@ -45,10 +45,10 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.test_metrics_force = nn.ModuleList([torchmetrics.MeanAbsoluteError() for r in range(self.repeats)])
 
         # Input/output specifications:
-        in_channels_scalar = 9  # Charge, Velocity norm
-        in_channels_vec = 0  # Velocity, rel_pos
-        out_channels_scalar = 1  # None
-        out_channels_vec = 0  # Output velocity
+        in_channels_scalar = num_atomic_states + 1 # atomic_number + variance
+        in_channels_vec = 3 # cartesian_pos
+        out_channels_scalar = num_atomic_states # atomic_number
+        out_channels_vec = 3  # cartesian_pos
 
         # Make the model
         self.model = Ponita(in_channels_scalar + in_channels_vec,
@@ -67,22 +67,23 @@ class PONITA_DIFFUSION(pl.LightningModule):
                         lift_graph=True)
 
     def set_dataset_statistics(self, dataset):
-        ys = np.array([data.energy.item() for data in dataset])
-        forces = np.concatenate([data.force.numpy() for data in dataset])
-        self.shift = np.mean(ys)
-        self.scale = np.sqrt(np.mean(forces**2))
-        self.min_dist = 1e10
-        self.max_dist = 0
-        for data in dataset:
-            pos = data.pos
-            edm = np.linalg.norm(pos[:,None,:] - pos[None,:,:],axis=-1)
-            min_dist = np.min(edm + np.eye(edm.shape[0]) * 1e10)
-            max_dist = np.max(edm)
-            if min_dist < self.min_dist:
-                self.min_dist = min_dist 
-            if max_dist > self.max_dist:
-                self.max_dist = max_dist 
-        print('Min-max range of distances between atoms in the dataset:', self.min_dist, '-', self.max_dist)
+        pass
+        # ys = np.array([data.energy.item() for data in dataset])
+        # forces = np.concatenate([data.force.numpy() for data in dataset])
+        # self.shift = np.mean(ys)
+        # self.scale = np.sqrt(np.mean(forces**2))
+        # self.min_dist = 1e10
+        # self.max_dist = 0
+        # for data in dataset:
+        #     pos = data.pos
+        #     edm = np.linalg.norm(pos[:,None,:] - pos[None,:,:],axis=-1)
+        #     min_dist = np.min(edm + np.eye(edm.shape[0]) * 1e10)
+        #     max_dist = np.max(edm)
+        #     if min_dist < self.min_dist:
+        #         self.min_dist = min_dist 
+        #     if max_dist > self.max_dist:
+        #         self.max_dist = max_dist 
+        # print('Min-max range of distances between atoms in the dataset:', self.min_dist, '-', self.max_dist)
 
     def forward(self, graph):
         # Only utilize the scalar (energy) prediction

@@ -68,6 +68,9 @@ class CrystalDataset(Dataset):
         self.num_atomic_states = len(z_table)
         # print("finished loading dataset")
 
+    def num_atomic_states(self):
+        return len(self.z_table)
+
     # maybe we should move this to utils? oh. it does depend on self.z_table though
     def one_hot_encode_atomic_numbers(self, atomic_numbers: np.ndarray) -> np.ndarray:
         atomic_number_indices = atomic_numbers_to_indices(atomic_numbers, z_table=self.z_table)

@@ -143,7 +143,7 @@ if __name__ == "__main__":
         for split, dataset in datasets.items()}
     
     # ------------------------ Load and initialize the model
-    model = PONITA_DIFFUSION(args)
+    model = PONITA_DIFFUSION(args, num_classes=dataset.num_atomic_states())
     model.set_dataset_statistics(datasets['train'])
 
     # ------------------------ Weights and Biases logger
