@@ -21,7 +21,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
         super().__init__()
 
         # Store some of the relevant args
-        self.repeats = args.repeats
         self.lr = args.lr
         self.weight_decay = args.weight_decay
         self.epochs = args.epochs
