@@ -3,6 +3,8 @@ import torch
 from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
+import numpy as np
+import tqdm
 
 from diffusion.diffusion_helpers import VP, VE_pbc, frac_to_cart_coords, subtract_cog
 
@@ -80,11 +82,15 @@ class DiffusionLoss(torch.nn.Module):
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
         return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h
     
-    def normalize(self, x, h, lengths):
+    def normalize(self, x, h):
         x = x / self.norm_x
-        lengths = lengths / self.norm_x
         h = h / self.norm_h
-        return x, h, lengths
+        return x, h
+    
+    def unnormalize(self, x, h):
+        x = x * self.norm_x
+        h = h * self.norm_h
+        return x, h
     
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -97,7 +103,7 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms = batch.num_atoms
 
 
-        x, h, lattice = self.normalize(x, h, lattice)
+        x, h = self.normalize(x, h)
 
         # Sample a timestep t.
         if t_int is None:
@@ -142,3 +148,65 @@ class DiffusionLoss(torch.nn.Module):
             "eps_x": target_eps_x,
             "eps_h": eps_h,
         }
+
+    @torch.no_grad()
+    def sample(
+        self,
+        num_atoms: int,
+        lattice: np.ndarray,
+        model,
+        z=None,
+        save_freq=False,
+        disable_bar=False,
+    ):
+
+        x = (
+            torch.randn([num_atoms.sum(), 3], device=self.device)
+            * pos_sigma_max
+        )
+        x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+
+        h = torch.randn([num_atoms.sum(), self.bb_emb_dim], device=self.device)
+
+        if save_freq:
+            all_x = [x.clone().cpu()]
+            all_h = [h.clone().cpu()]
+
+        for t in tqdm(reversed(range(1, self.T)), disable=disable_bar):
+            t = torch.full((num_atoms.sum(),), fill_value=t, device=self.device)
+
+            score_x, score_h = self.phi(
+                frac_x, h, t, num_atoms, lattice, model, Batch(), frac=True
+            )
+            frac_x = self.pos_diffusion.reverse(
+                x, score_x, t, lattice, num_atoms
+            )
+            x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+            h = self.type_diffusion.reverse(h, score_h, t)
+
+            if save_freq and (t[0] % save_freq == 0):
+                all_x.append(x.clone().cpu())
+                all_h.append(h.clone().cpu())
+
+        if save_freq:
+            all_x.append(x.clone().cpu())
+            all_h.append(h.clone().cpu())
+
+        x, h = self.unnormalize(x, h)
+
+        output = {
+            "x": x,
+            "h": h,
+            "z": z,
+            "num_atoms": num_atoms,
+            "lattice": lattice,
+        }
+
+        if save_freq:
+            output.update(
+                {
+                    "all_x": torch.stack(all_x, dim=0),
+                    "all_h": torch.stack(all_h, dim=0),
+                }
+            )
+        return output

@@ -113,17 +113,29 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
-    train_dataset = CrystalDataset([
-        "datasets/alexandria_hdf5/alexandria_ps_000.h5",
-        "datasets/alexandria_hdf5/alexandria_ps_001.h5",
-        "datasets/alexandria_hdf5/alexandria_ps_002.h5",
-    ])
-    valid_dataset = CrystalDataset([
-        "datasets/alexandria_hdf5/alexandria_ps_003.h5",
-    ])
-    test_dataset = CrystalDataset([
-        "datasets/alexandria_hdf5/alexandria_ps_004.h5",
-    ])
+    is_dev = True
+    if is_dev:
+        train_dataset = CrystalDataset([
+            "datasets/alexandria_hdf5/10_examples.h5",
+        ])
+        valid_dataset = CrystalDataset([
+            "datasets/alexandria_hdf5/10_examples.h5",
+        ])
+        test_dataset = CrystalDataset([
+            "datasets/alexandria_hdf5/10_examples.h5",
+        ])
+    else:
+        train_dataset = CrystalDataset([
+            "datasets/alexandria_hdf5/alexandria_ps_000.h5",
+            "datasets/alexandria_hdf5/alexandria_ps_001.h5",
+            "datasets/alexandria_hdf5/alexandria_ps_002.h5",
+        ])
+        valid_dataset = CrystalDataset([
+            "datasets/alexandria_hdf5/alexandria_ps_003.h5",
+        ])
+        test_dataset = CrystalDataset([
+            "datasets/alexandria_hdf5/alexandria_ps_004.h5",
+        ])
 
     z_table = get_atomic_number_table_from_zs([
         train_dataset.unique_atomic_numbers,
