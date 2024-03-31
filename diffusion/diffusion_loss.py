@@ -152,12 +152,10 @@ class DiffusionLoss(torch.nn.Module):
     @torch.no_grad()
     def sample(
         self,
-        num_atoms: int,
-        lattice: np.ndarray,
         model,
-        z=None,
+        lattice: np.ndarray,
+        num_atoms: int,
         save_freq=False,
-        disable_bar=False,
     ):
 
         x = (
@@ -172,7 +170,7 @@ class DiffusionLoss(torch.nn.Module):
             all_x = [x.clone().cpu()]
             all_h = [h.clone().cpu()]
 
-        for t in tqdm(reversed(range(1, self.T)), disable=disable_bar):
+        for t in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=t, device=self.device)
 
             score_x, score_h = self.phi(
@@ -197,7 +195,6 @@ class DiffusionLoss(torch.nn.Module):
         output = {
             "x": x,
             "h": h,
-            "z": z,
             "num_atoms": num_atoms,
             "lattice": lattice,
         }
