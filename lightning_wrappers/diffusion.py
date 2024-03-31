@@ -1,18 +1,17 @@
-import numpy as np
-
 import torch
-import torch.nn as nn
-import torchmetrics
-from torch_geometric.data import Batch
 import pytorch_lightning as pl
+from diffusion.diffusion_helpers import GaussianFourierProjection
+from torch_geometric.data import Batch
 
-from diffusion.diffusion_loss import DiffusionLoss
+from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric
 
 from .scheduler import CosineWarmupScheduler
-from ponita.models.ponita import Ponita
+from ponita.models.ponita import PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate
 
 
+fourier_scale = 16
+t_emb_dim = 64
 class PONITA_DIFFUSION(pl.LightningModule):
     """
     """
@@ -21,132 +20,80 @@ class PONITA_DIFFUSION(pl.LightningModule):
         super().__init__()
 
         # Store some of the relevant args
-        self.repeats = args.repeats
         self.lr = args.lr
         self.weight_decay = args.weight_decay
         self.epochs = args.epochs
         self.warmup = args.warmup
-        self.lambda_F = args.lambda_F
         if args.layer_scale == 0.:
             args.layer_scale = None
 
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
-        self.rotation_transform = RandomRotate(['pos','force'], n=3)
-        
-        # Shift and scale before callibration
-        self.shift = 0.
-        self.scale = 1.
+        self.rotation_transform = RandomRotate(['pos', 'L0'], n=3) # TODO: I'm not sure if we can rotate each of these matricies like this. Maybe it works?
+        # Note I'm not rotating the fractional coords "X0", since these are lengths
+
+        self.t_emb = GaussianFourierProjection(
+            t_emb_dim // 2, fourier_scale
+        )
 
         # The metrics to log
-        self.train_metric = torchmetrics.MeanAbsoluteError()
-        self.valid_metric = torchmetrics.MeanAbsoluteError()
-        self.test_metrics_energy = nn.ModuleList([torchmetrics.MeanAbsoluteError() for r in range(self.repeats)])
-        self.test_metrics_force = nn.ModuleList([torchmetrics.MeanAbsoluteError() for r in range(self.repeats)])
-
+        self.train_metric = DiffusionLossMetric()
+        self.valid_metric = DiffusionLossMetric()
+        self.test_metric = DiffusionLossMetric()
         self.diffusion_loss = DiffusionLoss(args.num_timesteps)
 
         # Input/output specifications:
-        in_channels_scalar = num_atomic_states + 1 # atomic_number + variance
+        in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding (from GaussianFourierProjection)
         in_channels_vec = 0 # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states # atomic_number
-        out_channels_vec = 3  # The cartesian_pos score (gradient of where the atom should be in the next step)
+        out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
 
         # Make the model
-        self.model = Ponita(in_channels_scalar + in_channels_vec,
+        self.model = PonitaFiberBundle(in_channels_scalar + in_channels_vec,
                         args.hidden_dim,
                         out_channels_scalar,
                         args.layers,
-                        output_dim_vec=out_channels_vec,
+                        output_dim_vec = out_channels_vec,
                         radius=args.radius,
                         num_ori=args.num_ori,
                         basis_dim=args.basis_dim,
                         degree=args.degree,
                         widening_factor=args.widening_factor,
                         layer_scale=args.layer_scale,
-                        task_level='graph',
-                        multiple_readouts=args.multiple_readouts,
-                        lift_graph=True)
-
-    def set_dataset_statistics(self, dataset):
-        pass
-        # ys = np.array([data.energy.item() for data in dataset])
-        # forces = np.concatenate([data.force.numpy() for data in dataset])
-        # self.shift = np.mean(ys)
-        # self.scale = np.sqrt(np.mean(forces**2))
-        # self.min_dist = 1e10
-        # self.max_dist = 0
-        # for data in dataset:
-        #     pos = data.pos
-        #     edm = np.linalg.norm(pos[:,None,:] - pos[None,:,:],axis=-1)
-        #     min_dist = np.min(edm + np.eye(edm.shape[0]) * 1e10)
-        #     max_dist = np.max(edm)
-        #     if min_dist < self.min_dist:
-        #         self.min_dist = min_dist 
-        #     if max_dist > self.max_dist:
-        #         self.max_dist = max_dist 
-        # print('Min-max range of distances between atoms in the dataset:', self.min_dist, '-', self.max_dist)
+                        task_level='node',
+                        multiple_readouts=args.multiple_readouts)
+        # should we have lift_graph=True???
 
     def forward(self, graph):
-        # Only utilize the scalar (energy) prediction
-        pred, _ = self.model(graph)
-        return pred.squeeze(-1)
+        return self.model(graph)
 
-    def training_step(self, graph):
+    def training_step(self, graph:Batch):
         if self.train_augm:
-            graph = self.rotation_transform(graph)
+            # TODO: fix this. because L0's dimension is NOT the same as the number of atoms, this rotate_transform function will not work
+            # graph = self.rotation_transform(graph)
+            pass
 
-        # pred_energy, pred_force = self.pred_energy_and_force(graph)
-        
-        # energy_loss = torch.mean((pred_energy - (graph.energy - self.shift) / self.scale)**2)
-        # force_loss = torch.mean(torch.sum((pred_force - graph.force / self.scale)**2,-1)) / 3.
-        # loss = energy_loss / self.lambda_F + force_loss
-        loss  = self.diffusion_loss(self, graph)
-
-        # self.train_metric(pred_energy * self.scale + self.shift, graph.energy)
-        # self.train_metric_force(pred_force * self.scale, graph.force)
-
+        loss = self.diffusion_loss(self, graph, self.t_emb)
+        self.train_metric.update(loss["loss"], graph)
+        print("loss", loss["loss"])
         return loss
 
     def on_train_epoch_end(self):
-        self.log("train MAE (energy)", self.train_metric, prog_bar=True)
-        self.log("train MAE (force)", self.train_metric_force, prog_bar=True)
+        self.log("train loss", self.train_metric, prog_bar=True)
 
     def validation_step(self, graph, batch_idx):
-        pass
-        # pred_energy, pred_force = self.pred_energy_and_force(graph)
-        # self.valid_metric(pred_energy * self.scale + self.shift, graph.energy)
-        # self.valid_metric_force(pred_force * self.scale, graph.force)        
+        loss = self.diffusion_loss(self, graph, self.t_emb)
+        self.valid_metric.update(loss["loss"], graph)
 
     def on_validation_epoch_end(self):
-        self.log("valid MAE (energy)", self.valid_metric, prog_bar=True)
+        self.log("valid loss", self.valid_metric, prog_bar=True)
     
     def test_step(self, graph, batch_idx):
-        # Repeat the prediction self.repeat number of times and average (makes sense due to random grids)
-        batch_size = graph.batch.max() + 1
-        batch_length = graph.batch.shape[0]
-        graph_repeated = Batch.from_data_list([graph] * self.repeats)
-        # Random rotate graph
-        rot = self.rotation_transform.random_rotation(graph_repeated)
-        graph_repeated = self.rotation_transform.rotate_graph(graph_repeated, rot)
-        # Compute results
-        pred_energy_repeated, pred_force_repeated = self.pred_energy_and_force(graph_repeated)
-        # Unrotate results
-        rot_T = rot.transpose(-2,-1)
-        pred_force_repeated = self.rotation_transform.rotate_attr(pred_force_repeated, rot_T)
-        # Unwrap predictions
-        pred_energy_repeated = pred_energy_repeated.unflatten(0, (self.repeats, batch_size))
-        pred_force_repeated = pred_force_repeated.unflatten(0, (self.repeats, batch_length))
-        # Compute the averages
-        for r in range(self.repeats):
-            pred_energy, pred_force = pred_energy_repeated[:r+1].mean(0), pred_force_repeated[:r+1].mean(0)
-            self.test_metrics_energy[r](pred_energy * self.scale + self.shift, graph.energy)
-            self.test_metrics_force[r](pred_force * self.scale, graph.force)
+        loss = self.diffusion_loss(self, graph, self.t_emb)
+        self.test_metric.update(loss["loss"], graph)  
 
     def on_test_epoch_end(self):
-        for r in range(self.repeats):
-            self.log("test MAE (energy) x"+str(r+1), self.test_metrics_energy[r])
-            self.log("test MAE (force) x"+str(r+1), self.test_metrics_force[r])
+        self.log("test loss", self.test_metric)
 
     def configure_optimizers(self):
         """
@@ -178,6 +125,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
                     # weights of blacklist modules will NOT be weight decayed
                     no_decay.add(fpn)
                 elif pn.endswith('layer_scale'):
+                    no_decay.add(fpn)
+                elif pn.endswith('gaussian_fourier_proj_w'):
                     no_decay.add(fpn)
 
         # validate that we considered every parameter

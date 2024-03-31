@@ -13,10 +13,10 @@ class GaussianFourierProjection(nn.Module):
 
     def __init__(self, embedding_size=256, scale=1.0):
         super().__init__()
-        self.W = nn.Parameter(torch.randn(embedding_size) * scale, requires_grad=False)
+        self.gaussian_fourier_proj_w = nn.Parameter(torch.randn(embedding_size) * scale, requires_grad=False)
 
     def forward(self, x):
-        x_proj = x * self.W[None, :] * 2 * np.pi
+        x_proj = x * self.gaussian_fourier_proj_w[None, :] * 2 * np.pi
         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
 class VE_pbc(nn.Module):
@@ -207,6 +207,7 @@ def min_distance_sqr_pbc(
 
     return return_list[0] if len(return_list) == 1 else return_list
 
+# cog = center of gravity (it centers each crystal)
 def subtract_cog(x, num_atoms):
     batch = torch.arange(num_atoms.size(0), device=num_atoms.device).repeat_interleave(
         num_atoms, dim=0

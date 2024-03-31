@@ -112,10 +112,7 @@ class CrystalDataset(Dataset):
         #  Data(pos=loc, x=x, vec=vec, y=loc_end)
         return Data(
             pos=torch.tensor(cell_info["positions"], dtype=torch.get_default_dtype()),
-            edge_index=torch.tensor(cell_info["edge_index"], dtype=torch.long),
-            shifts=torch.tensor(cell_info["shifts"], dtype=torch.get_default_dtype()),
-            unit_shifts=torch.tensor(cell_info["unit_shifts"], dtype=torch.get_default_dtype()),
-            x=A0,
+            x=A0, # These are the node features (that's why it's called x, not A0)
             # A0=A0,
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
             L0=torch.tensor(L0, dtype=torch.get_default_dtype()),

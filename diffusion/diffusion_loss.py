@@ -1,8 +1,10 @@
 import torch
 
 from torch_scatter import scatter
+from torch_geometric.data import Batch
+import torchmetrics
 
-from diffusion.diffusion_helpers import VP, GaussianFourierProjection, VE_pbc, frac_to_cart_coords, subtract_cog
+from diffusion.diffusion_helpers import VP, VE_pbc, frac_to_cart_coords, subtract_cog
 
 
 pos_sigma_min = 0.001
@@ -10,11 +12,24 @@ pos_sigma_max = 10.
 
 type_power = 2
 type_clipmax = 0.999
-fourier_scale = 16
-t_emb_dim = 64
 
-class DiffusionLoss:
+class DiffusionLossMetric(torchmetrics.Metric):
+    def __init__(self):
+        super().__init__()
+        self.add_state("total_loss", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total_samples", default=torch.tensor(0), dist_reduce_fx="sum")
+
+    def compute(self):
+        return self.total_loss / self.total_samples
+    
+    def update(self, loss, batch: Batch):
+        self.total_loss += loss.sum()
+        num_batches = torch.unique(batch.batch).size(0)
+        self.total_samples += num_batches
+    
+class DiffusionLoss(torch.nn.Module):
     def __init__(self, num_timesteps):
+        super().__init__()
         self.T = num_timesteps
         self.pos_diffusion = VE_pbc(
             self.T,
@@ -32,9 +47,6 @@ class DiffusionLoss:
         self.cost_type_coeff = 1
         self.norm_x = 10.
         self.norm_h = 10.
-        self.t_emb = GaussianFourierProjection(
-            t_emb_dim // 2, fourier_scale
-        )
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -49,24 +61,24 @@ class DiffusionLoss:
         return error
 
 
-    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model, edge_index, shifts, ptr, frac=False):
+    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model, batch: Batch, t_emb_weights, frac=False):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
-        # t_emb = self.t_emb(t)
-        # h_time = torch.cat([h_t, t_emb], dim=1)
-        # frac_x_t = x_t if frac else cart_to_frac_coords(x_t, lattice, num_atoms)
+        t_emb = t_emb_weights(t)
+        h_time = torch.cat([h_t, t_emb], dim=1)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
-        pred_eps_x, pred_eps_h = model(
-            At = h_t,
-            frac_coord_variance=t,
-            # num_atoms=num_atoms,
-            positions=cart_x_t,
-            edge_index=edge_index,
-            shifts=shifts,
-            ptr=ptr,
-        )
+
+        # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
+        # If overwritting leads to problems, we'll need to make a new Batch object
+        batch.x = h_time
+        batch.pos = cart_x_t
+
+        # compute the predictions
+        pred_eps_h, pred_eps_x = model(batch)
+
+        # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
-        return pred_eps_x / used_sigmas_x, pred_eps_h
+        return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h
     
     def normalize(self, x, h, lengths):
         x = x / self.norm_x
@@ -74,7 +86,7 @@ class DiffusionLoss:
         h = h / self.norm_h
         return x, h, lengths
     
-    def __call__(self, model, batch):
+    def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
         input x has to be cart coords.
         """
@@ -83,9 +95,6 @@ class DiffusionLoss:
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
-        edge_index = batch["edge_index"]
-        shifts = batch["shifts"]
-        ptr = batch["ptr"]
 
 
         x, h, lattice = self.normalize(x, h, lattice)
@@ -109,7 +118,7 @@ class DiffusionLoss:
 
         # Compute the prediction.
         pred_eps_x, pred_eps_h = self.phi(
-            frac_x_t, h_t, t_int, num_atoms, lattice, model, edge_index, shifts, ptr, frac=True
+            frac_x_t, h_t, t_int, num_atoms, lattice, model, batch, t_emb_weights, frac=True
         )
 
         # Compute the error.
@@ -121,11 +130,11 @@ class DiffusionLoss:
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        loss = self.hparams.cost_coord * error_x + self.hparams.cost_type * error_h
+        loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
 
         return {
             "t": t_int.squeeze(),
-            "diffusion_loss": loss.mean(),
+            "loss": loss.mean(), # needs to be called "loss" for pytorch lightning to see it.
             "coord_loss": error_x.mean(),
             "type_loss": error_h.mean(),
             "pred_eps_x": pred_eps_x,
