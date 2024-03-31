@@ -12,8 +12,6 @@ pos_sigma_max = 10.
 
 type_power = 2
 type_clipmax = 0.999
-fourier_scale = 16
-t_emb_dim = 64
     
 class DiffusionLossMetric(torchmetrics.Metric):
     def __init__(self, num_timesteps):
@@ -35,9 +33,6 @@ class DiffusionLossMetric(torchmetrics.Metric):
         self.cost_type_coeff = 1
         self.norm_x = 10.
         self.norm_h = 10.
-        self.t_emb = GaussianFourierProjection(
-            t_emb_dim // 2, fourier_scale
-        )
 
         # torchmetric variables
         self.add_state("total_loss", default=torch.tensor(0.0), dist_reduce_fx="sum")
@@ -56,9 +51,9 @@ class DiffusionLossMetric(torchmetrics.Metric):
         return error
 
 
-    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model, batch: Batch, frac=False):
+    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model, batch: Batch, t_emb_weights, frac=False):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
-        t_emb = self.t_emb(t)
+        t_emb = t_emb_weights(t)
         h_time = torch.cat([h_t, t_emb], dim=1)
         # frac_x_t = x_t if frac else cart_to_frac_coords(x_t, lattice, num_atoms)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
@@ -85,7 +80,7 @@ class DiffusionLossMetric(torchmetrics.Metric):
     def compute(self):
         return self.total_loss / self.total_samples
     
-    def update(self, model, batch, t_int=None):
+    def update(self, model, batch, t_emb_weights, t_int=None):
         """
         input x has to be cart coords.
         """
@@ -117,7 +112,7 @@ class DiffusionLossMetric(torchmetrics.Metric):
 
         # Compute the prediction.
         pred_eps_x, pred_eps_h = self.phi(
-            frac_x_t, h_t, t_int, num_atoms, lattice, model, batch, frac=True
+            frac_x_t, h_t, t_int, num_atoms, lattice, model, batch, t_emb_weights, frac=True
         )
 
         # Compute the error.

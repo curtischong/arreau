@@ -1,18 +1,16 @@
-import numpy as np
-
 import torch
-import torch.nn as nn
-import torchmetrics
-from torch_geometric.data import Batch
 import pytorch_lightning as pl
+from diffusion.diffusion_helpers import GaussianFourierProjection
 
 from diffusion.diffusion_loss import DiffusionLossMetric
 
 from .scheduler import CosineWarmupScheduler
-from ponita.models.ponita import Ponita, PonitaFiberBundle
+from ponita.models.ponita import PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate
 
 
+fourier_scale = 16
+t_emb_dim = 64
 class PONITA_DIFFUSION(pl.LightningModule):
     """
     """
@@ -33,12 +31,14 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.rotation_transform = RandomRotate(['pos', 'L0'], n=3) # TODO: I'm not sure if we can rotate each of these matricies like this. Maybe it works?
         # Note I'm not rotating the fractional coords "X0", since these are lengths
 
-        # The metrics to log
-        self.train_metric = torchmetrics.MeanSquaredError()
-        self.valid_metric = torchmetrics.MeanSquaredError()
-        self.test_metric = torchmetrics.MeanSquaredError()
+        self.t_emb = GaussianFourierProjection(
+            t_emb_dim // 2, fourier_scale
+        )
 
-        self.diffusion_loss = DiffusionLossMetric(args.num_timesteps)
+        # The metrics to log
+        self.train_metric = DiffusionLossMetric(args.num_timesteps)
+        self.valid_metric = DiffusionLossMetric(args.num_timesteps)
+        self.test_metric = DiffusionLossMetric(args.num_timesteps)
 
         # Input/output specifications:
         in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding
@@ -71,7 +71,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             # graph = self.rotation_transform(graph)
             pass
 
-        loss = self.diffusion_loss.update(self, graph)
+        loss = self.train_metric.update(self, graph, self.t_emb)
         print("loss", loss["loss"])
         return loss
 
@@ -124,6 +124,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
                     # weights of blacklist modules will NOT be weight decayed
                     no_decay.add(fpn)
                 elif pn.endswith('layer_scale'):
+                    no_decay.add(fpn)
+                elif pn.endswith('gaussian_fourier_proj_w'):
                     no_decay.add(fpn)
 
         # validate that we considered every parameter
