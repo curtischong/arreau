@@ -181,8 +181,8 @@ class DiffusionLoss(torch.nn.Module):
             all_x = [x.clone().cpu()]
             all_h = [h.clone().cpu()]
 
-        for t in tqdm(reversed(range(1, self.T))):
-            t = torch.full((num_atoms.sum(),), fill_value=t)
+        for timestep in tqdm(reversed(range(1, self.T))):
+            t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
             score_x, score_h = self.phi(
                 frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
@@ -197,8 +197,8 @@ class DiffusionLoss(torch.nn.Module):
                 all_x.append(x.clone().cpu())
                 all_h.append(h.clone().cpu())
             
-            if not only_visualize_last:
-                vis_crystal(z_table, h, lattice, x, vis_name + f"_{t}")
+            if not only_visualize_last and timestep % 10 == 0:
+                vis_crystal(z_table, h, lattice, x, vis_name + f"_{timestep}")
 
         if save_freq:
             all_x.append(x.clone().cpu())

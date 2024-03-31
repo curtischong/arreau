@@ -24,4 +24,4 @@ sample_L0 = torch.tensor([dataset[0].L0])
 os.makedirs("out", exist_ok=True)
 vis_name = "out/crystal"
 
-model.sample(sample_L0, num_atoms, vis_name, only_visualize_last=True)
+model.sample(sample_L0, num_atoms, vis_name, only_visualize_last=False)
