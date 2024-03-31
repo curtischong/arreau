@@ -32,16 +32,11 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
         self.rotation_transform = RandomRotate(['pos','vec','y'], n=3)
-        
-        # Shift and scale before callibration
-        self.shift = 0.
-        self.scale = 1.
 
         # The metrics to log
-        self.train_metric = torchmetrics.MeanAbsoluteError()
-        self.valid_metric = torchmetrics.MeanAbsoluteError()
-        self.test_metrics_energy = nn.ModuleList([torchmetrics.MeanAbsoluteError() for r in range(self.repeats)])
-        self.test_metrics_force = nn.ModuleList([torchmetrics.MeanAbsoluteError() for r in range(self.repeats)])
+        self.train_metric = torchmetrics.MeanSquaredError()
+        self.valid_metric = torchmetrics.MeanSquaredError()
+        self.test_metric = torchmetrics.MeanSquaredError()
 
         self.diffusion_loss = DiffusionLoss(args.num_timesteps)
 
@@ -52,20 +47,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
 
         # Make the model
-        # self.model = Ponita(in_channels_scalar + in_channels_vec,
-        #                 args.hidden_dim,
-        #                 out_channels_scalar,
-        #                 args.layers,
-        #                 output_dim_vec=out_channels_vec,
-        #                 radius=args.radius,
-        #                 num_ori=args.num_ori,
-        #                 basis_dim=args.basis_dim,
-        #                 degree=args.degree,
-        #                 widening_factor=args.widening_factor,
-        #                 layer_scale=args.layer_scale,
-        #                 task_level='graph',
-        #                 multiple_readouts=args.multiple_readouts,
-        #                 lift_graph=True)
         self.model = PonitaFiberBundle(in_channels_scalar + in_channels_vec,
                         args.hidden_dim,
                         out_channels_scalar,
@@ -80,25 +61,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
                         task_level='node',
                         multiple_readouts=args.multiple_readouts)
         # should we have lift_graph=True???
-
-    def set_dataset_statistics(self, dataset):
-        pass
-        # ys = np.array([data.energy.item() for data in dataset])
-        # forces = np.concatenate([data.force.numpy() for data in dataset])
-        # self.shift = np.mean(ys)
-        # self.scale = np.sqrt(np.mean(forces**2))
-        # self.min_dist = 1e10
-        # self.max_dist = 0
-        # for data in dataset:
-        #     pos = data.pos
-        #     edm = np.linalg.norm(pos[:,None,:] - pos[None,:,:],axis=-1)
-        #     min_dist = np.min(edm + np.eye(edm.shape[0]) * 1e10)
-        #     max_dist = np.max(edm)
-        #     if min_dist < self.min_dist:
-        #         self.min_dist = min_dist 
-        #     if max_dist > self.max_dist:
-        #         self.max_dist = max_dist 
-        # print('Min-max range of distances between atoms in the dataset:', self.min_dist, '-', self.max_dist)
 
     def forward(self, graph):
         return self.model(graph)
@@ -117,7 +79,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def on_train_epoch_end(self):
         self.log("train MAE (energy)", self.train_metric, prog_bar=True)
-        self.log("train MAE (force)", self.train_metric_force, prog_bar=True)
 
     def validation_step(self, graph, batch_idx):
         pass
@@ -126,34 +87,14 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # self.valid_metric_force(pred_force * self.scale, graph.force)        
 
     def on_validation_epoch_end(self):
-        self.log("valid MAE (energy)", self.valid_metric, prog_bar=True)
+        self.log("valid MAE", self.valid_metric, prog_bar=True)
     
     def test_step(self, graph, batch_idx):
-        # Repeat the prediction self.repeat number of times and average (makes sense due to random grids)
-        batch_size = graph.batch.max() + 1
-        batch_length = graph.batch.shape[0]
-        graph_repeated = Batch.from_data_list([graph] * self.repeats)
-        # Random rotate graph
-        rot = self.rotation_transform.random_rotation(graph_repeated)
-        graph_repeated = self.rotation_transform.rotate_graph(graph_repeated, rot)
-        # Compute results
-        pred_energy_repeated, pred_force_repeated = self.pred_energy_and_force(graph_repeated)
-        # Unrotate results
-        rot_T = rot.transpose(-2,-1)
-        pred_force_repeated = self.rotation_transform.rotate_attr(pred_force_repeated, rot_T)
-        # Unwrap predictions
-        pred_energy_repeated = pred_energy_repeated.unflatten(0, (self.repeats, batch_size))
-        pred_force_repeated = pred_force_repeated.unflatten(0, (self.repeats, batch_length))
-        # Compute the averages
-        for r in range(self.repeats):
-            pred_energy, pred_force = pred_energy_repeated[:r+1].mean(0), pred_force_repeated[:r+1].mean(0)
-            self.test_metrics_energy[r](pred_energy * self.scale + self.shift, graph.energy)
-            self.test_metrics_force[r](pred_force * self.scale, graph.force)
+        pos_pred = self(graph)
+        self.test_metric(pos_pred, graph.y)  
 
     def on_test_epoch_end(self):
-        for r in range(self.repeats):
-            self.log("test MAE (energy) x"+str(r+1), self.test_metrics_energy[r])
-            self.log("test MAE (force) x"+str(r+1), self.test_metrics_force[r])
+        self.log("test MSE", self.test_metric)
 
     def configure_optimizers(self):
         """
