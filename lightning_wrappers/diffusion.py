@@ -4,6 +4,7 @@ from diffusion.diffusion_helpers import GaussianFourierProjection
 from torch_geometric.data import Batch
 
 from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric
+from diffusion.tools.atomic_number_table import AtomicNumberTable
 
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
@@ -16,8 +17,13 @@ class PONITA_DIFFUSION(pl.LightningModule):
     """
     """
 
-    def __init__(self, args, num_atomic_states: int):
+    def __init__(self, args, z_table: AtomicNumberTable):
         super().__init__()
+
+        self.register_buffer(
+            "z_table_zs", torch.tensor(z_table.zs, dtype=torch.int64) # we need to store this, so when we save the model, we can reference it back to encode/decode the atomic types
+        )
+        num_atomic_states = len(z_table)
 
         # Store some of the relevant args
         self.lr = args.lr

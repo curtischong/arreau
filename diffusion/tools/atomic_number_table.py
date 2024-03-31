@@ -21,10 +21,10 @@ class AtomicNumberTable:
         return self.zs.index(atomic_number)
     
 
-def get_atomic_number_table_from_zs(zs: Iterable[int]) -> AtomicNumberTable:
-    z_set = set()
-    for z in zs:
-        z_set.add(z)
+def get_atomic_number_table_from_zs(zs: set[int]) -> AtomicNumberTable:
+    z_set = set(zs[0]) # copy the original set so we don't modify it
+    for i in range(1, len(zs)):
+        z_set.update(zs[i])
     z_set.add(AtomicNumberTable.MASK_ATOMIC_NUMBER)
     return AtomicNumberTable(sorted(list(z_set)))
 

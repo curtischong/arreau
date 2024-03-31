@@ -1,6 +1,7 @@
 import argparse
 import os
 from diffusion.lattice_dataset import CrystalDataset
+from diffusion.tools.atomic_number_table import get_atomic_number_table_from_zs
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
@@ -112,17 +113,29 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
-    dataset = CrystalDataset()
+    train_dataset = CrystalDataset([
+        "datasets/alexandria_hdf5/alexandria_ps_000.h5",
+        "datasets/alexandria_hdf5/alexandria_ps_001.h5",
+        "datasets/alexandria_hdf5/alexandria_ps_002.h5",
+    ])
+    valid_dataset = CrystalDataset([
+        "datasets/alexandria_hdf5/alexandria_ps_003.h5",
+    ])
+    test_dataset = CrystalDataset([
+        "datasets/alexandria_hdf5/alexandria_ps_004.h5",
+    ])
 
-    # # Load the dataset and set the dataset specific settings
-    # dataset_train = NBodyDataset(partition='train', dataset_name=args.dataset,
-    #                              max_samples=args.max_training_samples)
-    # dataset_val = NBodyDataset(partition='val', dataset_name="nbody_small")
-    # dataset_test = NBodyDataset(partition='test', dataset_name="nbody_small")
+    z_table = get_atomic_number_table_from_zs([
+        train_dataset.unique_atomic_numbers,
+        valid_dataset.unique_atomic_numbers,
+        test_dataset.unique_atomic_numbers
+    ])
+    print(f"There are {len(z_table)} unique atomic numbers")
+    train_dataset.set_z_table(z_table)
+    valid_dataset.set_z_table(z_table)
+    test_dataset.set_z_table(z_table)
     
-    # Make the dataloaders
-    # TODO: use real datasets
-    datasets = {'train': dataset, 'valid': dataset, 'test': dataset}
+    datasets = {'train': train_dataset, 'valid': valid_dataset, 'test': test_dataset}
 
     # TODO: look into using this make_pgy_loader, since it automatically attaches edges. We are not using it here since we purturb the location of the atoms later.
     # if we are using it, we should use it there
@@ -143,7 +156,7 @@ if __name__ == "__main__":
     
     # ------------------------ Load and initialize the model
 
-    model = PONITA_DIFFUSION(args, dataset.num_atomic_states)
+    model = PONITA_DIFFUSION(args, z_table)
 
     # ------------------------ Weights and Biases logger
 

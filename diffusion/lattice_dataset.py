@@ -6,7 +6,7 @@ import torch
 from diffusion.atomic_data import AtomicData
 from torch_geometric.data import Data
 
-from diffusion.tools.atomic_number_table import atomic_numbers_to_indices, get_atomic_number_table_from_zs, to_one_hot
+from diffusion.tools.atomic_number_table import AtomicNumberTable, atomic_numbers_to_indices, get_atomic_number_table_from_zs, to_one_hot
 from diffusion.tools.neighborhood import get_neighborhood
 
 
@@ -47,27 +47,25 @@ def load_dataset(file_path) -> list[Configuration]:
             L0 = lattice_matrix[i],
         )
         dataset.append(config)
-    print(f"num training samples: {len(dataset)}")
-    # for i in range(len(dataset)):
-    #     print(i, dataset[i].atomic_numbers)
-    # return dataset[:4]
-    # return dataset[:5]
     return dataset
 
 class CrystalDataset(Dataset):
-    def __init__(self, cutoff: int = 5.0):
-        configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
+    def __init__(self, config_paths: list[str], cutoff: int = 5.0):
+        # configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
         # configs = load_dataset("datasets/alexandria_hdf5/alexandria_ps_000.h5")
-        z_table = get_atomic_number_table_from_zs(
-            z
-            for config in configs
-            for z in config.atomic_numbers
-        )
+        self.unique_atomic_numbers = set()
+        configs = []
+        for config_path in config_paths:
+            configs += load_dataset(config_path)
+        for config in configs:
+            self.unique_atomic_numbers.update(set(config.atomic_numbers))
         self.configs = configs
-        self.z_table = z_table
         self.cutoff = cutoff
+        print(f"finished loading datasets {str(config_paths)}. Found {len(self.configs)} entries")
+
+    def set_z_table(self, z_table: AtomicNumberTable):
+        self.z_table = z_table
         self.num_atomic_states = len(z_table)
-        # print("finished loading dataset")
 
     # maybe we should move this to utils? oh. it does depend on self.z_table though
     def one_hot_encode_atomic_numbers(self, atomic_numbers: np.ndarray) -> np.ndarray:
