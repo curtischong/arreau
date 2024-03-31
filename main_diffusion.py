@@ -6,7 +6,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
-from lightning_wrappers.callbacks import EpochTimer
+from lightning_wrappers.callbacks import EMA, EpochTimer
 
 
 # ------------------------ Function to convert the nbody dataset to a dataloader for pytorch geometric graphs
@@ -158,7 +158,8 @@ if __name__ == "__main__":
     pl.seed_everything(args.seed, workers=True)
     
     # Pytorch lightning call backs
-    callbacks = [pl.callbacks.ModelCheckpoint(monitor='valid loss', mode = 'min'),
+    callbacks = [EMA(0.99),
+                pl.callbacks.ModelCheckpoint(monitor='valid loss', mode = 'min'),
                  EpochTimer()]
     if args.log: callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
 
