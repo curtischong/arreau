@@ -47,10 +47,10 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.diffusion_loss = DiffusionLoss(args.num_timesteps)
 
         # Input/output specifications:
-        in_channels_scalar = num_atomic_states + 1 # atomic_number + variance
+        in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding
         in_channels_vec = 0 # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states # atomic_number
-        out_channels_vec = 3  # The cartesian_pos score (gradient of where the atom should be in the next step)
+        out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
 
         # Make the model
         self.model = Ponita(in_channels_scalar + in_channels_vec,
@@ -95,12 +95,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         if self.train_augm:
             graph = self.rotation_transform(graph)
 
-        # pred_energy, pred_force = self.pred_energy_and_force(graph)
-        
-        # energy_loss = torch.mean((pred_energy - (graph.energy - self.shift) / self.scale)**2)
-        # force_loss = torch.mean(torch.sum((pred_force - graph.force / self.scale)**2,-1)) / 3.
-        # loss = energy_loss / self.lambda_F + force_loss
-        loss  = self.diffusion_loss(self, graph)
+        loss = self.diffusion_loss(self, graph)
 
         # self.train_metric(pred_energy * self.scale + self.shift, graph.energy)
         # self.train_metric_force(pred_force * self.scale, graph.force)
