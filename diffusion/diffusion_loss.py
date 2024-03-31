@@ -56,11 +56,14 @@ class DiffusionLoss:
         h_time = torch.cat([h_t, t_emb], dim=1)
         # frac_x_t = x_t if frac else cart_to_frac_coords(x_t, lattice, num_atoms)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
-        # batch.x = h_t
-        # batch.pos = cart_x_t
+        batch.x = h_time
+        batch.pos = cart_x_t
         pred_eps_x, pred_eps_h = model(
-            x = h_time,
-            pos = cart_x_t,
+            batch
+            # Batch(x=h_time, pos=cart_x_t, batch=batch.batch, L0=lattice, num_atoms=num_atoms)
+            # x = h_time,
+            # pos = cart_x_t,
+            # lattice=lattice,
             # num_atoms=num_atoms,
         )
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)

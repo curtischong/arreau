@@ -80,7 +80,7 @@ if __name__ == "__main__":
                         help='MD17 target')
     
     # Graph connectivity settings
-    parser.add_argument('--radius', type=eval, default=None,
+    parser.add_argument('--radius', type=int, default=None,
                         help='radius for the radius graph construction in front of the force loss')
     parser.add_argument('--loop', type=eval, default=True,
                         help='enable self interactions')
