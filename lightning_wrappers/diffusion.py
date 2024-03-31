@@ -43,7 +43,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.diffusion_loss = DiffusionLoss(args.num_timesteps)
 
         # Input/output specifications:
-        in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding
+        in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding (from GaussianFourierProjection)
         in_channels_vec = 0 # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
@@ -75,7 +75,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
         self.train_metric.update(loss["loss"], graph)
-        print("loss", loss["loss"])
         return loss
 
     def on_train_epoch_end(self):

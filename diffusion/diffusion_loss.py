@@ -16,7 +16,6 @@ type_clipmax = 0.999
 class DiffusionLossMetric(torchmetrics.Metric):
     def __init__(self):
         super().__init__()
-        # torchmetric variables
         self.add_state("total_loss", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("total_samples", default=torch.tensor(0), dist_reduce_fx="sum")
 
@@ -66,18 +65,17 @@ class DiffusionLoss(torch.nn.Module):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
         h_time = torch.cat([h_t, t_emb], dim=1)
-        # frac_x_t = x_t if frac else cart_to_frac_coords(x_t, lattice, num_atoms)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
+
+        # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
+        # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = h_time
         batch.pos = cart_x_t
-        pred_eps_h, pred_eps_x = model(
-            batch
-            # Batch(x=h_time, pos=cart_x_t, batch=batch.batch, L0=lattice, num_atoms=num_atoms)
-            # x = h_time,
-            # pos = cart_x_t,
-            # lattice=lattice,
-            # num_atoms=num_atoms,
-        )
+
+        # compute the predictions
+        pred_eps_h, pred_eps_x = model(batch)
+
+        # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
         return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h

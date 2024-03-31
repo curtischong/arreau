@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--log', type=eval, default=True,
                         help='logging flag')
     parser.add_argument('--enable_progress_bar', type=eval, default=False,
-                    help='enable progress bar')
+                        help='enable progress bar')
     parser.add_argument('--num_workers', type=int, default=0,
                         help='Num workers in dataloader')
     parser.add_argument('--seed', type=int, default=0,
@@ -58,13 +58,13 @@ if __name__ == "__main__":
     
     # Train settings
     parser.add_argument('--train_augm', type=eval, default=True,
-                    help='whether or not to use random rotations during training')
+                        help='whether or not to use random rotations during training')
     
     # nbody Dataset
     parser.add_argument('--max_training_samples', type=int, default=3000, metavar='N',
-                    help='maximum amount of training samples')
+                        help='maximum amount of training samples')
     parser.add_argument('--dataset', type=str, default="nbody_small", metavar='N',
-                    help='nbody_small, nbody')
+                        help='nbody_small, nbody')
     
     # Graph connectivity settings
     parser.add_argument('--radius', type=eval, default=None,
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--loop', type=eval, default=True,
                         help='enable self interactions')
     
-    # PONTA model settings    
+    # PONTA model settings
     parser.add_argument('--num_ori', type=int, default=16,
                         help='num elements of spherical grid')
     parser.add_argument('--hidden_dim', type=int, default=128,
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument('--widening_factor', type=int, default=4,
                         help='Number of message passing layers')
     parser.add_argument('--layer_scale', type=float, default=1e-6,
-                    help='Initial layer scale factor in ConvNextBlock, 0 means do not use layer scale')
+                        help='Initial layer scale factor in ConvNextBlock, 0 means do not use layer scale')
     parser.add_argument('--multiple_readouts', type=eval, default=True,
                         help='Whether or not to readout after every layer')
     parser.add_argument('--num_timesteps', type=int,
@@ -121,6 +121,7 @@ if __name__ == "__main__":
     # dataset_test = NBodyDataset(partition='test', dataset_name="nbody_small")
     
     # Make the dataloaders
+    # TODO: use real datasets
     datasets = {'train': dataset, 'valid': dataset, 'test': dataset}
 
     # TODO: look into using this make_pgy_loader, since it automatically attaches edges. We are not using it here since we purturb the location of the atoms later.
