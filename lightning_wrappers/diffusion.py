@@ -31,7 +31,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
-        self.rotation_transform = RandomRotate(['pos','vec','y'], n=3)
+        self.rotation_transform = RandomRotate(['pos', 'L0'], n=3) # TODO: I'm not sure if we can rotate each of these matricies like this. Maybe it works?
+        # Note I'm not rotating the fractional coords "X0", since these are lengths
 
         # The metrics to log
         self.train_metric = torchmetrics.MeanSquaredError()
@@ -67,7 +68,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def training_step(self, graph):
         if self.train_augm:
-            graph = self.rotation_transform(graph)
+            # TODO: fix this. because L0's dimension is NOT the same as the number of atoms, this rotate_transform function will not work
+            # graph = self.rotation_transform(graph)
+            pass
 
         loss = self.diffusion_loss(self, graph)
 
