@@ -1,6 +1,7 @@
 import argparse
 import os
 from diffusion.lattice_dataset import CrystalDataset
+from diffusion.tools.atomic_number_table import get_atomic_number_table_from_zs
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
@@ -123,6 +124,15 @@ if __name__ == "__main__":
     test_dataset = CrystalDataset([
         "datasets/alexandria_hdf5/alexandria_ps_004.h5",
     ])
+
+    z_table = get_atomic_number_table_from_zs([
+        train_dataset.unique_atomic_numbers,
+        valid_dataset.unique_atomic_numbers,
+        test_dataset.unique_atomic_numbers
+    ])
+    train_dataset.set_z_table(z_table)
+    valid_dataset.set_z_table(z_table)
+    test_dataset.set_z_table(z_table)
     
     datasets = {'train': train_dataset, 'valid': valid_dataset, 'test': test_dataset}
 
@@ -145,7 +155,7 @@ if __name__ == "__main__":
     
     # ------------------------ Load and initialize the model
 
-    model = PONITA_DIFFUSION(args, dataset.num_atomic_states)
+    model = PONITA_DIFFUSION(args, z_table)
 
     # ------------------------ Weights and Biases logger
 
