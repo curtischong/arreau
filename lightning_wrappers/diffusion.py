@@ -156,7 +156,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
     @torch.no_grad()
     def sample(
         self,
-        num_atoms: int,
         lattice: np.ndarray,
+        num_atoms: int,
     ):
-        self.diffusion_loss.sample(self, lattice, num_atoms, save_freq=False)
+        num_atomic_states = len(self.z_table_zs)
+        return self.diffusion_loss.sample(self, lattice, self.t_emb, num_atoms, num_atomic_states, save_freq=False)

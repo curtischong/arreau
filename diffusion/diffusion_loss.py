@@ -4,9 +4,9 @@ from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
-from diffusion.diffusion_helpers import VP, VE_pbc, frac_to_cart_coords, subtract_cog
+from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
 
 
 pos_sigma_min = 0.001
@@ -154,27 +154,31 @@ class DiffusionLoss(torch.nn.Module):
         self,
         model,
         lattice: np.ndarray,
+        t_emb_weights,
         num_atoms: int,
-        save_freq=False,
+        num_atomic_states: int,
+        save_freq=False
     ):
-
+        # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
+        # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
         x = (
-            torch.randn([num_atoms.sum(), 3], device=self.device)
+            torch.randn([num_atoms.sum(), 3], dtype=torch.get_default_dtype())
             * pos_sigma_max
         )
+        frac_x = cart_to_frac_coords(x, lattice, num_atoms)
         x = frac_to_cart_coords(frac_x, lattice, num_atoms)
 
-        h = torch.randn([num_atoms.sum(), self.bb_emb_dim], device=self.device)
+        h = torch.randn([num_atoms.sum(), num_atomic_states])
 
         if save_freq:
             all_x = [x.clone().cpu()]
             all_h = [h.clone().cpu()]
 
         for t in tqdm(reversed(range(1, self.T))):
-            t = torch.full((num_atoms.sum(),), fill_value=t, device=self.device)
+            t = torch.full((num_atoms.sum(),), fill_value=t)
 
             score_x, score_h = self.phi(
-                frac_x, h, t, num_atoms, lattice, model, Batch(), frac=True
+                frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
             )
             frac_x = self.pos_diffusion.reverse(
                 x, score_x, t, lattice, num_atoms
