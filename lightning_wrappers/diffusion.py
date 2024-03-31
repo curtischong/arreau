@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 from diffusion.diffusion_loss import DiffusionLoss
 
 from .scheduler import CosineWarmupScheduler
-from ponita.models.ponita import Ponita
+from ponita.models.ponita import Ponita, PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate
 
 
@@ -32,7 +32,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
-        self.rotation_transform = RandomRotate(['pos','force'], n=3)
+        self.rotation_transform = RandomRotate(['pos'], n=3)
         
         # Shift and scale before callibration
         self.shift = 0.
@@ -53,20 +53,34 @@ class PONITA_DIFFUSION(pl.LightningModule):
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
 
         # Make the model
-        self.model = Ponita(in_channels_scalar + in_channels_vec,
+        # self.model = Ponita(in_channels_scalar + in_channels_vec,
+        #                 args.hidden_dim,
+        #                 out_channels_scalar,
+        #                 args.layers,
+        #                 output_dim_vec=out_channels_vec,
+        #                 radius=args.radius,
+        #                 num_ori=args.num_ori,
+        #                 basis_dim=args.basis_dim,
+        #                 degree=args.degree,
+        #                 widening_factor=args.widening_factor,
+        #                 layer_scale=args.layer_scale,
+        #                 task_level='graph',
+        #                 multiple_readouts=args.multiple_readouts,
+        #                 lift_graph=True)
+        self.model = PonitaFiberBundle(in_channels_scalar + in_channels_vec,
                         args.hidden_dim,
                         out_channels_scalar,
                         args.layers,
-                        output_dim_vec=out_channels_vec,
+                        output_dim_vec = out_channels_vec,
                         radius=args.radius,
                         num_ori=args.num_ori,
                         basis_dim=args.basis_dim,
                         degree=args.degree,
                         widening_factor=args.widening_factor,
                         layer_scale=args.layer_scale,
-                        task_level='graph',
-                        multiple_readouts=args.multiple_readouts,
-                        lift_graph=True)
+                        task_level='node',
+                        multiple_readouts=args.multiple_readouts)
+        # should we have lift_graph=True???
 
     def set_dataset_statistics(self, dataset):
         pass
@@ -88,8 +102,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # print('Min-max range of distances between atoms in the dataset:', self.min_dist, '-', self.max_dist)
 
     def forward(self, graph):
-        pred, _ = self.model(graph)
-        return pred.squeeze(-1)
+        return self.model(graph)
 
     def training_step(self, graph):
         if self.train_augm:

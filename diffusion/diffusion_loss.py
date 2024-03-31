@@ -58,7 +58,7 @@ class DiffusionLoss:
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
         batch.x = h_time
         batch.pos = cart_x_t
-        pred_eps_x, pred_eps_h = model(
+        pred_eps_h, pred_eps_x = model(
             batch
             # Batch(x=h_time, pos=cart_x_t, batch=batch.batch, L0=lattice, num_atoms=num_atoms)
             # x = h_time,
@@ -68,7 +68,7 @@ class DiffusionLoss:
         )
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
-        return pred_eps_x / used_sigmas_x, pred_eps_h
+        return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h
     
     def normalize(self, x, h, lengths):
         x = x / self.norm_x
@@ -120,7 +120,7 @@ class DiffusionLoss:
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        loss = self.hparams.cost_coord * error_x + self.hparams.cost_type * error_h
+        loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
 
         return {
             "t": t_int.squeeze(),

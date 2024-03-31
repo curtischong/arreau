@@ -207,6 +207,7 @@ def min_distance_sqr_pbc(
 
     return return_list[0] if len(return_list) == 1 else return_list
 
+# cog = center of gravity (it centers each crystal)
 def subtract_cog(x, num_atoms):
     batch = torch.arange(num_atoms.size(0), device=num_atoms.device).repeat_interleave(
         num_atoms, dim=0
