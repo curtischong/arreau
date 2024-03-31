@@ -197,7 +197,7 @@ class DiffusionLoss(torch.nn.Module):
                 all_x.append(x.clone().cpu())
                 all_h.append(h.clone().cpu())
             
-            if not only_visualize_last and timestep % 10 == 0:
+            if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
                 vis_crystal(z_table, h, lattice, x, vis_name + f"_{timestep}")
 
         if save_freq:
