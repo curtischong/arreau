@@ -2,6 +2,9 @@ from pymatgen.core import Structure, Lattice
 from pymatgen.core.periodic_table import Element
 import numpy as np
 import plotly.graph_objects as go
+import torch
+
+from diffusion.tools.atomic_number_table import AtomicNumberTable
 
 def plot_with_parallelopied(fig, L):
     v1 = L[0]
@@ -64,9 +67,10 @@ def element_color(symbol):
     # Return the color for the given chemical symbol, or a default color if not found
     return color_map.get(symbol, "#808080")  # Default color is gray
 
-def vis_crystal(A, L_t, X, name):
+def vis_crystal(z_table: AtomicNumberTable, A, L_t, X, name):
     lattice = Lattice(L_t)
-    element_symbols = [Element.from_Z(z).symbol for z in A]
+    atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
+    element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []
     for i in range(len(A)):
         pos_arr.append(X[i].tolist())
@@ -105,4 +109,4 @@ def vis_crystal(A, L_t, X, name):
     )
 
     # Save the plot as a PNG file
-    fig.write_image(name)
+    fig.write_image(name + ".png")

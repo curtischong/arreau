@@ -2,6 +2,8 @@ import argparse
 import numpy as np
 import torch
 from diffusion.lattice_dataset import load_dataset
+from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.visualize_crystal import vis_crystal
 
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 
@@ -19,5 +21,5 @@ num_atoms=torch.tensor([5])
 dataset = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
 sample_L0 = torch.tensor([dataset[0].L0])
 # sample_X0 = dataset[0].X0
-
-print(model.sample(sample_L0, num_atoms))
+vis_name = "crystal"
+model.sample(sample_L0, num_atoms, vis_name, only_visualize_last=True)

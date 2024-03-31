@@ -7,6 +7,8 @@ import numpy as np
 from tqdm import tqdm
 
 from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
+from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.visualize_crystal import vis_crystal
 
 
 pos_sigma_min = 0.001
@@ -153,12 +155,15 @@ class DiffusionLoss(torch.nn.Module):
     def sample(
         self,
         model,
+        z_table: AtomicNumberTable,
         lattice: np.ndarray,
         t_emb_weights,
         num_atoms: int,
-        num_atomic_states: int,
+        vis_name: str,
+        only_visualize_last: bool,
         save_freq=False
     ):
+        num_atomic_states = len(z_table)
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
         x = (
@@ -189,6 +194,9 @@ class DiffusionLoss(torch.nn.Module):
             if save_freq and (t[0] % save_freq == 0):
                 all_x.append(x.clone().cpu())
                 all_h.append(h.clone().cpu())
+            
+            if not only_visualize_last:
+                vis_crystal(z_table, h, lattice, x, vis_name + f"_{t}")
 
         if save_freq:
             all_x.append(x.clone().cpu())
@@ -202,6 +210,7 @@ class DiffusionLoss(torch.nn.Module):
             "num_atoms": num_atoms,
             "lattice": lattice,
         }
+        vis_crystal(z_table, h, lattice, x, vis_name + "_final")
 
         if save_freq:
             output.update(

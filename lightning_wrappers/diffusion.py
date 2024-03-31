@@ -158,6 +158,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self,
         lattice: np.ndarray,
         num_atoms: int,
+        vis_name: str,
+        only_visualize_last: bool, 
     ):
-        num_atomic_states = len(self.z_table_zs)
-        return self.diffusion_loss.sample(self, lattice, self.t_emb, num_atoms, num_atomic_states, save_freq=False)
+        z_table = AtomicNumberTable(self.z_table_zs.tolist())
+        return self.diffusion_loss.sample(self, z_table, lattice, self.t_emb, num_atoms, vis_name, only_visualize_last, save_freq=False)
