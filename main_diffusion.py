@@ -161,7 +161,7 @@ if __name__ == "__main__":
     # ------------------------ Weights and Biases logger
 
     if args.log:
-        logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name='siva', config=args, save_dir='logs')
+        logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name='diffusion-no-transformations', config=args, save_dir='logs')
     else:
         logger = None
 
