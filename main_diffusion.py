@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     # ------------------------ Weights and Biases logger
 
-    if args.log: # Only log if we are not using the dev dataset
+    if args.log:
         if not args.experiment_name:
             raise ValueError("You need to specify an experiment name")
         logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name=args.experiment_name, config=args, save_dir='logs')
@@ -190,7 +190,6 @@ if __name__ == "__main__":
     
     # Pytorch lightning call backs
     callbacks = [EMA(0.99),
-                # pl.callbacks.ModelCheckpoint(monitor='valid loss', mode = 'min'),
                 pl.callbacks.ModelCheckpoint(
                     dirpath='checkpoints',
                     filename='model-{epoch:02d}-{valid_loss:.2f}',
