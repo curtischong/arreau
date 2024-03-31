@@ -47,7 +47,6 @@ def load_dataset(file_path) -> list[Configuration]:
             L0 = lattice_matrix[i],
         )
         dataset.append(config)
-    # print(f"num samples: {len(dataset)}")
     return dataset
 
 class CrystalDataset(Dataset):

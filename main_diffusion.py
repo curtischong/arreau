@@ -130,6 +130,7 @@ if __name__ == "__main__":
         valid_dataset.unique_atomic_numbers,
         test_dataset.unique_atomic_numbers
     ])
+    print(f"There are {len(z_table)} unique atomic numbers")
     train_dataset.set_z_table(z_table)
     valid_dataset.set_z_table(z_table)
     test_dataset.set_z_table(z_table)
