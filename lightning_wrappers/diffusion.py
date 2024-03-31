@@ -6,7 +6,7 @@ import torchmetrics
 from torch_geometric.data import Batch
 import pytorch_lightning as pl
 
-from diffusion.diffusion_loss import DiffusionLoss
+from diffusion.diffusion_loss import DiffusionLossMetric
 
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import Ponita, PonitaFiberBundle
@@ -38,7 +38,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.valid_metric = torchmetrics.MeanSquaredError()
         self.test_metric = torchmetrics.MeanSquaredError()
 
-        self.diffusion_loss = DiffusionLoss(args.num_timesteps)
+        self.diffusion_loss = DiffusionLossMetric(args.num_timesteps)
 
         # Input/output specifications:
         in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding
@@ -71,12 +71,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
             # graph = self.rotation_transform(graph)
             pass
 
-        loss = self.diffusion_loss(self, graph)
-
-        # self.train_metric(pred_energy * self.scale + self.shift, graph.energy)
-        # self.train_metric_force(pred_force * self.scale, graph.force)
+        loss = self.diffusion_loss.update(self, graph)
         print("loss", loss["loss"])
-
         return loss
 
     def on_train_epoch_end(self):

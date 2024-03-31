@@ -2,6 +2,7 @@ import torch
 
 from torch_scatter import scatter
 from torch_geometric.data import Batch
+import torchmetrics
 
 from diffusion.diffusion_helpers import VP, GaussianFourierProjection, VE_pbc, frac_to_cart_coords, subtract_cog
 
@@ -13,9 +14,10 @@ type_power = 2
 type_clipmax = 0.999
 fourier_scale = 16
 t_emb_dim = 64
-
-class DiffusionLoss:
+    
+class DiffusionLossMetric(torchmetrics.Metric):
     def __init__(self, num_timesteps):
+        super().__init__()
         self.T = num_timesteps
         self.pos_diffusion = VE_pbc(
             self.T,
@@ -36,6 +38,10 @@ class DiffusionLoss:
         self.t_emb = GaussianFourierProjection(
             t_emb_dim // 2, fourier_scale
         )
+
+        # torchmetric variables
+        self.add_state("total_loss", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total_samples", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -76,7 +82,10 @@ class DiffusionLoss:
         h = h / self.norm_h
         return x, h, lengths
     
-    def __call__(self, model, batch, t_int=None):
+    def compute(self):
+        return self.total_loss / self.total_samples
+    
+    def update(self, model, batch, t_int=None):
         """
         input x has to be cart coords.
         """
@@ -121,6 +130,10 @@ class DiffusionLoss:
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
+
+        self.total_loss += loss.sum()
+        num_batches = torch.unique(batch.batch).size(0)
+        self.total_samples += num_batches
 
         return {
             "t": t_int.squeeze(),
