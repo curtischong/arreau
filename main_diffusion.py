@@ -92,6 +92,8 @@ if __name__ == "__main__":
                         help='Whether or not to readout after every layer')
     parser.add_argument('--num_timesteps', type=int,
                         help='the number of diffusion timesteps')
+    parser.add_argument('--use_dev_dataset', type=bool, default=False,
+                        help='the number of diffusion timesteps')
     
     # Parallel computing stuff
     parser.add_argument('-g', '--gpus', default=1, type=int,
@@ -113,8 +115,8 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
-    is_dev = True
-    if is_dev:
+    if args.use_dev_dataset:
+        print("Using dev dataset")
         train_dataset = CrystalDataset([
             "datasets/alexandria_hdf5/10_examples.h5",
         ])
