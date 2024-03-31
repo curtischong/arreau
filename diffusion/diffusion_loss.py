@@ -12,8 +12,23 @@ pos_sigma_max = 10.
 
 type_power = 2
 type_clipmax = 0.999
-    
+
 class DiffusionLossMetric(torchmetrics.Metric):
+    def __init__(self):
+        super().__init__()
+        # torchmetric variables
+        self.add_state("total_loss", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total_samples", default=torch.tensor(0), dist_reduce_fx="sum")
+
+    def compute(self):
+        return self.total_loss / self.total_samples
+    
+    def update(self, loss, batch: Batch):
+        self.total_loss += loss.sum()
+        num_batches = torch.unique(batch.batch).size(0)
+        self.total_samples += num_batches
+    
+class DiffusionLoss(torch.nn.Module):
     def __init__(self, num_timesteps):
         super().__init__()
         self.T = num_timesteps
@@ -33,10 +48,6 @@ class DiffusionLossMetric(torchmetrics.Metric):
         self.cost_type_coeff = 1
         self.norm_x = 10.
         self.norm_h = 10.
-
-        # torchmetric variables
-        self.add_state("total_loss", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("total_samples", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -77,10 +88,7 @@ class DiffusionLossMetric(torchmetrics.Metric):
         h = h / self.norm_h
         return x, h, lengths
     
-    def compute(self):
-        return self.total_loss / self.total_samples
-    
-    def update(self, model, batch, t_emb_weights, t_int=None):
+    def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
         input x has to be cart coords.
         """
@@ -125,10 +133,6 @@ class DiffusionLossMetric(torchmetrics.Metric):
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
-
-        self.total_loss += loss.sum()
-        num_batches = torch.unique(batch.batch).size(0)
-        self.total_samples += num_batches
 
         return {
             "t": t_int.squeeze(),

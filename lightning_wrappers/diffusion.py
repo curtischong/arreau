@@ -1,8 +1,9 @@
 import torch
 import pytorch_lightning as pl
 from diffusion.diffusion_helpers import GaussianFourierProjection
+from torch_geometric.data import Batch
 
-from diffusion.diffusion_loss import DiffusionLossMetric
+from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric
 
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
@@ -36,9 +37,10 @@ class PONITA_DIFFUSION(pl.LightningModule):
         )
 
         # The metrics to log
-        self.train_metric = DiffusionLossMetric(args.num_timesteps)
-        self.valid_metric = DiffusionLossMetric(args.num_timesteps)
-        self.test_metric = DiffusionLossMetric(args.num_timesteps)
+        self.train_metric = DiffusionLossMetric()
+        self.valid_metric = DiffusionLossMetric()
+        self.test_metric = DiffusionLossMetric()
+        self.diffusion_loss = DiffusionLoss(args.num_timesteps)
 
         # Input/output specifications:
         in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding
@@ -65,13 +67,14 @@ class PONITA_DIFFUSION(pl.LightningModule):
     def forward(self, graph):
         return self.model(graph)
 
-    def training_step(self, graph):
+    def training_step(self, graph:Batch):
         if self.train_augm:
             # TODO: fix this. because L0's dimension is NOT the same as the number of atoms, this rotate_transform function will not work
             # graph = self.rotation_transform(graph)
             pass
 
-        loss = self.train_metric.update(self, graph, self.t_emb)
+        loss = self.diffusion_loss(self, graph, self.t_emb)
+        self.train_metric.update(loss["loss"], graph)
         print("loss", loss["loss"])
         return loss
 

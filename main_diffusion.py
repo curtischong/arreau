@@ -2,13 +2,11 @@ import argparse
 import os
 from diffusion.lattice_dataset import CrystalDataset
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
-from n_body_system.dataset_nbody import NBodyDataset
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
 from lightning_wrappers.callbacks import EpochTimer, EMA
-from lightning_wrappers.nbody import PONITA_NBODY
 
 
 # ------------------------ Function to convert the nbody dataset to a dataloader for pytorch geometric graphs
