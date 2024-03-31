@@ -15,6 +15,7 @@
                 "--num_timesteps=100",
                 "--gpus=0", // force it to use cpu (for development)
                 "--radius=5", // cutoff distance 
+                "--num_workers=-1", // number of workers to load the dataset
             ],
         },
         {

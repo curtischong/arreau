@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # nbody Dataset
     parser.add_argument('--max_training_samples', type=int, default=3000, metavar='N',
                         help='maximum amount of training samples')
-    parser.add_argument('--dataset', type=str, default="nbody_small", metavar='N',
+    parser.add_argument('--dataset', type=str, default="alexandria", metavar='N',
                         help='nbody_small, nbody')
     
     # Graph connectivity settings
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     # Make the dataloaders
     dataloaders = {
-        split: DataLoader(dataset, batch_size=args.batch_size, shuffle=(split == 'train'), num_workers=args.num_workers)
+        split: DataLoader(dataset, batch_size=args.batch_size, shuffle=(split == 'train'), num_workers=args.num_workers, persistent_workers=True)
         for split, dataset in datasets.items()}
     
     # ------------------------ Load and initialize the model
@@ -167,6 +167,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer(logger=logger, max_epochs=args.epochs, callbacks=callbacks, gradient_clip_val=0.5, 
                          accelerator=accelerator, devices=devices, check_val_every_n_epoch=args.val_interval,
                          enable_progress_bar=args.enable_progress_bar)
+                        #  log_every_n_steps=1) # TODO: increase this
 
     # Do the training
     trainer.fit(model, dataloaders['train'], dataloaders['valid'])
