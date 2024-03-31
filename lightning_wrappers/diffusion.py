@@ -26,13 +26,12 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.weight_decay = args.weight_decay
         self.epochs = args.epochs
         self.warmup = args.warmup
-        self.lambda_F = args.lambda_F
         if args.layer_scale == 0.:
             args.layer_scale = None
 
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
-        self.rotation_transform = RandomRotate(['pos'], n=3)
+        self.rotation_transform = RandomRotate(['pos','vec','y'], n=3)
         
         # Shift and scale before callibration
         self.shift = 0.
@@ -112,6 +111,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # self.train_metric(pred_energy * self.scale + self.shift, graph.energy)
         # self.train_metric_force(pred_force * self.scale, graph.force)
+        print("loss", loss["loss"])
 
         return loss
 

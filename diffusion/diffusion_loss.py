@@ -124,7 +124,7 @@ class DiffusionLoss:
 
         return {
             "t": t_int.squeeze(),
-            "diffusion_loss": loss.mean(),
+            "loss": loss.mean(), # needs to be called "loss" for pytorch lightning to see it.
             "coord_loss": error_x.mean(),
             "type_loss": error_h.mean(),
             "pred_eps_x": pred_eps_x,
