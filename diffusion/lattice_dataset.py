@@ -48,16 +48,15 @@ def load_dataset(file_path) -> list[Configuration]:
         )
         dataset.append(config)
     print(f"num training samples: {len(dataset)}")
-    # for i in range(len(dataset)):
-    #     print(i, dataset[i].atomic_numbers)
-    # return dataset[:4]
-    # return dataset[:5]
     return dataset
 
 class CrystalDataset(Dataset):
-    def __init__(self, cutoff: int = 5.0):
-        configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
+    def __init__(self, config_paths: list[str], cutoff: int = 5.0):
+        # configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
         # configs = load_dataset("datasets/alexandria_hdf5/alexandria_ps_000.h5")
+        configs = []
+        for config_path in config_paths:
+            configs += load_dataset(config_path)
         z_table = get_atomic_number_table_from_zs(
             z
             for config in configs
@@ -67,7 +66,7 @@ class CrystalDataset(Dataset):
         self.z_table = z_table
         self.cutoff = cutoff
         self.num_atomic_states = len(z_table)
-        # print("finished loading dataset")
+        print("finished loading dataset")
 
     # maybe we should move this to utils? oh. it does depend on self.z_table though
     def one_hot_encode_atomic_numbers(self, atomic_numbers: np.ndarray) -> np.ndarray:

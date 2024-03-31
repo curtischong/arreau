@@ -112,17 +112,19 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
-    dataset = CrystalDataset()
-
-    # # Load the dataset and set the dataset specific settings
-    # dataset_train = NBodyDataset(partition='train', dataset_name=args.dataset,
-    #                              max_samples=args.max_training_samples)
-    # dataset_val = NBodyDataset(partition='val', dataset_name="nbody_small")
-    # dataset_test = NBodyDataset(partition='test', dataset_name="nbody_small")
+    train_dataset = CrystalDataset([
+        "datasets/alexandria_hdf5/alexandria_ps_000.h5",
+        "datasets/alexandria_hdf5/alexandria_ps_001.h5",
+        "datasets/alexandria_hdf5/alexandria_ps_002.h5",
+    ])
+    valid_dataset = CrystalDataset([
+        "datasets/alexandria_hdf5/alexandria_ps_003.h5",
+    ])
+    test_dataset = CrystalDataset([
+        "datasets/alexandria_hdf5/alexandria_ps_004.h5",
+    ])
     
-    # Make the dataloaders
-    # TODO: use real datasets
-    datasets = {'train': dataset, 'valid': dataset, 'test': dataset}
+    datasets = {'train': train_dataset, 'valid': valid_dataset, 'test': test_dataset}
 
     # TODO: look into using this make_pgy_loader, since it automatically attaches edges. We are not using it here since we purturb the location of the atoms later.
     # if we are using it, we should use it there
