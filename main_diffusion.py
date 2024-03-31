@@ -94,6 +94,8 @@ if __name__ == "__main__":
                         help='the number of diffusion timesteps')
     parser.add_argument('--use_dev_dataset', type=bool, default=False,
                         help='the number of diffusion timesteps')
+    parser.add_argument('--experiment_name', type=str,
+                        help='the number of diffusion timesteps')
     
     # Parallel computing stuff
     parser.add_argument('-g', '--gpus', default=1, type=int,
@@ -174,8 +176,10 @@ if __name__ == "__main__":
 
     # ------------------------ Weights and Biases logger
 
-    if args.log:
-        logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name='diffusion-no-transformations', config=args, save_dir='logs')
+    if args.log and not args.use_dev_dataset: # Only log if we are not using the dev dataset
+        if not args.experiment_name:
+            raise ValueError("You need to specify an experiment name")
+        logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name=args.experiment_name, config=args, save_dir='logs')
     else:
         logger = None
 
