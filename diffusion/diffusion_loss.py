@@ -49,8 +49,10 @@ class DiffusionLoss(torch.nn.Module):
 
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
-        self.norm_x = 10.
-        self.norm_h = 10.
+        # self.norm_x = 10. # I'm not sure why mofdiff uses these values. I'm going to use 1.0 for now.
+        # self.norm_h = 10.
+        self.norm_x = 1.
+        self.norm_h = 1.
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -202,7 +204,7 @@ class DiffusionLoss(torch.nn.Module):
             all_x.append(x.clone().cpu())
             all_h.append(h.clone().cpu())
 
-        x, h = self.unnormalize(x, h)
+        x, h = self.unnormalize(x, h) # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         output = {
             "x": x,

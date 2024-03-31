@@ -68,15 +68,17 @@ def element_color(symbol):
     return color_map.get(symbol, "#808080")  # Default color is gray
 
 def vis_crystal(z_table: AtomicNumberTable, A, L_t, X, name):
+    L_t = L_t[0] # only get the first lattice vector in the batch
     lattice = Lattice(L_t)
     atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
-    element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
+    max_atomic_number = 118
+    element_symbols = [Element.from_Z(min(z,max_atomic_number)).symbol for z in atomic_numbers] # we need to cap the atomic number at 118 so the mask state appears in the output
     pos_arr = []
     for i in range(len(A)):
         pos_arr.append(X[i].tolist())
 
     # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
-    structure = Structure(lattice, element_symbols, pos_arr, coords_are_cartesian=False)
+    structure = Structure(lattice, element_symbols, pos_arr, coords_are_cartesian=True)
   
     # Create a Plotly figure
     fig = go.Figure()
