@@ -4,7 +4,7 @@ from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 
-from diffusion.diffusion_helpers import VP, GaussianFourierProjection, VE_pbc, frac_to_cart_coords, subtract_cog
+from diffusion.diffusion_helpers import VP, VE_pbc, frac_to_cart_coords, subtract_cog
 
 
 pos_sigma_min = 0.001

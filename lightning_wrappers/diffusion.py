@@ -79,16 +79,14 @@ class PONITA_DIFFUSION(pl.LightningModule):
         return loss
 
     def on_train_epoch_end(self):
-        self.log("train MAE (energy)", self.train_metric, prog_bar=True)
+        self.log("train MSE", self.train_metric, prog_bar=True)
 
     def validation_step(self, graph, batch_idx):
-        pass
-        # pred_energy, pred_force = self.pred_energy_and_force(graph)
-        # self.valid_metric(pred_energy * self.scale + self.shift, graph.energy)
-        # self.valid_metric_force(pred_force * self.scale, graph.force)        
+        pos_pred = self(graph)
+        self.valid_metric(pos_pred, graph.y)  
 
     def on_validation_epoch_end(self):
-        self.log("valid MAE", self.valid_metric, prog_bar=True)
+        self.log("valid MSE", self.valid_metric, prog_bar=True)
     
     def test_step(self, graph, batch_idx):
         pos_pred = self(graph)
