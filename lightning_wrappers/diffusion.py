@@ -9,6 +9,7 @@ from diffusion.tools.atomic_number_table import AtomicNumberTable
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate
+import numpy as np
 
 
 fourier_scale = 16
@@ -19,6 +20,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def __init__(self, args, z_table: AtomicNumberTable):
         super().__init__()
+        self.save_hyperparameters()
 
         self.register_buffer(
             "z_table_zs", torch.tensor(z_table.zs, dtype=torch.int64) # we need to store this, so when we save the model, we can reference it back to encode/decode the atomic types
@@ -150,3 +152,14 @@ class PONITA_DIFFUSION(pl.LightningModule):
         optimizer = torch.optim.Adam(optim_groups, lr=self.lr)
         scheduler = CosineWarmupScheduler(optimizer, self.warmup, self.trainer.max_epochs)
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+    
+    @torch.no_grad()
+    def sample(
+        self,
+        lattice: np.ndarray,
+        num_atoms: int,
+        vis_name: str,
+        only_visualize_last: bool, 
+    ):
+        z_table = AtomicNumberTable(self.z_table_zs.tolist())
+        return self.diffusion_loss.sample(self, z_table, lattice, self.t_emb, num_atoms, vis_name, only_visualize_last, save_freq=False)

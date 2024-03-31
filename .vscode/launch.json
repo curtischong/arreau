@@ -16,6 +16,8 @@
                 "--gpus=0", // force it to use cpu (for development)
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
+                "--use_dev_dataset=true",
+                "--experiment_name=local-test"
             ],
         },
         {
@@ -40,6 +42,17 @@
             "args": [
                 "--gpus=0", // force it to use cpu (for development)
                 "--radius=5", // cutoff distance 
+            ],
+        },
+        {
+            "name": "generate",
+            "type": "python",
+            "request": "launch",
+            "program": "main_diffusion_generate.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--model_path=checkpoints/last.ckpt",
             ],
         }
     ]

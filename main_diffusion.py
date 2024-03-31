@@ -92,6 +92,10 @@ if __name__ == "__main__":
                         help='Whether or not to readout after every layer')
     parser.add_argument('--num_timesteps', type=int,
                         help='the number of diffusion timesteps')
+    parser.add_argument('--use_dev_dataset', type=bool, default=False,
+                        help='the number of diffusion timesteps')
+    parser.add_argument('--experiment_name', type=str,
+                        help='the number of diffusion timesteps')
     
     # Parallel computing stuff
     parser.add_argument('-g', '--gpus', default=1, type=int,
@@ -113,8 +117,8 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
-    is_dev = True
-    if is_dev:
+    if args.use_dev_dataset:
+        print("Using dev dataset")
         train_dataset = CrystalDataset([
             "datasets/alexandria_hdf5/10_examples.h5",
         ])
@@ -173,7 +177,9 @@ if __name__ == "__main__":
     # ------------------------ Weights and Biases logger
 
     if args.log:
-        logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name='diffusion-no-transformations', config=args, save_dir='logs')
+        if not args.experiment_name:
+            raise ValueError("You need to specify an experiment name")
+        logger = pl.loggers.WandbLogger(project="PONITA-" + args.dataset, name=args.experiment_name, config=args, save_dir='logs')
     else:
         logger = None
 
@@ -184,7 +190,13 @@ if __name__ == "__main__":
     
     # Pytorch lightning call backs
     callbacks = [EMA(0.99),
-                pl.callbacks.ModelCheckpoint(monitor='valid loss', mode = 'min'),
+                pl.callbacks.ModelCheckpoint(
+                    dirpath='checkpoints',
+                    filename='model-{epoch:02d}-{valid_loss:.2f}',
+                    monitor='valid loss',
+                    mode='min',
+                    save_top_k=3,
+                    save_last=True),
                  EpochTimer()]
     if args.log: callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
 

@@ -4,9 +4,11 @@ from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 import numpy as np
-import tqdm
+from tqdm import tqdm
 
-from diffusion.diffusion_helpers import VP, VE_pbc, frac_to_cart_coords, subtract_cog
+from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
+from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.visualize_crystal import vis_crystal
 
 
 pos_sigma_min = 0.001
@@ -47,8 +49,10 @@ class DiffusionLoss(torch.nn.Module):
 
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
-        self.norm_x = 10.
-        self.norm_h = 10.
+        # self.norm_x = 10. # I'm not sure why mofdiff uses these values. I'm going to use 1.0 for now.
+        # self.norm_h = 10.
+        self.norm_x = 1.
+        self.norm_h = 1.
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -152,31 +156,36 @@ class DiffusionLoss(torch.nn.Module):
     @torch.no_grad()
     def sample(
         self,
-        num_atoms: int,
-        lattice: np.ndarray,
         model,
-        z=None,
-        save_freq=False,
-        disable_bar=False,
+        z_table: AtomicNumberTable,
+        lattice: np.ndarray,
+        t_emb_weights,
+        num_atoms: int,
+        vis_name: str,
+        only_visualize_last: bool,
+        save_freq=False
     ):
-
+        num_atomic_states = len(z_table)
+        # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
+        # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
         x = (
-            torch.randn([num_atoms.sum(), 3], device=self.device)
+            torch.randn([num_atoms.sum(), 3], dtype=torch.get_default_dtype())
             * pos_sigma_max
         )
+        frac_x = cart_to_frac_coords(x, lattice, num_atoms)
         x = frac_to_cart_coords(frac_x, lattice, num_atoms)
 
-        h = torch.randn([num_atoms.sum(), self.bb_emb_dim], device=self.device)
+        h = torch.randn([num_atoms.sum(), num_atomic_states])
 
         if save_freq:
             all_x = [x.clone().cpu()]
             all_h = [h.clone().cpu()]
 
-        for t in tqdm(reversed(range(1, self.T)), disable=disable_bar):
-            t = torch.full((num_atoms.sum(),), fill_value=t, device=self.device)
+        for timestep in tqdm(reversed(range(1, self.T))):
+            t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
             score_x, score_h = self.phi(
-                frac_x, h, t, num_atoms, lattice, model, Batch(), frac=True
+                frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
             )
             frac_x = self.pos_diffusion.reverse(
                 x, score_x, t, lattice, num_atoms
@@ -187,20 +196,23 @@ class DiffusionLoss(torch.nn.Module):
             if save_freq and (t[0] % save_freq == 0):
                 all_x.append(x.clone().cpu())
                 all_h.append(h.clone().cpu())
+            
+            if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
+                vis_crystal(z_table, h, lattice, x, vis_name + f"_{timestep}")
 
         if save_freq:
             all_x.append(x.clone().cpu())
             all_h.append(h.clone().cpu())
 
-        x, h = self.unnormalize(x, h)
+        x, h = self.unnormalize(x, h) # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         output = {
             "x": x,
             "h": h,
-            "z": z,
             "num_atoms": num_atoms,
             "lattice": lattice,
         }
+        vis_crystal(z_table, h, lattice, x, vis_name + "_final")
 
         if save_freq:
             output.update(
