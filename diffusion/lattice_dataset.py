@@ -34,7 +34,6 @@ def load_data(filename):
 
     return atomic_number_vectors, lattice_matrices, frac_coords_arrays
 
-# @gin.configurable
 def load_dataset(file_path) -> list[Configuration]:
     atomic_number_vector, lattice_matrix, frac_coord = load_data(file_path)
 
