@@ -14,9 +14,10 @@ def get_sample_system():
     return system_sample.L0, system_sample.X0, system_sample.atomic_numbers
 
 def relax(L0, X, atomic_numbers, out_dir):
-    num_relaxations = 20
+    num_relaxations = 5
 
-    model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"
+    # the mace calculator is broken?
+    model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2023-12-10-mace-128-L0_epoch-199.model"
     calculator = MACECalculator(model_paths=model_path, device='cpu')
 
     symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
@@ -31,7 +32,7 @@ def relax(L0, X, atomic_numbers, out_dir):
 
         # Perform the relaxation for one timestep
         dyn = BFGS(system)
-        dyn.run(fmax=0.05, steps=1)
+        dyn.run(fmax=0.05, steps=5)
 
         positions = system.get_positions()
         vis_crystal(atomic_numbers, L0, X, f"{out_dir}/relax_{i}")
