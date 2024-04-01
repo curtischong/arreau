@@ -17,7 +17,8 @@ def relax(L0, X, atomic_numbers, out_dir):
     num_relaxations = 5
 
     # the mace calculator is broken?
-    model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2023-12-10-mace-128-L0_epoch-199.model"
+    # I'm going to assume that the diffusion model relaxes the system so well that we don't need to relax it further
+    model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"
     calculator = MACECalculator(model_paths=model_path, device='cpu')
 
     symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
