@@ -34,7 +34,7 @@ def sample_crystal(Lt, num_atoms):
     os.makedirs(DIFFUSION_DIR, exist_ok=True)
     vis_name = f"{DIFFUSION_DIR}/step"
 
-    return model.sample(Lt, num_atoms, vis_name, only_visualize_last=False)
+    return model.sample(Lt, num_atoms, vis_name, only_visualize_last=True)
 
 
 if __name__ == "__main__":
@@ -48,9 +48,9 @@ if __name__ == "__main__":
     # do not relax since the system is already implicitly relaxed after diffusion
     # literally nothing will happen since the calculated forces are 0
     # os.makedirs(RELAX_DIR, exist_ok=True)
-    # X0 = res.get("x").detach().cpu().numpy()
-    # A = torch.argmax(res.get("h"), dim=-1).detach().cpu().numpy()
-    # L0 = res.get("lattice").detach().cpu().numpy()
+    X0 = res.get("x").detach().cpu().numpy()
+    atomic_numbers = torch.argmax(res.get("h"), dim=-1).detach().cpu().numpy()
+    L0 = res.get("lattice").detach().cpu().numpy().squeeze(0)
 
-    # relax(L0.squeeze(0), X0, A, RELAX_DIR)
+    # relax(L0, X0, atomic_numbers, RELAX_DIR)
 

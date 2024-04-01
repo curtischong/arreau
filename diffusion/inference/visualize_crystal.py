@@ -3,14 +3,27 @@ from pymatgen.core.periodic_table import Element
 import numpy as np
 import plotly.graph_objects as go
 import torch
+from diffusion.inference.predict_bonds import predict_bonds
 
 from diffusion.tools.atomic_number_table import AtomicNumberTable
+
+def plot_edges(fig, edges, color):
+    for edge in edges:
+        fig.add_trace(
+            go.Scatter3d(
+                x=[edge[0][0], edge[1][0]],
+                y=[edge[0][1], edge[1][1]],
+                z=[edge[0][2], edge[1][2]],
+                mode='lines',
+                line=dict(color=color, width=5),
+                showlegend=False  # Do not add to the legend
+            )
+        )
 
 def plot_with_parallelopied(fig, L):
     v1 = L[0]
     v2 = L[1]
     v3 = L[2]
-
     # Create the parallelepiped by combining the basis vectors
     points = np.array([[0, 0, 0],
                        v1,
@@ -20,24 +33,23 @@ def plot_with_parallelopied(fig, L):
                        v1 + v3,
                        v1 + v2 + v3,
                        v2 + v3])
-
-    # Create the edges of the parallelepiped
-    edges = [(0, 1), (1, 2), (2, 3), (3, 0),
-             (4, 5), (5, 6), (6, 7), (7, 4),
-             (0, 4), (1, 5), (2, 6), (3, 7)]
-
-    # Add the edges to the plot
-    for edge in edges:
-        fig.add_trace(
-            go.Scatter3d(
-                x=points[[edge[0], edge[1]], 0],
-                y=points[[edge[0], edge[1]], 1],
-                z=points[[edge[0], edge[1]], 2],
-                mode='lines',
-                line=dict(color='blue', width=5),
-                showlegend=False  # Do not add to the legend
-            )
-        )
+    # Create the edges of the parallelepiped as tuples of Cartesian coordinates
+    edges = [
+        (tuple(points[0]), tuple(points[1])),
+        (tuple(points[1]), tuple(points[2])),
+        (tuple(points[2]), tuple(points[3])),
+        (tuple(points[3]), tuple(points[0])),
+        (tuple(points[4]), tuple(points[5])),
+        (tuple(points[5]), tuple(points[6])),
+        (tuple(points[6]), tuple(points[7])),
+        (tuple(points[7]), tuple(points[4])),
+        (tuple(points[0]), tuple(points[4])),
+        (tuple(points[1]), tuple(points[5])),
+        (tuple(points[2]), tuple(points[6])),
+        (tuple(points[3]), tuple(points[7]))
+    ]
+    # Plot the edges using the helper function
+    plot_edges(fig, edges, "#0d5d85")
 
 def element_color(symbol):
     # Dictionary mapping chemical symbols to colors
@@ -66,6 +78,10 @@ def element_color(symbol):
 
     # Return the color for the given chemical symbol, or a default color if not found
     return color_map.get(symbol, "#808080")  # Default color is gray
+
+def plot_bonds(fig, structure: Structure):
+    bonds = predict_bonds(structure)
+    plot_edges(fig, bonds, "#303030")
 
 def vis_crystal_during_sampling(z_table: AtomicNumberTable, A, L_t, X, name):
     L_t = L_t[0] # only get the first lattice vector in the batch
@@ -100,6 +116,7 @@ def vis_crystal(atomic_numbers, L_t, X, name):
             name=atom_type
         ))
     plot_with_parallelopied(fig, L_t)
+    plot_bonds(fig, structure)
 
     # Set the layout for the 3D plot
     fig.update_layout(
