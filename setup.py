@@ -9,5 +9,5 @@ setup(
     author_email='e.j.bekkers@uva.nl',
     description='Ponita: Fast, Expressive SE(n) Equivariant Networks through Weight-Sharing in Position-Orientation Space',
     python_requires=">=3.10.5",
-    packages=["ponita"]
+    packages=["ponita", "diffusion"]
 )
