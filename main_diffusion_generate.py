@@ -1,5 +1,4 @@
 import argparse
-import numpy as np
 import torch
 from diffusion.lattice_dataset import load_dataset
 import os
@@ -15,10 +14,10 @@ model_path = args.model_path
 model = PONITA_DIFFUSION.load_from_checkpoint(model_path, strict=False)
 
 
-num_atoms=torch.tensor([5])
+num_atoms=torch.tensor([25])
 # lattice = np.random.rand(3,3)
 dataset = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
-sample_L0 = torch.tensor([dataset[0].L0])
+sample_L0 = torch.tensor([dataset[1].L0])
 # sample_X0 = dataset[0].X0
 
 os.makedirs("out", exist_ok=True)
