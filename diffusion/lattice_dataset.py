@@ -3,10 +3,9 @@ from torch.utils.data import Dataset
 import h5py
 import numpy as np
 import torch
-from diffusion.atomic_data import AtomicData
 from torch_geometric.data import Data
 
-from diffusion.tools.atomic_number_table import AtomicNumberTable, atomic_numbers_to_indices, get_atomic_number_table_from_zs, to_one_hot
+from diffusion.tools.atomic_number_table import AtomicNumberTable, atomic_numbers_to_indices, to_one_hot
 from diffusion.tools.neighborhood import get_neighborhood
 
 
