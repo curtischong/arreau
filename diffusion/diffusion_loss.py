@@ -164,7 +164,6 @@ class DiffusionLoss(torch.nn.Module):
         vis_name: str,
         only_visualize_last: bool,
         show_bonds: bool,
-        save_freq=False
     ):
         num_atomic_states = len(z_table)
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
@@ -178,10 +177,6 @@ class DiffusionLoss(torch.nn.Module):
 
         h = torch.randn([num_atoms.sum(), num_atomic_states])
 
-        if save_freq:
-            all_x = [x.clone().cpu()]
-            all_h = [h.clone().cpu()]
-
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
@@ -193,17 +188,9 @@ class DiffusionLoss(torch.nn.Module):
             )
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
-
-            if save_freq and (t[0] % save_freq == 0):
-                all_x.append(x.clone().cpu())
-                all_h.append(h.clone().cpu())
             
             if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
                 vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds)
-
-        if save_freq:
-            all_x.append(x.clone().cpu())
-            all_h.append(h.clone().cpu())
 
         x, h = self.unnormalize(x, h) # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
@@ -215,11 +202,4 @@ class DiffusionLoss(torch.nn.Module):
         }
         vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + "_final", show_bonds)
 
-        if save_freq:
-            output.update(
-                {
-                    "all_x": torch.stack(all_x, dim=0),
-                    "all_h": torch.stack(all_h, dim=0),
-                }
-            )
         return output
