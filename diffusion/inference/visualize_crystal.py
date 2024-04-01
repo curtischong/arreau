@@ -83,12 +83,12 @@ def plot_bonds(fig, structure: Structure):
     bonds = predict_bonds(structure)
     plot_edges(fig, bonds, "#303030")
 
-def vis_crystal_during_sampling(z_table: AtomicNumberTable, A, L_t, X, name):
+def vis_crystal_during_sampling(z_table: AtomicNumberTable, A, L_t, X, name: str, show_bonds: bool):
     L_t = L_t[0] # only get the first lattice vector in the batch
     atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
-    return vis_crystal(atomic_numbers, L_t, X, name)
+    return vis_crystal(atomic_numbers, L_t, X, name, show_bonds)
 
-def vis_crystal(atomic_numbers, L_t, X, name):
+def vis_crystal(atomic_numbers, L_t, X, name, show_bonds: bool):
     lattice = Lattice(L_t)
     element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []
@@ -116,7 +116,8 @@ def vis_crystal(atomic_numbers, L_t, X, name):
             name=atom_type
         ))
     plot_with_parallelopied(fig, L_t)
-    plot_bonds(fig, structure)
+    if show_bonds:
+        plot_bonds(fig, structure)
 
     # Set the layout for the 3D plot
     fig.update_layout(

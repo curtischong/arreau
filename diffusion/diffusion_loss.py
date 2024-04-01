@@ -163,6 +163,7 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms: int,
         vis_name: str,
         only_visualize_last: bool,
+        show_bonds: bool,
         save_freq=False
     ):
         num_atomic_states = len(z_table)
@@ -198,7 +199,7 @@ class DiffusionLoss(torch.nn.Module):
                 all_h.append(h.clone().cpu())
             
             if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
-                vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}")
+                vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds)
 
         if save_freq:
             all_x.append(x.clone().cpu())
@@ -212,7 +213,7 @@ class DiffusionLoss(torch.nn.Module):
             "num_atoms": num_atoms,
             "lattice": lattice,
         }
-        vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + "_final")
+        vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + "_final", show_bonds)
 
         if save_freq:
             output.update(
