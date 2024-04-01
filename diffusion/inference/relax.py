@@ -16,15 +16,18 @@ def get_sample_system():
 def relax(L0, X, atomic_numbers, out_dir):
     num_relaxations = 20
 
+    model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"
+    calculator = MACECalculator(model_paths=model_path, device='cpu')
+
     symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
 
+    # set initial positions
     positions = X @ L0
     for i in range(num_relaxations):
         system = Atoms(symbols=symbols, positions=positions, pbc=(True,True,True))
 
         # create the calculator
-        model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"
-        system.calc = MACECalculator(model_paths=model_path, device='cpu')
+        system.calc = calculator
 
         # Perform the relaxation for one timestep
         dyn = BFGS(system)

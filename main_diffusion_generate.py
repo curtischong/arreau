@@ -50,4 +50,4 @@ if __name__ == "__main__":
     X0 = res.get("x").detach().cpu().numpy()
     A = torch.argmax(res.get("h"), dim=-1).detach().cpu().numpy()
     L0 = res.get("lattice").detach().cpu().numpy()
-    relax(L0, X0, A, RELAX_DIR)
+    relax(L0.squeeze(0), X0, A, RELAX_DIR)
