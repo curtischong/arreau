@@ -34,16 +34,20 @@ def sample_crystal(Lt, num_atoms):
     os.makedirs(DIFFUSION_DIR, exist_ok=True)
     vis_name = f"{DIFFUSION_DIR}/step"
 
-    model.sample(Lt, num_atoms, vis_name, only_visualize_last=False)
+    return model.sample(Lt, num_atoms, vis_name, only_visualize_last=False)
 
 
 if __name__ == "__main__":
     args = parse_args()
 
     Lt = get_sample_lattice(use_ith_sample_lattice=4)
-    sample_crystal(Lt, num_atoms=10)
+    res = sample_crystal(Lt, num_atoms=10)
 
     generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
 
+    # relax system
     os.makedirs(RELAX_DIR, exist_ok=True)
-    relax(RELAX_DIR)
+    X0 = res.get("x").detach().cpu().numpy()
+    A = torch.argmax(res.get("h"), dim=-1).detach().cpu().numpy()
+    L0 = res.get("lattice").detach().cpu().numpy()
+    relax(L0, X0, A, RELAX_DIR)

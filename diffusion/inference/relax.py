@@ -1,7 +1,4 @@
 import pathlib
-from ase import units
-from ase.md.langevin import Langevin
-from ase.io import read, write
 
 from mace.calculators import MACECalculator
 from diffusion.inference.visualize_crystal import vis_crystal
@@ -16,11 +13,9 @@ def get_sample_system():
     system_sample = dataset[1]
     return system_sample.L0, system_sample.X0, system_sample.atomic_numbers
 
-def relax(out_dir):
+def relax(L0, X, atomic_numbers, out_dir):
     num_relaxations = 20
 
-    # get the inital system
-    L0, X, atomic_numbers = get_sample_system()
     symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
 
     positions = X @ L0
@@ -39,4 +34,6 @@ def relax(out_dir):
         vis_crystal(atomic_numbers, L0, X, f"{out_dir}/relax_{i}")
 
 if __name__ == "__main__":
-    relax()
+    current_directory = pathlib.Path(__file__).parent.resolve()
+    L0, X, atomic_numbers = get_sample_system()
+    relax(L0, X, atomic_numbers, f"{current_directory}/../../out")
