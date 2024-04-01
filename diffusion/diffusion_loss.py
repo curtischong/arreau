@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
 from diffusion.tools.atomic_number_table import AtomicNumberTable
-from diffusion.visualize_crystal import vis_crystal
+from diffusion.inference.visualize_crystal import vis_crystal
 
 
 pos_sigma_min = 0.001
