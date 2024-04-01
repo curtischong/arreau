@@ -1,12 +1,15 @@
 import argparse
 import torch
 from diffusion.inference.create_gif import generate_gif
+from diffusion.inference.relax import relax
 from diffusion.lattice_dataset import load_dataset
 import os
 
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 
-IMG_DIR = "out"
+OUT_DIR = "out"
+DIFFUSION_DIR = f"{OUT_DIR}/diffusion"
+RELAX_DIR = f"{OUT_DIR}/relax"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -28,8 +31,8 @@ def sample_crystal(Lt, num_atoms):
 
     num_atoms = torch.tensor([num_atoms])
 
-    os.makedirs(IMG_DIR, exist_ok=True)
-    vis_name = f"{IMG_DIR}/crystal"
+    os.makedirs(DIFFUSION_DIR, exist_ok=True)
+    vis_name = f"{DIFFUSION_DIR}/step"
 
     model.sample(Lt, num_atoms, vis_name, only_visualize_last=False)
 
@@ -40,4 +43,7 @@ if __name__ == "__main__":
     Lt = get_sample_lattice(use_ith_sample_lattice=4)
     sample_crystal(Lt, num_atoms=10)
 
-    generate_gif(src_img_dir=IMG_DIR, output_file=f"{IMG_DIR}/crystal.gif")
+    generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
+
+    os.makedirs(RELAX_DIR, exist_ok=True)
+    relax(RELAX_DIR)

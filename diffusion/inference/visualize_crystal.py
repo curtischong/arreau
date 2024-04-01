@@ -67,14 +67,16 @@ def element_color(symbol):
     # Return the color for the given chemical symbol, or a default color if not found
     return color_map.get(symbol, "#808080")  # Default color is gray
 
-def vis_crystal(z_table: AtomicNumberTable, A, L_t, X, name):
+def vis_crystal_during_diffusion(z_table: AtomicNumberTable, A, L_t, X, name):
     L_t = L_t[0] # only get the first lattice vector in the batch
-    lattice = Lattice(L_t)
     atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
-    max_atomic_number = 118
-    element_symbols = [Element.from_Z(min(z,max_atomic_number)).symbol for z in atomic_numbers] # we need to cap the atomic number at 118 so the mask state appears in the output
+    return vis_crystal(atomic_numbers, L_t, X, name)
+
+def vis_crystal(atomic_numbers, L_t, X, name):
+    lattice = Lattice(L_t)
+    element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []
-    for i in range(len(A)):
+    for i in range(len(atomic_numbers)):
         pos_arr.append(X[i].tolist())
 
     # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
