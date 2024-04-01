@@ -67,7 +67,7 @@ def element_color(symbol):
     # Return the color for the given chemical symbol, or a default color if not found
     return color_map.get(symbol, "#808080")  # Default color is gray
 
-def vis_crystal_during_diffusion(z_table: AtomicNumberTable, A, L_t, X, name):
+def vis_crystal_during_sampling(z_table: AtomicNumberTable, A, L_t, X, name):
     L_t = L_t[0] # only get the first lattice vector in the batch
     atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
     return vis_crystal(atomic_numbers, L_t, X, name)

@@ -45,9 +45,12 @@ if __name__ == "__main__":
 
     generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
 
-    # relax system
-    os.makedirs(RELAX_DIR, exist_ok=True)
-    X0 = res.get("x").detach().cpu().numpy()
-    A = torch.argmax(res.get("h"), dim=-1).detach().cpu().numpy()
-    L0 = res.get("lattice").detach().cpu().numpy()
-    relax(L0.squeeze(0), X0, A, RELAX_DIR)
+    # do not relax since the system is already implicitly relaxed after diffusion
+    # literally nothing will happen since the calculated forces are 0
+    # os.makedirs(RELAX_DIR, exist_ok=True)
+    # X0 = res.get("x").detach().cpu().numpy()
+    # A = torch.argmax(res.get("h"), dim=-1).detach().cpu().numpy()
+    # L0 = res.get("lattice").detach().cpu().numpy()
+
+    # relax(L0.squeeze(0), X0, A, RELAX_DIR)
+

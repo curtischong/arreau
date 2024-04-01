@@ -8,7 +8,6 @@ from pymatgen.core.periodic_table import Element
 from ase.optimize import BFGS
 
 def get_sample_system():
-    # lattice = np.random.rand(3,3)
     dataset = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
     system_sample = dataset[1]
     return system_sample.L0, system_sample.X0, system_sample.atomic_numbers
@@ -16,8 +15,6 @@ def get_sample_system():
 def relax(L0, X, atomic_numbers, out_dir):
     num_relaxations = 5
 
-    # the mace calculator is broken?
-    # I'm going to assume that the diffusion model relaxes the system so well that we don't need to relax it further
     model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"
     calculator = MACECalculator(model_paths=model_path, device='cpu')
 
