@@ -52,8 +52,17 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=checkpoints/last.ckpt",
+                "--model_path=models/last.ckpt",
             ],
+        },
+        {
+            "name": "relax",
+            "type": "python",
+            "request": "launch",
+            "program": "diffusion/inference/relax.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }

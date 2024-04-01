@@ -1,3 +1,9 @@
+### Setup
+
+Download mace-mp-0 here:
+- https://github.com/ACEsuit/mace-mp/releases/download/mace_mp_0/2024-01-07-mace-128-L2_epoch-199.model
+- View all releases here: https://github.com/ACEsuit/mace-mp/releases/tag/mace_mp_0
+
 # ✨ 🐴 🔥 PONITA 
 
 ACCEPTED AT [ICLR 2024](https://openreview.net/forum?id=dPHLbUqGbr)!

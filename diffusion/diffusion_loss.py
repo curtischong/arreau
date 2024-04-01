@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
 from diffusion.tools.atomic_number_table import AtomicNumberTable
-from diffusion.inference.visualize_crystal import vis_crystal
+from diffusion.inference.visualize_crystal import vis_crystal, vis_crystal_during_sampling
 
 
 pos_sigma_min = 0.001
@@ -198,7 +198,7 @@ class DiffusionLoss(torch.nn.Module):
                 all_h.append(h.clone().cpu())
             
             if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
-                vis_crystal(z_table, h, lattice, x, vis_name + f"_{timestep}")
+                vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}")
 
         if save_freq:
             all_x.append(x.clone().cpu())
@@ -212,7 +212,7 @@ class DiffusionLoss(torch.nn.Module):
             "num_atoms": num_atoms,
             "lattice": lattice,
         }
-        vis_crystal(z_table, h, lattice, x, vis_name + "_final")
+        vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + "_final")
 
         if save_freq:
             output.update(
