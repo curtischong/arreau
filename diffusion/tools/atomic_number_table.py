@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Iterable, Sequence
+from typing import Sequence
 import torch
 
 class AtomicNumberTable:
@@ -49,3 +49,13 @@ def to_one_hot(indices: torch.Tensor, num_classes: int) -> torch.Tensor:
     oh.scatter_(dim=-1, index=indices, value=1)
 
     return oh.view(*shape)
+
+def one_hot_encode_atomic_numbers(z_table: AtomicNumberTable, atomic_numbers: np.ndarray) -> np.ndarray:
+    num_atomic_states = len(z_table)
+    atomic_number_indices = atomic_numbers_to_indices(atomic_numbers, z_table=z_table)
+    atomic_number_indices_torch = torch.tensor(atomic_number_indices, dtype=torch.long)
+    A0 = to_one_hot(
+            atomic_number_indices_torch.unsqueeze(-1),
+            num_classes=num_atomic_states
+        )
+    return A0

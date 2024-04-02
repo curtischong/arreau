@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch_geometric.data import Data
 
-from diffusion.tools.atomic_number_table import AtomicNumberTable, atomic_numbers_to_indices, to_one_hot
+from diffusion.tools.atomic_number_table import AtomicNumberTable, atomic_numbers_to_indices, one_hot_encode_atomic_numbers, to_one_hot
 from diffusion.tools.neighborhood import get_neighborhood
 
 
@@ -65,16 +65,6 @@ class CrystalDataset(Dataset):
         self.z_table = z_table
         self.num_atomic_states = len(z_table)
 
-    # maybe we should move this to utils? oh. it does depend on self.z_table though
-    def one_hot_encode_atomic_numbers(self, atomic_numbers: np.ndarray) -> np.ndarray:
-        atomic_number_indices = atomic_numbers_to_indices(atomic_numbers, z_table=self.z_table)
-        atomic_number_indices_torch = torch.tensor(atomic_number_indices, dtype=torch.long)
-        A0 = to_one_hot(
-                atomic_number_indices_torch.unsqueeze(-1),
-                num_classes=self.num_atomic_states
-            )
-        return A0, atomic_number_indices_torch
-
     def get_cell_info(self, *, Xt: np.ndarray, Lt: np.ndarray):#config: Configuration | InferenceConfiguration, timestep):
         positions = Xt @ Lt
         pbc = [True, True, True] # all true for an infinite lattice
@@ -99,7 +89,7 @@ class CrystalDataset(Dataset):
 
     def __getitem__(self, idx: int):
         config = self.configs[idx]
-        A0, _atomic_number_indices_torch = self.one_hot_encode_atomic_numbers(config.atomic_numbers)
+        A0 = one_hot_encode_atomic_numbers(self.z_table, config.atomic_numbers)
 
         X0 = config.X0
         L0 = config.L0 # TODO(curtis): use the noised Lt
