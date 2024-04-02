@@ -181,7 +181,7 @@ class DiffusionLoss(torch.nn.Module):
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
-            if use_this_constant_atomic_array:
+            if use_this_constant_atomic_array is not None:
                 h = use_this_constant_atomic_array
 
             score_x, score_h = self.phi(
@@ -192,6 +192,9 @@ class DiffusionLoss(torch.nn.Module):
             )
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
+
+            if use_this_constant_atomic_array is not None:
+                h = use_this_constant_atomic_array
             
             if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
                 vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds)

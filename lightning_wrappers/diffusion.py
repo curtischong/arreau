@@ -4,7 +4,7 @@ from diffusion.diffusion_helpers import GaussianFourierProjection
 from torch_geometric.data import Batch
 
 from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric
-from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.tools.atomic_number_table import AtomicNumberTable, one_hot_encode_atomic_numbers
 
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
@@ -164,4 +164,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         use_this_constant_atomic_array: np.ndarray | None,
     ):
         z_table = AtomicNumberTable(self.z_table_zs.tolist())
+        if use_this_constant_atomic_array is not None:
+            use_this_constant_atomic_array = one_hot_encode_atomic_numbers(z_table, use_this_constant_atomic_array)
+            num_atoms = torch.tensor([use_this_constant_atomic_array.size(0)])
         return self.diffusion_loss.sample(self, z_table, lattice, self.t_emb, num_atoms, vis_name, only_visualize_last, show_bonds, use_this_constant_atomic_array)

@@ -4,8 +4,6 @@ from diffusion.inference.create_gif import generate_gif
 from diffusion.inference.relax import relax
 from diffusion.lattice_dataset import load_dataset
 import os
-import numpy as np
-from diffusion.tools.atomic_number_table import atomic_numbers_to_indices, to_one_hot
 
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 
@@ -41,22 +39,11 @@ def sample_crystal(Lt, num_atoms, use_this_constant_atomic_array):
 
     return model.sample(Lt, num_atoms, vis_name, only_visualize_last=ONLY_VISUALIZE_LAST, show_bonds=SHOW_BONDS, use_this_constant_atomic_array=use_this_constant_atomic_array)
 
-def one_hot_encode_atomic_numbers(z_table, atomic_numbers: np.ndarray) -> np.ndarray:
-    num_atomic_states = len(z_table)
-    atomic_number_indices = atomic_numbers_to_indices(atomic_numbers, z_table=z_table)
-    atomic_number_indices_torch = torch.tensor(atomic_number_indices, dtype=torch.long)
-    A0 = to_one_hot(
-            atomic_number_indices_torch.unsqueeze(-1),
-            num_classes=num_atomic_states
-        )
-    return A0
-
 if __name__ == "__main__":
     args = parse_args()
 
-    Lt = get_sample_lattice(use_ith_sample_lattice=4)
-    use_this_constant_atomic_array = []
-    use_this_constant_atomic_array = one_hot_encode_atomic_numbers(z_table, use_this_constant_atomic_array)
+    Lt = get_sample_lattice(use_ith_sample_lattice=6)
+    use_this_constant_atomic_array = [1, 1, 8]
     res = sample_crystal(Lt, num_atoms=10, use_this_constant_atomic_array=use_this_constant_atomic_array)
 
     if not ONLY_VISUALIZE_LAST:
