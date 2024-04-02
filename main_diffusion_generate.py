@@ -4,6 +4,7 @@ from diffusion.inference.create_gif import generate_gif
 from diffusion.inference.relax import relax
 from diffusion.lattice_dataset import load_dataset
 import os
+from pymatgen.core.periodic_table import Element
 
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 
@@ -43,7 +44,9 @@ if __name__ == "__main__":
     args = parse_args()
 
     Lt = get_sample_lattice(use_ith_sample_lattice=2)
-    use_this_constant_atomic_array = [1, 1, 8]
+    # use_this_constant_atomic_array = [1, 1, 8]
+    use_this_constant_atomic_array = ["Fe", "H", "O", "Ar", "N", "H", "C", "Si", "Si", "H"]
+    use_this_constant_atomic_array = [Element(element_name).Z for element_name in use_this_constant_atomic_array]
     res = sample_crystal(Lt, num_atoms=10, use_this_constant_atomic_array=use_this_constant_atomic_array)
 
     if not ONLY_VISUALIZE_LAST:
