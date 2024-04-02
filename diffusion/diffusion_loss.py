@@ -1,3 +1,4 @@
+from multiprocessing import Pool
 import torch
 
 from torch_scatter import scatter
@@ -177,29 +178,32 @@ class DiffusionLoss(torch.nn.Module):
 
         h = torch.randn([num_atoms.sum(), num_atomic_states])
 
-        for timestep in tqdm(reversed(range(1, self.T))):
-            t = torch.full((num_atoms.sum(),), fill_value=timestep)
+        pool_results = []
+        with Pool(processes=30) as pool:
+            for timestep in tqdm(reversed(range(1, self.T))):
+                t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
-            score_x, score_h = self.phi(
-                frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
-            )
-            frac_x = self.pos_diffusion.reverse(
-                x, score_x, t, lattice, num_atoms
-            )
-            x = frac_to_cart_coords(frac_x, lattice, num_atoms)
-            h = self.type_diffusion.reverse(h, score_h, t)
-            
-            if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
-                vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds)
+                score_x, score_h = self.phi(
+                    frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
+                )
+                frac_x = self.pos_diffusion.reverse(
+                    x, score_x, t, lattice, num_atoms
+                )
+                x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+                h = self.type_diffusion.reverse(h, score_h, t)
+                
+                if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
+                    pool_results.append(pool.apply_async(vis_crystal_during_sampling, (z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds)))
 
-        x, h = self.unnormalize(x, h) # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
+            x, h = self.unnormalize(x, h) # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
-        output = {
-            "x": x,
-            "h": h,
-            "num_atoms": num_atoms,
-            "lattice": lattice,
-        }
-        vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + "_final", show_bonds)
+            output = {
+                "x": x,
+                "h": h,
+                "num_atoms": num_atoms,
+                "lattice": lattice,
+            }
+            pool_results.append(pool.apply_async(vis_crystal_during_sampling, (z_table, h, lattice, x, vis_name + "_final", show_bonds)))
+            [result.wait() for result in pool_results]
 
-        return output
+            return output
