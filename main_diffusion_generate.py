@@ -1,6 +1,7 @@
 import argparse
 import torch
 from diffusion.inference.create_gif import generate_gif
+from diffusion.inference.create_url_to_gif import upload_img
 from diffusion.inference.relax import relax
 from diffusion.lattice_dataset import load_dataset
 import os
@@ -45,12 +46,15 @@ if __name__ == "__main__":
 
     Lt = get_sample_lattice(use_ith_sample_lattice=2)
     # use_this_constant_atomic_array = [1, 1, 8]
-    use_this_constant_atomic_array = ["Fe", "H", "O", "Ar", "N", "H", "C", "Si", "Si", "H"]
+    use_this_constant_atomic_array = ["C", "C", "C", "C", "Si", "Si", "P", "P"]
     use_this_constant_atomic_array = [Element(element_name).Z for element_name in use_this_constant_atomic_array]
     res = sample_crystal(Lt, num_atoms=10, use_this_constant_atomic_array=use_this_constant_atomic_array)
 
+    gif_path = f"{OUT_DIR}/crystal.gif"
     if not ONLY_VISUALIZE_LAST:
-        generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
+        generate_gif(src_img_dir=DIFFUSION_DIR, output_file=gif_path)
+
+    upload_img(gif_path)
 
     # do not relax since the system is already implicitly relaxed after diffusion
     # literally nothing will happen since the calculated forces are 0
