@@ -42,7 +42,7 @@ def sample_crystal(Lt, num_atoms, use_this_constant_atomic_array):
 if __name__ == "__main__":
     args = parse_args()
 
-    Lt = get_sample_lattice(use_ith_sample_lattice=6)
+    Lt = get_sample_lattice(use_ith_sample_lattice=2)
     use_this_constant_atomic_array = [1, 1, 8]
     res = sample_crystal(Lt, num_atoms=10, use_this_constant_atomic_array=use_this_constant_atomic_array)
 
