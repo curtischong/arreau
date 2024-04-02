@@ -140,3 +140,4 @@ lightning_logs/
 checkpoints/
 out/
 models/
+*secrets.yaml
