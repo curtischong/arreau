@@ -164,6 +164,7 @@ class DiffusionLoss(torch.nn.Module):
         vis_name: str,
         only_visualize_last: bool,
         show_bonds: bool,
+        use_this_constant_atomic_array: np.ndarray
     ):
         num_atomic_states = len(z_table)
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
@@ -179,6 +180,9 @@ class DiffusionLoss(torch.nn.Module):
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
+
+            if use_this_constant_atomic_array:
+                h = use_this_constant_atomic_array
 
             score_x, score_h = self.phi(
                 frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
