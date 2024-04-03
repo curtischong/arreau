@@ -32,6 +32,11 @@ If you want to install this on your local computer (especially for mac computers
 pip install -r cpu_requirements.txt
 ```
 
+### Weights:
+
+You can download pre-trained weights here: https://drive.google.com/drive/folders/1y84gdxGfzeN-RU8DyVpPvCXop7Xf5slu
+
+
 ### Development tips:
 Learn how diffusion works by watching this video: https://www.youtube.com/watch?v=wMmqCMwuM2Q
 
