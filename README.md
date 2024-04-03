@@ -7,7 +7,7 @@ This repo was heavily inspired by the [Mattergen](https://arxiv.org/pdf/2312.036
 ### Computational statistics:
 - The overal model is 1.1 million parameters. It is 18 Mb in size.
 - The model is trained on a single A10 GPU with 24GB of VRAM. The score matching validation loss converges to around ~0.03 in around 30 minutes.
-- The Dataset used is the [Alexandria dataset](https://archive.materialscloud.org/record/2023.71) (A new dataset of 415k stable and metastable materials calculated with the PBEsol and SCAN functionals).
+- We used the PBE functional of the [Alexandria dataset](https://archive.materialscloud.org/record/2023.71) (A new dataset of 415k stable and metastable materials calculated with the PBEsol and SCAN functionals).
 - Training was performed using only 300k samples (72% of the dataset), and the other 115k were used for the validation/testing set
 
 ### Installation
