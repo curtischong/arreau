@@ -1,4 +1,4 @@
-.PHONY: train generate prep-dataset
+.PHONY: train generate prep-datasets
 
 prep-datasets:
 	python diffusion/prep_datasets.py
