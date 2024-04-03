@@ -1,7 +1,7 @@
-.PHONY: train generate preprocess-dataset
+.PHONY: train generate prep-dataset
 
-preprocess-dataset:
-	python diffusion/prep_dataset.py
+prep-datasets:
+	python diffusion/prep_datasets.py
 
 train:
 	python main_diffusion.py --num_timesteps=300 --gpus=1 --radius=5 --num_workers=-1 --experiment_name=no_mask_state

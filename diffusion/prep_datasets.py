@@ -1,5 +1,6 @@
 # This file converts the alexandria datasets to hdf5 format so it's faster to load
 # These hdf5 files are also more efficient since we drop unused columns
+from multiprocessing import Process
 from pymatgen.entries.computed_entries import ComputedStructureEntry
 import numpy as np
 import h5py
@@ -26,7 +27,9 @@ def prep_data_and_save_hdf5(filename):
 
     for idx, entry in enumerate(entries):
         structure = entry.structure
-        atomic_number_vector = np.ndarray([species.Z for species in structure.species])
+        atomic_number_vector = np.empty(len(structure.species), dtype=int)
+        for i, species in enumerate(structure.species):
+            atomic_number_vector[i] = species.Z
         atomic_number_vectors.append(atomic_number_vector)
 
         lattice_matrices[idx] = entry.structure.lattice.matrix
@@ -48,18 +51,18 @@ def prep_data_and_save_hdf5(filename):
 def main():
     NUM_FILES = 5
 
-    threads = []
+    processes = []
     for i in range(NUM_FILES):
         file_name = f"alexandria_ps_00{i}"
 
         # https://stackoverflow.com/questions/55529319/how-to-create-multiple-threads-dynamically-in-python
-        t = Thread(target=prep_data_and_save_hdf5, args=(file_name,))
-        t.start()
-        threads.append(t)
+        p = Process(target=prep_data_and_save_hdf5, args=(file_name,))
+        p.start()
+        processes.append(p)
 
-    # Wait all threads to finish.
-    for t in threads:
-        t.join()
+    # Wait all processes to finish.
+    for p in processes:
+        p.join()
 
 if __name__ == "__main__":
     main()
