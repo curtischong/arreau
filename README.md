@@ -2,7 +2,11 @@
 
 This is a diffusion model to generate new crystal materials!
 
-This repo was heavily inspired by the [Mattergen](https://arxiv.org/pdf/2312.03687.pdf) and [Mofdiff](https://arxiv.org/pdf/2310.10732.pdf) papers. In addition, the main model architecture is a fork of the [Ponita](https://github.com/ebekkers/ponita/) model.
+This repo was heavily inspired by:
+- [Mattergen](https://arxiv.org/pdf/2312.03687.pdf) for the overall idea and the lattice loss.
+- [Mofdiff](https://github.com/microsoft/MOFDiff) for the atomic diffusion and fractional coordinate loss.
+- [Mace](https://github.com/ACEsuit/mace) for helper functions (e.g. calculate periodic boundaries), and teaching me about equivariant architectures.
+- In addition, the main model architecture is a fork of the [Ponita](https://github.com/ebekkers/ponita/) model.
 
 ### Computational statistics:
 - The overal model is 1.1 million parameters. It is 18 Mb in size.
