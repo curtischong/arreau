@@ -92,6 +92,8 @@ if __name__ == "__main__":
                         help='Whether or not to readout after every layer')
     parser.add_argument('--num_timesteps', type=int,
                         help='the number of diffusion timesteps')
+    parser.add_argument('--max_neighbors', type=int,
+                        help='the maximum number of other atoms an atom can be directly influenced by')
     parser.add_argument('--use_dev_dataset', type=bool, default=False,
                         help='the number of diffusion timesteps')
     parser.add_argument('--experiment_name', type=str,

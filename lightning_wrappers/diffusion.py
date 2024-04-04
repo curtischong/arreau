@@ -48,7 +48,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.train_metric = DiffusionLossMetric()
         self.valid_metric = DiffusionLossMetric()
         self.test_metric = DiffusionLossMetric()
-        self.diffusion_loss = DiffusionLoss(args.num_timesteps)
+        self.diffusion_loss = DiffusionLoss(args)
 
         # Input/output specifications:
         in_channels_scalar = num_atomic_states + 64 # atomic_number + the time embedding (from GaussianFourierProjection)
