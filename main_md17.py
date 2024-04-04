@@ -157,7 +157,8 @@ if __name__ == "__main__":
     callbacks = [EMA(0.99),
                  pl.callbacks.ModelCheckpoint(monitor='valid MAE (energy)', mode = 'min'),
                  EpochTimer()]
-    if args.log: callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
+    if args.log:
+        callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
     
     # Initialize the trainer
     trainer = pl.Trainer(logger=logger, max_epochs=args.epochs, callbacks=callbacks, inference_mode=False, # Important for force computation via backprop

@@ -4,8 +4,8 @@ from multiprocessing import Process
 from pymatgen.entries.computed_entries import ComputedStructureEntry
 import numpy as np
 import h5py
-import json, bz2
-from threading import Thread
+import json
+import bz2
 import pathlib
 import os
 

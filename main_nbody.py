@@ -5,7 +5,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
-from lightning_wrappers.callbacks import EpochTimer, EMA
+from lightning_wrappers.callbacks import EpochTimer
 from lightning_wrappers.nbody import PONITA_NBODY
 
 
@@ -146,7 +146,8 @@ if __name__ == "__main__":
     # Pytorch lightning call backs
     callbacks = [pl.callbacks.ModelCheckpoint(monitor='valid MSE', mode = 'min'),
                  EpochTimer()]
-    if args.log: callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
+    if args.log:
+        callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
 
     # Initialize the trainer
     trainer = pl.Trainer(logger=logger, max_epochs=args.epochs, callbacks=callbacks, gradient_clip_val=0.5, 
