@@ -1,13 +1,12 @@
 import argparse
 import os
-import numpy as np
 import torch
 from torch_geometric.datasets import MNISTSuperpixels
 from torch_geometric.loader import DataLoader
 import pytorch_lightning as pl
 from lightning_wrappers.callbacks import EMA, EpochTimer
 from lightning_wrappers.mnist import PONITA_MNIST
-from torch_geometric.transforms import BaseTransform, KNNGraph, Compose
+from torch_geometric.transforms import BaseTransform
 
 # TODO: do we need this?
 import torch.multiprocessing

@@ -2,9 +2,4 @@
 exclude = [
     "ponita",
     "n_body_system",
-    "lightning_wrappers",
-]
-
-include = [
-    "lighting_wrappers/diffusion.py"
 ]
