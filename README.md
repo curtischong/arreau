@@ -40,6 +40,9 @@ This repo was heavily inspired by:
 - So your changes are linted properly
 - Please set the Default Formatter VSCode setting to use Ruff
 
+4.5 setup githooks so we will run ruff before committing
+- `git config --local core.hooksPath .githooks/`
+
 ### Weights:
 
 You can download pre-trained weights [here](https://drive.google.com/drive/folders/1y84gdxGfzeN-RU8DyVpPvCXop7Xf5slu)

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Run Ruff to lint and format all files
+ruff check --fix .
+ruff format .
+
+# Add the modified files back to the staging area
+git add .
