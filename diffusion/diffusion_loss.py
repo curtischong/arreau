@@ -6,7 +6,7 @@ import torchmetrics
 import numpy as np
 from tqdm import tqdm
 
-from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, subtract_cog
+from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, radius_graph_pbc, subtract_cog
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal, vis_crystal_during_sampling
 
@@ -32,9 +32,11 @@ class DiffusionLossMetric(torchmetrics.Metric):
         self.total_samples += num_batches
     
 class DiffusionLoss(torch.nn.Module):
-    def __init__(self, num_timesteps):
+    def __init__(self, args):
         super().__init__()
-        self.T = num_timesteps
+        self.cutoff = args.radius
+        self.max_neighbors = args.max_neighbors
+        self.T = args.num_timesteps
         self.pos_diffusion = VE_pbc(
             self.T,
             sigma_min=pos_sigma_min,
@@ -77,6 +79,18 @@ class DiffusionLoss(torch.nn.Module):
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = h_time
         batch.pos = cart_x_t
+
+        # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
+        # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
+        edge_index, cell_offsets, neighbors = radius_graph_pbc(
+            cart_x_t,
+            lattice,
+            batch.num_atoms,
+            self.cutoff,
+            self.max_neighbors,
+            device=cart_x_t.device,
+        )
+        batch.edge_index = edge_index
 
         # compute the predictions
         pred_eps_h, pred_eps_x = model(batch)

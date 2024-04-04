@@ -50,7 +50,7 @@ class PonitaFiberBundle(nn.Module):
         self.global_pooling = task_level=='graph'
 
         # For constructing the position-orientation graph and its invariants
-        self.transform = Compose([PositionOrientationGraph(num_ori, radius), SEnInvariantAttributes(separable=True)])
+        self.transform = Compose([PositionOrientationGraph(num_ori), SEnInvariantAttributes(separable=True)])
 
         # Activation function to use internally
         act_fn = torch.nn.GELU()
