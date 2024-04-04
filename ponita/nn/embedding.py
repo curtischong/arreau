@@ -1,4 +1,5 @@
 import torch
+import math
 
 
 class PolynomialFeatures(torch.nn.Module):
@@ -55,10 +56,10 @@ class RandomFourierFeatures(torch.nn.Module):
             self.frequencies_constraint = None
 
     def random_frequencies(self, sigma, num_frequencies):
-        if type(sigma) == float:
+        if isinstance(sigma, float):
             # Continuous frequencies, sigma is interpreted as the std of the gaussian distribution from which we sample
             return torch.randn(num_frequencies) * math.sqrt(1 / 2) * sigma
-        elif type(sigma) == int:
+        elif isinstance(sigma, int):
             # Integer frequencies, now sigma is interpreted as the integer band-limit (max frequency)
             return torch.randint(-sigma, sigma, (num_frequencies,))
 

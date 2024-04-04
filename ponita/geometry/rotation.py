@@ -643,7 +643,7 @@ def uniform_grid(
         case "matrix":
             param_fn = euler_to_matrix
         case "euler":
-            param_fn = lambda x: matrix_to_euler(euler_to_matrix(x))
+            param_fn = lambda x: matrix_to_euler(euler_to_matrix(x))  # noqa: E731
         case _:
             raise ValueError(f"Parameterization must be in {_PARAMETERIZATION}.")
 
@@ -978,12 +978,12 @@ def uniform_grid_s2(
 
     match parameterization.lower():
         case "spherical":
-            param_fn = lambda x: x
+            param_fn = lambda x: x  # noqa: E731
         case "euclidean":
             param_fn = spherical_to_euclid
         case "euler":
             add_alpha = True
-            param_fn = lambda x: x
+            param_fn = lambda x: x  # noqa: E731
         case "matrix":
             add_alpha = True
             param_fn = euler_to_matrix

@@ -3,7 +3,7 @@
 import torch
 from torch import Tensor
 from tqdm import trange
-from typing import Callable, Optional
+from typing import Callable
 
 
 def columb_energy(d: Tensor, k: int = 2) -> Tensor:
@@ -90,67 +90,68 @@ def repulse(
     return grid.detach()
 
 
-def uniform_grid_s2(
-    n: int,
-    parameterization: str = "euclidean",
-    set_alpha_as_neg_gamma: bool = False,
-    steps: int = 100,
-    step_size: float = 0.1,
-    show_pbar: bool = True,
-    device: Optional[str] = None,
-) -> Tensor:
-    """
-    Creates a uniform grid of `n` rotations on S2. Rotations will be uniform
-    with respect to the geodesic distance.
+# Curtis: commented since there are missing variables. it seems that this function is not used in the code.
+# def uniform_grid_s2(
+#     n: int,
+#     parameterization: str = "euclidean",
+#     set_alpha_as_neg_gamma: bool = False,
+#     steps: int = 100,
+#     step_size: float = 0.1,
+#     show_pbar: bool = True,
+#     device: Optional[str] = None,
+# ) -> Tensor:
+#     """
+#     Creates a uniform grid of `n` rotations on S2. Rotations will be uniform
+#     with respect to the geodesic distance.
 
-    Arguments:
-        - n: Number of rotations in grid.
-        - parameterization: Parameterization of the returned grid elements. Must
-                            be either 'spherical', 'euclidean', 'quat', 'matrix', or 'euler'. Defaults to
-                            'euclidean'.
-        - steps: Number of minimization steps.
-        - step_size: Strength of minimization step. Default of 0.1 works well.
-        - show_pbar: If True, will show progress of optimization procedure.
-        - device: Device on which energy minimization will be performed and on
-                  which the output grid will be defined.
+#     Arguments:
+#         - n: Number of rotations in grid.
+#         - parameterization: Parameterization of the returned grid elements. Must
+#                             be either 'spherical', 'euclidean', 'quat', 'matrix', or 'euler'. Defaults to
+#                             'euclidean'.
+#         - steps: Number of minimization steps.
+#         - step_size: Strength of minimization step. Default of 0.1 works well.
+#         - show_pbar: If True, will show progress of optimization procedure.
+#         - device: Device on which energy minimization will be performed and on
+#                   which the output grid will be defined.
 
-    Returns:
-        - Tensor containing uniform grid on SO3.
-    """
-    add_alpha = False
-    to_so3_fn = (
-        spherical_to_euler_neg_gamma if set_alpha_as_neg_gamma else spherical_to_euler
-    )
+#     Returns:
+#         - Tensor containing uniform grid on SO3.
+#     """
+#     add_alpha = False
+#     to_so3_fn = (
+#         spherical_to_euler_neg_gamma if set_alpha_as_neg_gamma else spherical_to_euler
+#     )
 
-    match parameterization.lower():
-        case "spherical":
-            param_fn = lambda x: x
-        case "euclidean":
-            param_fn = spherical_to_euclid
-        case "euler":
-            add_alpha = True
-            param_fn = lambda x: x
-        case "matrix":
-            add_alpha = True
-            param_fn = euler_to_matrix
-        case "quat":
-            add_alpha = True
-            param_fn = euler_to_quat
+#     match parameterization.lower():
+#         case "spherical":
+#             param_fn = lambda x: x
+#         case "euclidean":
+#             param_fn = spherical_to_euclid
+#         case "euler":
+#             add_alpha = True
+#             param_fn = lambda x: x
+#         case "matrix":
+#             add_alpha = True
+#             param_fn = euler_to_matrix
+#         case "quat":
+#             add_alpha = True
+#             param_fn = euler_to_quat
 
-    grid = random_s2((n,), device=device)
+#     grid = random_s2((n,), device=device)
 
-    repulsion.repulse(
-        grid,
-        steps=steps,
-        step_size=step_size,
-        alpha=0.001,
-        metric_fn=geodesic_distance_s2,
-        transform_fn=spherical_to_euclid,
-        dist_normalization_constant=pi,
-        show_pbar=show_pbar,
-        in_place=True,
-    )
+#     repulsion.repulse(
+#         grid,
+#         steps=steps,
+#         step_size=step_size,
+#         alpha=0.001,
+#         metric_fn=geodesic_distance_s2,
+#         transform_fn=spherical_to_euclid,
+#         dist_normalization_constant=pi,
+#         show_pbar=show_pbar,
+#         in_place=True,
+#     )
 
-    grid = to_so3_fn(grid) if add_alpha else grid
+#     grid = to_so3_fn(grid) if add_alpha else grid
 
-    return param_fn(grid)
+#     return param_fn(grid)

@@ -29,9 +29,6 @@ class Sparsify(BaseTransform):
         return graph
 
 
-from torch_geometric.transforms import BaseTransform
-
-
 class RemoveDuplicatePoints(BaseTransform):
     def __init__(self):
         super().__init__()
