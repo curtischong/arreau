@@ -1,6 +1,7 @@
-'''
+"""
 Cache in files
-'''
+"""
+
 from functools import wraps, lru_cache
 import pickle
 import gzip
@@ -10,28 +11,28 @@ import fcntl
 
 
 class FileSystemMutex:
-    '''
+    """
     Mutual exclusion of different **processes** using the file system
-    '''
+    """
 
     def __init__(self, filename):
         self.handle = None
         self.filename = filename
 
     def acquire(self):
-        '''
+        """
         Locks the mutex
         if it is already locked, it waits (blocking function)
-        '''
-        self.handle = open(self.filename, 'w')
+        """
+        self.handle = open(self.filename, "w")
         fcntl.lockf(self.handle, fcntl.LOCK_EX)
         self.handle.write("{}\n".format(os.getpid()))
         self.handle.flush()
 
     def release(self):
-        '''
+        """
         Unlock the mutex
-        '''
+        """
         if self.handle is None:
             raise RuntimeError()
         fcntl.lockf(self.handle, fcntl.LOCK_UN)
@@ -46,24 +47,24 @@ class FileSystemMutex:
 
 
 def cached_dirpklgz(dirname, maxsize=128):
-    '''
+    """
     Cache a function with a directory
 
     :param dirname: the directory path
     :param maxsize: maximum size of the RAM cache (there is no limit for the directory cache)
-    '''
+    """
 
     def decorator(func):
-        '''
+        """
         The actual decorator
-        '''
+        """
 
         @lru_cache(maxsize=maxsize)
         @wraps(func)
         def wrapper(*args, **kwargs):
-            '''
+            """
             The wrapper of the function
-            '''
+            """
             try:
                 os.makedirs(dirname)
             except FileExistsError:

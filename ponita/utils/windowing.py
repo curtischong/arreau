@@ -14,17 +14,20 @@ class PolynomialCutoff(torch.nn.Module):
         super().__init__()
         if r_max is not None:
             self.register_buffer("p", torch.tensor(p, dtype=torch.get_default_dtype()))
-            self.register_buffer("r_max", torch.tensor(r_max, dtype=torch.get_default_dtype()))
+            self.register_buffer(
+                "r_max", torch.tensor(r_max, dtype=torch.get_default_dtype())
+            )
         else:
             self.r_max = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.r_max is not None:
             envelope = (
-                    1.0
-                    - ((self.p + 1.0) * (self.p + 2.0) / 2.0) * torch.pow(x / self.r_max, self.p)
-                    + self.p * (self.p + 2.0) * torch.pow(x / self.r_max, self.p + 1)
-                    - (self.p * (self.p + 1.0) / 2) * torch.pow(x / self.r_max, self.p + 2)
+                1.0
+                - ((self.p + 1.0) * (self.p + 2.0) / 2.0)
+                * torch.pow(x / self.r_max, self.p)
+                + self.p * (self.p + 2.0) * torch.pow(x / self.r_max, self.p + 1)
+                - (self.p * (self.p + 1.0) / 2) * torch.pow(x / self.r_max, self.p + 2)
             )
             return envelope * (x < self.r_max)
         else:
@@ -32,4 +35,3 @@ class PolynomialCutoff(torch.nn.Module):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(p={self.p}, r_max={self.r_max})"
-

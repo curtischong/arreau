@@ -3,15 +3,18 @@ import torch
 import random
 
 
-class NBodyDataset():
+class NBodyDataset:
     """
     NBodyDataset
 
     """
-    def __init__(self, partition='train', max_samples=1e8, dataset_name="se3_transformer"):
+
+    def __init__(
+        self, partition="train", max_samples=1e8, dataset_name="se3_transformer"
+    ):
         self.partition = partition
-        if self.partition == 'val':
-            self.sufix = 'valid'
+        if self.partition == "val":
+            self.sufix = "valid"
         else:
             self.sufix = self.partition
         self.dataset_name = dataset_name
@@ -27,25 +30,24 @@ class NBodyDataset():
         self.data, self.edges = self.load()
 
     def load(self):
-        loc = np.load('n_body_system/dataset/loc_' + self.sufix + '.npy')
-        vel = np.load('n_body_system/dataset/vel_' + self.sufix + '.npy')
-        edges = np.load('n_body_system/dataset/edges_' + self.sufix + '.npy')
-        charges = np.load('n_body_system/dataset/charges_' + self.sufix + '.npy')
+        loc = np.load("n_body_system/dataset/loc_" + self.sufix + ".npy")
+        vel = np.load("n_body_system/dataset/vel_" + self.sufix + ".npy")
+        edges = np.load("n_body_system/dataset/edges_" + self.sufix + ".npy")
+        charges = np.load("n_body_system/dataset/charges_" + self.sufix + ".npy")
 
         loc, vel, edge_attr, edges, charges = self.preprocess(loc, vel, edges, charges)
         return (loc, vel, edge_attr, charges), edges
-
 
     def preprocess(self, loc, vel, edges, charges):
         # cast to torch and swap n_nodes <--> n_features dimensions
         loc, vel = torch.Tensor(loc).transpose(2, 3), torch.Tensor(vel).transpose(2, 3)
         n_nodes = loc.size(2)
-        loc = loc[0:self.max_samples, :, :, :]  # limit number of samples
-        vel = vel[0:self.max_samples, :, :, :]  # speed when starting the trajectory
-        charges = charges[0:self.max_samples]
+        loc = loc[0 : self.max_samples, :, :, :]  # limit number of samples
+        vel = vel[0 : self.max_samples, :, :, :]  # speed when starting the trajectory
+        charges = charges[0 : self.max_samples]
         edge_attr = []
 
-        #Initialize edges and edge_attributes
+        # Initialize edges and edge_attributes
         rows, cols = [], []
         for i in range(n_nodes):
             for j in range(n_nodes):
@@ -54,14 +56,23 @@ class NBodyDataset():
                     rows.append(i)
                     cols.append(j)
         edges = [rows, cols]
-        edge_attr = torch.Tensor(edge_attr).transpose(0, 1).unsqueeze(2) # swap n_nodes <--> batch_size and add nf dimension
+        edge_attr = (
+            torch.Tensor(edge_attr).transpose(0, 1).unsqueeze(2)
+        )  # swap n_nodes <--> batch_size and add nf dimension
 
-        return torch.Tensor(loc), torch.Tensor(vel), torch.Tensor(edge_attr), edges, torch.Tensor(charges)
+        return (
+            torch.Tensor(loc),
+            torch.Tensor(vel),
+            torch.Tensor(edge_attr),
+            edges,
+            torch.Tensor(charges),
+        )
 
     def set_max_samples(self, max_samples):
         self.max_samples = int(max_samples)
         self.data, self.edges = self.load()
-    '''
+
+    """
     def preprocess_old(self, loc, vel, edges, charges):
         # cast to torch and swap n_nodes <--> n_features dimensions
         loc, vel = torch.Tensor(loc).transpose(2, 3), torch.Tensor(vel).transpose(2, 3)
@@ -84,7 +95,8 @@ class NBodyDataset():
         edge_attr = torch.Tensor(edge_attr).transpose(0, 1).unsqueeze(2) # swap n_nodes <--> batch_size and add nf dimension
 
         return torch.Tensor(loc0), torch.Tensor(vel), torch.Tensor(edge_attr), loc_last, edges, torch.Tensor(charges)
-    '''
+    """
+
     def get_n_nodes(self):
         return self.data[0].size(1)
 
@@ -100,7 +112,6 @@ class NBodyDataset():
             frame_0, frame_T = 20, 30
         else:
             raise Exception("Wrong dataset partition %s" % self.dataset_name)
-
 
         return loc[frame_0], vel[frame_0], edge_attr, charges, loc[frame_T]
 

@@ -2,6 +2,7 @@ from pymatgen.core import Structure
 from pymatgen.analysis.local_env import CrystalNN
 import numpy as np
 
+
 # returns a list of tuples of cartesian coordinates of the bonds
 def predict_bonds(structure: Structure):
     nn = CrystalNN()

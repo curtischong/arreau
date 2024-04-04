@@ -4,34 +4,54 @@ import dgl
 from torch import nn
 
 from ..se3_dynamics.models import OurSE3Transformer, OursTFN
-from .utils.utils_profiling import * # load before other local modules
+from .utils.utils_profiling import *  # load before other local modules
 
 
 class OurDynamics(torch.nn.Module):
-    def __init__(self, n_particles, n_dimesnion, nf=16, n_layers=3, act_fn=nn.ReLU(), model="se3_transformer", num_degrees=4, div=1):
+    def __init__(
+        self,
+        n_particles,
+        n_dimesnion,
+        nf=16,
+        n_layers=3,
+        act_fn=nn.ReLU(),
+        model="se3_transformer",
+        num_degrees=4,
+        div=1,
+    ):
         super().__init__()
-        #self._transformation = transformation
+        # self._transformation = transformation
         self._n_particles = n_particles
         self._n_dimension = n_dimesnion
         self._dim = self._n_particles * self._n_dimension
 
-        if model == 'se3_transformer':
-            self.se3 = OurSE3Transformer(num_layers=n_layers,
-                                     num_channels=nf, edge_dim=0, act_fn=act_fn, num_degrees=num_degrees, div=div)
-        elif model == 'tfn':
-            self.se3 = OursTFN(num_layers=n_layers,
-                                     num_channels=nf, edge_dim=0, div=1, act_fn=act_fn, num_degrees=num_degrees)
+        if model == "se3_transformer":
+            self.se3 = OurSE3Transformer(
+                num_layers=n_layers,
+                num_channels=nf,
+                edge_dim=0,
+                act_fn=act_fn,
+                num_degrees=num_degrees,
+                div=div,
+            )
+        elif model == "tfn":
+            self.se3 = OursTFN(
+                num_layers=n_layers,
+                num_channels=nf,
+                edge_dim=0,
+                div=1,
+                act_fn=act_fn,
+                num_degrees=num_degrees,
+            )
         else:
             raise Exception("Wrong model")
-
 
         self.graph = None
 
     def forward(self, xs, vs, charges):
-        #n_batch = xs.shape[0]
+        # n_batch = xs.shape[0]
         xs = xs.view(-1, self._n_particles, self._n_dimension)
         vs = vs.view(-1, self._n_particles, self._n_dimension)
-
 
         # r = distance_vectors(xs)
         # d = distances_from_vectors(r).unsqueeze(-1)
@@ -61,8 +81,8 @@ class OurDynamics(torch.nn.Module):
         # 1. Transform xs to G
         if self.graph is None:
             self.graph = array_to_graph(xs)
-            self.graph.ndata['x'] = torch.zeros_like(self.graph.ndata['x'])
-            self.graph.edata['d'] = torch.zeros_like(self.graph.edata['d'])
+            self.graph.ndata["x"] = torch.zeros_like(self.graph.ndata["x"])
+            self.graph.edata["d"] = torch.zeros_like(self.graph.edata["d"])
 
             indices_src, indices_dst, _w = connect_fully(xs.size(1))  # [N, K]
             self.indices_src = indices_src
@@ -82,14 +102,15 @@ class OurDynamics(torch.nn.Module):
         #
         # assert False
 
-        #self.graph.ndata['x'] = xs.view(xs.size(0) * xs.size(1), 3)
-        self.graph.ndata['vel'] = vs.view(xs.size(0) * vs.size(1), 3).unsqueeze(1)
+        # self.graph.ndata['x'] = xs.view(xs.size(0) * xs.size(1), 3)
+        self.graph.ndata["vel"] = vs.view(xs.size(0) * vs.size(1), 3).unsqueeze(1)
 
-        self.graph.ndata['f1'] = self.graph.ndata['vel']#torch.cat([self.graph.ndata['x'].unsqueeze(1), self.graph.ndata['vel']], dim=1)
+        self.graph.ndata["f1"] = self.graph.ndata[
+            "vel"
+        ]  # torch.cat([self.graph.ndata['x'].unsqueeze(1), self.graph.ndata['vel']], dim=1)
 
-
-        self.graph.ndata['f'] = charges.unsqueeze(2)
-        self.graph.edata['d'] = distance.view(-1, 3)
+        self.graph.ndata["f"] = charges.unsqueeze(2)
+        self.graph.edata["d"] = distance.view(-1, 3)
 
         # G_gt = array_to_graph(xs)
         # print((self.graph.edata['d'] - G_gt.edata['d']).pow(2).sum())
@@ -102,10 +123,9 @@ class OurDynamics(torch.nn.Module):
 
         # 3. Transform G_out to out
 
-        out = G_out['1'].view(xs.size())
+        out = G_out["1"].view(xs.size())
 
         # out = xs # TODO transform.
-
 
         return out + xs
 
@@ -117,7 +137,7 @@ def array_to_graph(xs):
     # get u, v, and w
 
     # get neighbour indices here and use throughout entire network; this is a numpy function
-    indices_src, indices_dst, _w = connect_fully(xs.size(1)) # [N, K]
+    indices_src, indices_dst, _w = connect_fully(xs.size(1))  # [N, K]
     # indices_dst = indices_dst.flatten() # [N*K]
     # indices_src = np.repeat(np.array(range(N)), N-1)
 
@@ -131,13 +151,13 @@ def array_to_graph(xs):
         G = dgl.DGLGraph((indices_src, indices_dst))
 
         ### add bond & feature information to graph
-        G.ndata['x'] = example  # node positions [N, ...]
-        G.ndata['f'] = example.new_ones(size=[N, 1, 1])
+        G.ndata["x"] = example  # node positions [N, ...]
+        G.ndata["f"] = example.new_ones(size=[N, 1, 1])
         # G.ndata['f'] = torch.zeros_like(example)
         # G.ndata['f'] = f[...,None] # feature values [N, ...]
         # the following two lines will use the same ordering as specified in dgl.DGLGraph((u, v))
         # G.edata['w'] = w.astype(DTYPE) # bond information
-        G.edata['d'] = example[indices_dst] - example[indices_src] # relative postion
+        G.edata["d"] = example[indices_dst] - example[indices_src]  # relative postion
 
         individual_graphs.append(G)
 

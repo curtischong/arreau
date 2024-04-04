@@ -27,7 +27,7 @@ S2 parameterization:
         - Parameterization `(beta, gamma)` follows YZ convention.
         - `beta` (Y) in `[-pi/2, pi/2]`.
         - `gamma` (Z) in `[-pi, pi]`.
-    
+
     - Euclidean vectors:
         - Parametrization `r = [x, y, z]` coordinates with `||r|| = 1`.
 
