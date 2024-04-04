@@ -1,7 +1,6 @@
 import argparse
 import torch
 from diffusion.inference.create_gif import generate_gif
-from diffusion.inference.relax import relax
 from diffusion.lattice_dataset import load_dataset
 import os
 
@@ -14,10 +13,14 @@ RELAX_DIR = f"{OUT_DIR}/relax"
 SHOW_BONDS = False
 ONLY_VISUALIZE_LAST = False
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', type=str, required=True, help='Path to the model file')
+    parser.add_argument(
+        "--model_path", type=str, required=True, help="Path to the model file"
+    )
     return parser.parse_args()
+
 
 def get_sample_lattice(use_ith_sample_lattice: int):
     # lattice = np.random.rand(3,3)
@@ -25,6 +28,7 @@ def get_sample_lattice(use_ith_sample_lattice: int):
     sample_L0 = torch.tensor([dataset[use_ith_sample_lattice].L0])
     # sample_X0 = dataset[0].X0
     return sample_L0
+
 
 def sample_crystal(Lt, num_atoms):
     # load model
@@ -37,7 +41,13 @@ def sample_crystal(Lt, num_atoms):
     os.makedirs(DIFFUSION_DIR, exist_ok=True)
     vis_name = f"{DIFFUSION_DIR}/step"
 
-    return model.sample(Lt, num_atoms, vis_name, only_visualize_last=ONLY_VISUALIZE_LAST, show_bonds=SHOW_BONDS)
+    return model.sample(
+        Lt,
+        num_atoms,
+        vis_name,
+        only_visualize_last=ONLY_VISUALIZE_LAST,
+        show_bonds=SHOW_BONDS,
+    )
 
 
 if __name__ == "__main__":
@@ -57,4 +67,3 @@ if __name__ == "__main__":
     # L0 = res.get("lattice").detach().cpu().numpy().squeeze(0)
 
     # relax(L0, X0, atomic_numbers, RELAX_DIR)
-

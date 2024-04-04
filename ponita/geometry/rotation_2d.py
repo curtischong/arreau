@@ -21,9 +21,7 @@ def uniform_grid_s1(num_points: int, device: Optional[str] = None) -> torch.Tens
     # Generate angles uniformly
     # NOTE: the last element should be one portion before 2*pi.
     angles = torch.linspace(
-        start=0, 
-        end=2 * torch.pi - (2 * torch.pi / num_points), 
-        steps=num_points
+        start=0, end=2 * torch.pi - (2 * torch.pi / num_points), steps=num_points
     )
 
     # Calculate x and y coordinates

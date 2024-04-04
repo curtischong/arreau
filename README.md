@@ -36,6 +36,11 @@ This repo was heavily inspired by:
         pip install -r cpu_requirements.txt
         ```
 
+
+4. Please install the Ruff linter VSCode extension
+- So your changes are linted properly
+- Please set the `Default Formatter` VSCode setting to use Ruff
+
 ### Weights:
 
 You can download pre-trained weights [here](https://drive.google.com/drive/folders/1y84gdxGfzeN-RU8DyVpPvCXop7Xf5slu)

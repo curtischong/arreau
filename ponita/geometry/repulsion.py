@@ -5,7 +5,6 @@ repulsion.py
 Contains repulsion model.
 """
 
-
 import torch
 from torch import Tensor
 
@@ -17,7 +16,7 @@ from typing import Callable
 def columb_energy(d: Tensor, k: int = 2) -> Tensor:
     """
     Returns columb energy over given input.
-    
+
     Arguments:
         - d: Tensor to calculate columb energy over.
         - k: Exponent term of columb energy.
@@ -29,17 +28,17 @@ def columb_energy(d: Tensor, k: int = 2) -> Tensor:
 
 
 def repulse(
-        grid: Tensor,
-        steps: int = 200,
-        step_size: float = 10,
-        metric_fn: Callable = lambda x, y: x - y,
-        transform_fn: Callable = lambda x: x,
-        energy_fn: Callable = columb_energy,
-        dist_normalization_constant: float = 1,
-        alpha: float = 0.001,
-        show_pbar: bool = True,
-        in_place: bool = False,
-    ) -> Tensor:
+    grid: Tensor,
+    steps: int = 200,
+    step_size: float = 10,
+    metric_fn: Callable = lambda x, y: x - y,
+    transform_fn: Callable = lambda x: x,
+    energy_fn: Callable = columb_energy,
+    dist_normalization_constant: float = 1,
+    alpha: float = 0.001,
+    show_pbar: bool = True,
+    in_place: bool = False,
+) -> Tensor:
     """
     Performs repulsion grids defined on Sn. Will perform
     repulsion on device that grid is defined on.
@@ -62,7 +61,7 @@ def repulse(
     Returns:
         - Tensor of shape (N, D) of minimized grid.
     """
-    
+
     pbar = trange(steps, disable=not show_pbar, desc="Optimizing")
 
     grid = grid if in_place else grid.clone()
@@ -75,12 +74,19 @@ def repulse(
 
         grid_transform = transform_fn(grid)
 
-        dists = metric_fn(grid_transform[:, None], grid_transform).sort(dim=-1)[0][:, 1:]
+        dists = metric_fn(grid_transform[:, None], grid_transform).sort(dim=-1)[0][
+            :, 1:
+        ]
         energy_matrix = energy_fn(dists / dist_normalization_constant)
 
         mean_total_energy = energy_matrix.mean()
         mean_total_energy.backward()
-        grid.grad += (steps - epoch) / steps * alpha * torch.randn(grid.grad.shape, device=grid.device)
+        grid.grad += (
+            (steps - epoch)
+            / steps
+            * alpha
+            * torch.randn(grid.grad.shape, device=grid.device)
+        )
 
         optimizer.step()
 
