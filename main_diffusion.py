@@ -142,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_neighbors",
         type=int,
+        required=True,
         help="the maximum number of other atoms an atom can be directly influenced by",
     )
     parser.add_argument(

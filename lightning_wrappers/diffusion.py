@@ -85,7 +85,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def training_step(self, graph: Batch):
         if self.train_augm:
-            graph = self.rotation_transform(graph)
+            # graph = self.rotation_transform(graph)
+            pass
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
         self.train_metric.update(loss, graph)
