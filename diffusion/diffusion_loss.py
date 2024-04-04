@@ -79,6 +79,9 @@ class DiffusionLoss(torch.nn.Module):
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = h_time
         batch.pos = cart_x_t
+
+        # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
+        # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
         edge_index, cell_offsets, neighbors = radius_graph_pbc(
             cart_x_t,
             lattice,
