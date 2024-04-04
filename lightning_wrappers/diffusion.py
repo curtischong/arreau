@@ -85,9 +85,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def training_step(self, graph: Batch):
         if self.train_augm:
-            # TODO: fix this. because L0's dimension is NOT the same as the number of atoms, this rotate_transform function will not work
-            # graph = self.rotation_transform(graph)
-            pass
+            graph = self.rotation_transform(graph)
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
         self.train_metric.update(loss, graph)
