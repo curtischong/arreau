@@ -27,7 +27,6 @@ class Sparsify(BaseTransform):
         graph.edge_index = None
         return graph
     
-from torch_geometric.transforms import BaseTransform
 class RemoveDuplicatePoints(BaseTransform):
     def __init__(self):
         super().__init__()
@@ -158,7 +157,8 @@ if __name__ == "__main__":
     callbacks = [EMA(0.99),
                  pl.callbacks.ModelCheckpoint(monitor='valid ACC', mode = 'max'),
                  EpochTimer()]
-    if args.log: callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
+    if args.log:
+        callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
     
     # Initialize the trainer
     trainer = pl.Trainer(logger=logger, max_epochs=args.epochs, callbacks=callbacks, inference_mode=False, # Important for force computation via backprop

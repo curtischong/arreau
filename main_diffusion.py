@@ -200,7 +200,8 @@ if __name__ == "__main__":
                     save_top_k=3,
                     save_last=True),
                  EpochTimer()]
-    if args.log: callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
+    if args.log:
+        callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval='epoch'))
 
     # Initialize the trainer
     trainer = pl.Trainer(logger=logger, max_epochs=args.epochs, callbacks=callbacks, gradient_clip_val=0.5, 
