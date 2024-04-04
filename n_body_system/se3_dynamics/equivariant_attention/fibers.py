@@ -1,13 +1,10 @@
 from ..utils.utils_profiling import *  # load before other local modules
 
-import math
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import copy
 
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 
 class Fiber(object):

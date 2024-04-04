@@ -6,7 +6,6 @@ Using ZYZ Euler angles parametrisation
 """
 
 import torch
-import math
 import numpy as np
 
 

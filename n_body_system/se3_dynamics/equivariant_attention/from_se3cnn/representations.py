@@ -2,7 +2,6 @@ import time
 
 import torch
 import numpy as np
-from scipy.special import lpmv as lpmv_scipy
 
 
 def semifactorial(x):

@@ -1,7 +1,6 @@
 import argparse
 import torch
 from diffusion.inference.create_gif import generate_gif
-from diffusion.inference.relax import relax
 from diffusion.lattice_dataset import load_dataset
 import os
 

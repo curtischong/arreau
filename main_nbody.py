@@ -5,7 +5,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
-from lightning_wrappers.callbacks import EpochTimer, EMA
+from lightning_wrappers.callbacks import EpochTimer
 from lightning_wrappers.nbody import PONITA_NBODY
 
 

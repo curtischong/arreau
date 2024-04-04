@@ -1,12 +1,8 @@
-import sys
 
-import numpy as np
 import torch
 
 # from dgl.nn.pytorch import GraphConv, NNConv
 from torch import nn
-from torch.nn import functional as F
-from typing import Dict, Tuple, List
 
 from .equivariant_attention.modules import (
     GConvSE3,
@@ -17,7 +13,6 @@ from .equivariant_attention.modules import (
     GAvgPooling,
 )
 from .equivariant_attention.fibers import Fiber
-import time
 
 
 class TFN(nn.Module):

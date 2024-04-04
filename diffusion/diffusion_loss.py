@@ -16,7 +16,6 @@ from diffusion.diffusion_helpers import (
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import (
-    vis_crystal,
     vis_crystal_during_sampling,
 )
 

@@ -1,4 +1,3 @@
-import torch
 from torch_geometric.transforms import BaseTransform
 from ponita.geometry.invariants import (
     invariant_attr_r2s1_fiber_bundle,

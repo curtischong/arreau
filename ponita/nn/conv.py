@@ -1,6 +1,5 @@
 import torch
 import torch_geometric
-from typing import Optional
 
 
 class Conv(torch_geometric.nn.MessagePassing):

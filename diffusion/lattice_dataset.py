@@ -7,9 +7,7 @@ from torch_geometric.data import Data
 
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
-    atomic_numbers_to_indices,
     one_hot_encode_atomic_numbers,
-    to_one_hot,
 )
 from diffusion.tools.neighborhood import get_neighborhood
 
