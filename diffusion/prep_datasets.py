@@ -13,9 +13,10 @@ ROOT_PATH = f"{pathlib.Path(__file__).parent.resolve()}/.."
 IN_DIR = f"{ROOT_PATH}/datasets/alexandria"
 OUT_DIR = f"{ROOT_PATH}/datasets/alexandria_hdf5"
 
+
 def prep_data_and_save_hdf5(filename):
     print(f"prepping {filename}")
-    with bz2.open(f"{IN_DIR}/{filename}.json.bz2", 'rt', encoding='utf-8') as fh:
+    with bz2.open(f"{IN_DIR}/{filename}.json.bz2", "rt", encoding="utf-8") as fh:
         data = json.load(fh)
 
     entries = [ComputedStructureEntry.from_dict(i) for i in data["entries"]]
@@ -37,16 +38,17 @@ def prep_data_and_save_hdf5(filename):
 
     # Save the data to an HDF5 file
     os.makedirs(OUT_DIR, exist_ok=True)
-    with h5py.File(f"{OUT_DIR}/{filename}.h5", 'w') as f:
-        atom_onehot_group = f.create_group('atomic_number')
+    with h5py.File(f"{OUT_DIR}/{filename}.h5", "w") as f:
+        atom_onehot_group = f.create_group("atomic_number")
         for i, vector in enumerate(atomic_number_vectors):
             atom_onehot_group.create_dataset(str(i), data=vector)
 
-        f.create_dataset('lattice_matrix', data=lattice_matrices)
+        f.create_dataset("lattice_matrix", data=lattice_matrices)
 
-        frac_coords_group = f.create_group('frac_coord')
+        frac_coords_group = f.create_group("frac_coord")
         for i, array in enumerate(frac_coords_arrays):
             frac_coords_group.create_dataset(str(i), data=array)
+
 
 def main():
     NUM_FILES = 5
@@ -63,6 +65,7 @@ def main():
     # Wait all processes to finish.
     for p in processes:
         p.join()
+
 
 if __name__ == "__main__":
     main()
