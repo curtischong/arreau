@@ -39,6 +39,7 @@ This repo was heavily inspired by:
 
 4. Please install the Ruff linter VSCode extension
 - So your changes are linted properly
+- Please set the `Default Formatter` VSCode setting to use Ruff
 
 ### Weights:
 
