@@ -1,0 +1,10 @@
+# Exclude the original ponita files, so when ponita updates, we can easily merge from upstream
+exclude = [
+    "ponita",
+    "n_body_system",
+    "lightning_wrappers",
+]
+
+include = [
+    "lighting_wrappers/diffusion.py"
+]
