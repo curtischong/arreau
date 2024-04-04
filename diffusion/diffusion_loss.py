@@ -6,16 +6,24 @@ import torchmetrics
 import numpy as np
 from tqdm import tqdm
 
-from diffusion.diffusion_helpers import VP, VE_pbc, cart_to_frac_coords, frac_to_cart_coords, radius_graph_pbc, subtract_cog
+from diffusion.diffusion_helpers import (
+    VP,
+    VE_pbc,
+    cart_to_frac_coords,
+    frac_to_cart_coords,
+    radius_graph_pbc,
+    subtract_cog,
+)
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
 
 
 pos_sigma_min = 0.001
-pos_sigma_max = 10.
+pos_sigma_max = 10.0
 
 type_power = 2
 type_clipmax = 0.999
+
 
 class DiffusionLossMetric(torchmetrics.Metric):
     def __init__(self):
@@ -25,12 +33,13 @@ class DiffusionLossMetric(torchmetrics.Metric):
 
     def compute(self):
         return self.total_loss / self.total_samples
-    
+
     def update(self, loss, batch: Batch):
         self.total_loss += loss.sum()
         num_batches = torch.unique(batch.batch).size(0)
         self.total_samples += num_batches
-    
+
+
 class DiffusionLoss(torch.nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -38,9 +47,7 @@ class DiffusionLoss(torch.nn.Module):
         self.max_neighbors = args.max_neighbors
         self.T = args.num_timesteps
         self.pos_diffusion = VE_pbc(
-            self.T,
-            sigma_min=pos_sigma_min,
-            sigma_max=pos_sigma_max
+            self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
         )
 
         self.type_diffusion = VP(
@@ -53,8 +60,8 @@ class DiffusionLoss(torch.nn.Module):
         self.cost_type_coeff = 1
         # self.norm_x = 10. # I'm not sure why mofdiff uses these values. I'm going to use 1.0 for now.
         # self.norm_h = 10.
-        self.norm_x = 1.
-        self.norm_h = 1.
+        self.norm_x = 1.0
+        self.norm_h = 1.0
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -68,8 +75,18 @@ class DiffusionLoss(torch.nn.Module):
             error = error.sum(-1)
         return error
 
-
-    def phi(self, x_t, h_t, t_int, num_atoms, lattice, model, batch: Batch, t_emb_weights, frac=False):
+    def phi(
+        self,
+        x_t,
+        h_t,
+        t_int,
+        num_atoms,
+        lattice,
+        model,
+        batch: Batch,
+        t_emb_weights,
+        frac=False,
+    ):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
         h_time = torch.cat([h_t, t_emb], dim=1)
@@ -99,17 +116,17 @@ class DiffusionLoss(torch.nn.Module):
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
         return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h
-    
+
     def normalize(self, x, h):
         x = x / self.norm_x
         h = h / self.norm_h
         return x, h
-    
+
     def unnormalize(self, x, h):
         x = x * self.norm_x
         h = h * self.norm_h
         return x, h
-    
+
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
         input x has to be cart coords.
@@ -119,7 +136,6 @@ class DiffusionLoss(torch.nn.Module):
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
-
 
         x, h = self.normalize(x, h)
 
@@ -142,7 +158,15 @@ class DiffusionLoss(torch.nn.Module):
 
         # Compute the prediction.
         pred_eps_x, pred_eps_h = self.phi(
-            frac_x_t, h_t, t_int, num_atoms, lattice, model, batch, t_emb_weights, frac=True
+            frac_x_t,
+            h_t,
+            t_int,
+            num_atoms,
+            lattice,
+            model,
+            batch,
+            t_emb_weights,
+            frac=True,
         )
 
         # Compute the error.
@@ -158,7 +182,7 @@ class DiffusionLoss(torch.nn.Module):
 
         return {
             "t": t_int.squeeze(),
-            "loss": loss.mean(), # needs to be called "loss" for pytorch lightning to see it.
+            "loss": loss.mean(),  # needs to be called "loss" for pytorch lightning to see it.
             "coord_loss": error_x.mean(),
             "type_loss": error_h.mean(),
             "pred_eps_x": pred_eps_x,
@@ -195,18 +219,32 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
             score_x, score_h = self.phi(
-                frac_x, h, t, num_atoms, lattice, model, Batch(), t_emb_weights, frac=True
+                frac_x,
+                h,
+                t,
+                num_atoms,
+                lattice,
+                model,
+                Batch(),
+                t_emb_weights,
+                frac=True,
             )
-            frac_x = self.pos_diffusion.reverse(
-                x, score_x, t, lattice, num_atoms
-            )
+            frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
-            
-            if not only_visualize_last and (timestep != self.T-1) and (timestep % 10 == 0):
-                vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds)
 
-        x, h = self.unnormalize(x, h) # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
+            if (
+                not only_visualize_last
+                and (timestep != self.T - 1)
+                and (timestep % 10 == 0)
+            ):
+                vis_crystal_during_sampling(
+                    z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds
+                )
+
+        x, h = self.unnormalize(
+            x, h
+        )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         output = {
             "x": x,
@@ -214,6 +252,8 @@ class DiffusionLoss(torch.nn.Module):
             "num_atoms": num_atoms,
             "lattice": lattice,
         }
-        vis_crystal_during_sampling(z_table, h, lattice, x, vis_name + "_final", show_bonds)
+        vis_crystal_during_sampling(
+            z_table, h, lattice, x, vis_name + "_final", show_bonds
+        )
 
         return output

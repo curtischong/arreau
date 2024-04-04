@@ -1,6 +1,7 @@
 import torch
 import torch_geometric
 
+
 class AtomicData(torch_geometric.data.Data):
     num_graphs: torch.Tensor
     batch: torch.Tensor
@@ -8,10 +9,12 @@ class AtomicData(torch_geometric.data.Data):
     node_attrs: torch.Tensor
     edge_vectors: torch.Tensor
     edge_lengths: torch.Tensor
-    positions: torch.Tensor # This is derived from the Xt and Lt properties. This is why we don't have the Xt and Lt fields below
+    positions: torch.Tensor  # This is derived from the Xt and Lt properties. This is why we don't have the Xt and Lt fields below
     shifts: torch.Tensor
     unit_shifts: torch.Tensor
-    A0: torch.Tensor | None # All of the "| None" types are because we don't have them during inference. However, the non-None types are needed to calculate the loss during training
+    A0: (
+        torch.Tensor | None
+    )  # All of the "| None" types are because we don't have them during inference. However, the non-None types are needed to calculate the loss during training
     X0: torch.Tensor | None
     L0: torch.Tensor | None
     num_atoms: torch.Tensor
@@ -24,7 +27,7 @@ class AtomicData(torch_geometric.data.Data):
         positions: torch.Tensor,  # [n_nodes, 3]
         shifts: torch.Tensor,  # [n_edges, 3],
         unit_shifts: torch.Tensor,  # [n_edges, 3]
-        A0: torch.Tensor | None, # the atomic number at time 0
+        A0: torch.Tensor | None,  # the atomic number at time 0
         X0: torch.Tensor | None,
         L0: torch.Tensor | None,
     ):
