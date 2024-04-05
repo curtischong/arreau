@@ -7,7 +7,7 @@ from ponita.geometry.rotation_2d import random_so2_matrix
 @dataclass
 class RotateDef:
     attr_name: str
-    rotate_for_batch: bool
+    rotate_for_batch: bool # If true, there are only b of these attributes, where b is the number of examples in this batch. b is NOT the number of total atoms in the batch
 
 class RandomRotate(BaseTransform):
     """
