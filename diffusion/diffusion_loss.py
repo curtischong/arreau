@@ -11,8 +11,10 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
+    polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
+    symmetric_matrix_to_vector,
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
@@ -22,7 +24,9 @@ pos_sigma_min = 0.001
 pos_sigma_max = 10.0
 
 type_power = 2
+lattice_power = 2
 type_clipmax = 0.999
+lattice_clipmax = 0.999
 
 
 class DiffusionLossMetric(torchmetrics.Metric):
@@ -56,8 +60,15 @@ class DiffusionLoss(torch.nn.Module):
             clipmax=type_clipmax,
         )
 
+        self.lattice_diffusion = VP(
+            self.T,
+            power=lattice_power,
+            clipmax=lattice_clipmax,
+        )
+
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
+        self.lattice_coeff = 1
         # self.norm_x = 10. # I'm not sure why mofdiff uses these values. I'm going to use 1.0 for now.
         # self.norm_h = 10.
         self.norm_x = 1.0
@@ -110,12 +121,12 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x = model(batch)
+        pred_eps_h, pred_eps_x, pred_eps_l = model(batch)
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
-        return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h
+        return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h, pred_eps_l
 
     def normalize(self, x, h):
         x = x / self.norm_x
@@ -126,6 +137,13 @@ class DiffusionLoss(torch.nn.Module):
         x = x * self.norm_x
         h = h * self.norm_h
         return x, h
+
+    def diffuse_lattice(self, lattice, t_int):
+        rot_mat, symmetric_lattice = polar_decomposition(lattice)
+        symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
+        inv_rot_mat = torch.linalg.inv(rot_mat)
+
+        return self.lattice_diffusion(symmetric_lattice_vec, t_int), inv_rot_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -154,15 +172,16 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
             x, t_int, lattice, num_atoms
         )
-        h_t, eps_h = self.type_diffusion(h, t_int)
+        h_t, eps_h = self.type_diffusion(h, t_int)  # eps is the noise
+        l_t, eps_l, inv_rot_mat = self.diffuse_lattice(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h = self.phi(
+        pred_eps_x, pred_eps_h, pred_eps_l = self.phi(
             frac_x_t,
             h_t,
             t_int,
             num_atoms,
-            lattice,
+            l_t,
             model,
             batch,
             t_emb_weights,
@@ -178,7 +197,14 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
+        l_tilda_eps = torch.matmul(inv_rot_mat, pred_eps_l)
+        error_l = self.compute_error(l_tilda_eps, eps_l, batch)
+
+        loss = (
+            self.cost_coord_coeff * error_x
+            + self.cost_type_coeff * error_h
+            + self.lattice_coeff * error_l
+        )
         return loss.mean()
 
         # return {

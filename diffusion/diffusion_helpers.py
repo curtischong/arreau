@@ -429,3 +429,49 @@ def radius_graph_pbc(
         return edge_index, -unit_cell, num_neighbors_image
     else:
         return edge_index, -unit_cell, num_neighbors_image, topk_mask
+
+
+def polar_decomposition(matrix: torch.Tensor):
+    # Perform SVD on the input matrix
+    U, S, Vt = torch.linalg.svd(matrix)
+
+    # Compute the symmetric positive-definite matrix l_tilda
+    L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
+
+    return U, L_tilda
+
+
+def symmetric_matrix_to_vector(matrix: torch.Tensor):
+    """
+    Converts a 3x3 symmetric matrix to a vector containing the upper triangular part (including diagonal).
+    """
+    assert matrix.shape == (3, 3), "Input matrix must be 3x3"
+    assert torch.allclose(matrix, matrix.T), "Input matrix must be symmetric"
+
+    vector = torch.stack(
+        [
+            matrix[0, 0],
+            matrix[0, 1],
+            matrix[0, 2],
+            matrix[1, 1],
+            matrix[1, 2],
+            matrix[2, 2],
+        ]
+    )
+    return vector
+
+
+def vector_to_symmetric_matrix(vector: torch.Tensor):
+    """
+    Reconstructs a 3x3 symmetric matrix from a vector containing the upper triangular part (including diagonal).
+    """
+    assert vector.shape == (6,), "Input vector must have 6 elements"
+
+    matrix = torch.zeros((3, 3))
+    matrix[0, 0] = vector[0]
+    matrix[0, 1] = matrix[1, 0] = vector[1]
+    matrix[0, 2] = matrix[2, 0] = vector[2]
+    matrix[1, 1] = vector[3]
+    matrix[1, 2] = matrix[2, 1] = vector[4]
+    matrix[2, 2] = vector[5]
+    return matrix
