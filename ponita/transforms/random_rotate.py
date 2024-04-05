@@ -49,7 +49,7 @@ class RandomRotate(BaseTransform):
     def rotate_attr(self, attr, rand_rot, rand_rot_for_batch: torch.Tensor, rotate_def: RotateDef):
             rand_rot = rand_rot.type_as(attr)
             if rotate_def.rotate_for_batch:
-                return torch.bmm(rand_rot_for_batch, attr)
+                return torch.einsum('bij,bcj->bci', rand_rot_for_batch, attr)
             if len(rand_rot.shape)==3:
                 if len(attr.shape)==2:
                     return torch.einsum('bij,bj->bi', rand_rot, attr)
