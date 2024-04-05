@@ -179,17 +179,18 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
+        return loss.mean()
 
-        return {
-            "t": t_int.squeeze(),
-            "loss": loss.mean(),  # needs to be called "loss" for pytorch lightning to see it.
-            "coord_loss": error_x.mean(),
-            "type_loss": error_h.mean(),
-            "pred_eps_x": pred_eps_x,
-            "pred_eps_h": pred_eps_h,
-            "eps_x": target_eps_x,
-            "eps_h": eps_h,
-        }
+        # return {
+        #     "t": t_int.squeeze(),
+        #     "loss": loss.mean(),  # needs to be called "loss" for pytorch lightning to see it.
+        #     "coord_loss": error_x.mean(),
+        #     "type_loss": error_h.mean(),
+        #     "pred_eps_x": pred_eps_x,
+        #     "pred_eps_h": pred_eps_h,
+        #     "eps_x": target_eps_x,
+        #     "eps_h": eps_h,
+        # }
 
     @torch.no_grad()
     def sample(

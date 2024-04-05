@@ -90,7 +90,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             pass
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
-        self.train_metric.update(loss["loss"], graph)
+        self.train_metric.update(loss, graph)
         return loss
 
     def on_train_epoch_end(self):
@@ -104,7 +104,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def validation_step(self, graph, batch_idx):
         loss = self.diffusion_loss(self, graph, self.t_emb)
-        self.valid_metric.update(loss["loss"], graph)
+        self.valid_metric.update(loss, graph)
 
     def on_validation_epoch_end(self):
         self.log(
@@ -117,7 +117,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def test_step(self, graph, batch_idx):
         loss = self.diffusion_loss(self, graph, self.t_emb)
-        self.test_metric.update(loss["loss"], graph)
+        self.test_metric.update(loss, graph)
 
     def on_test_epoch_end(self):
         self.log("test loss", self.test_metric, on_step=False, on_epoch=True)
