@@ -63,12 +63,14 @@ class PONITA_DIFFUSION(pl.LightningModule):
         in_channels_vec = 0  # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
+        out_channels_global_vec = 1
 
         # Make the model
         self.model = PonitaFiberBundle(
             in_channels_scalar + in_channels_vec,
             args.hidden_dim,
             out_channels_scalar,
+            out_channels_global_vec,
             args.layers,
             output_dim_vec=out_channels_vec,
             radius=args.radius,
