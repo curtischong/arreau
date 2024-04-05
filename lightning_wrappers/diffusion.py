@@ -8,7 +8,7 @@ from diffusion.tools.atomic_number_table import AtomicNumberTable
 
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
-from ponita.transforms.random_rotate import RandomRotate
+from ponita.transforms.random_rotate import RandomRotate, RotateDef
 import numpy as np
 
 
@@ -42,8 +42,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
         self.rotation_transform = RandomRotate(
-            ["pos", "L0"], n=3
-        )  # TODO: I'm not sure if we can rotate each of these matricies like this. Maybe it works?
+            [RotateDef("pos", False), RotateDef("L0", True)], n=3
+        )
         # Note I'm not rotating the fractional coords "X0", since these are lengths
 
         self.t_emb = GaussianFourierProjection(t_emb_dim // 2, fourier_scale)
@@ -85,9 +85,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def training_step(self, graph: Batch):
         if self.train_augm:
-            # TODO: fix this. because L0's dimension is NOT the same as the number of atoms, this rotate_transform function will not work
-            # graph = self.rotation_transform(graph)
-            pass
+            graph.L0 = graph.L0.view(-1, 3, 3)
+            graph = self.rotation_transform(graph)
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
         self.train_metric.update(loss, graph)

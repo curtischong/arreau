@@ -1,7 +1,13 @@
+from attr import dataclass
 import torch
 from torch_geometric.transforms import BaseTransform
 from ponita.geometry.rotation import random_matrix as random_so3_matrix
 from ponita.geometry.rotation_2d import random_so2_matrix
+
+@dataclass
+class RotateDef:
+    attr_name: str
+    rotate_for_batch: bool # If true, there are only b of these attributes, where b is the number of examples in this batch. b is NOT the number of total atoms in the batch
 
 class RandomRotate(BaseTransform):
     """
@@ -12,7 +18,7 @@ class RandomRotate(BaseTransform):
         None
     """
 
-    def __init__(self, attr_list, n=3):
+    def __init__(self, attr_list: [RotateDef], n=3):
         super().__init__()
         self.attr_list = attr_list
         self.random_rotation_matrix_fn = random_so2_matrix if (n == 2) else random_so3_matrix
@@ -30,17 +36,20 @@ class RandomRotate(BaseTransform):
                                       The positions in the graph are rotated using a random rotation matrix
                                       sampled from a uniform distribution over SO(3).
         """
-        rand_rot = self.random_rotation(graph)
-        return self.rotate_graph(graph, rand_rot)
+        rand_rot, rand_rot_for_batch = self.random_rotation(graph)
+        return self.rotate_graph(graph, rand_rot, rand_rot_for_batch)
 
-    def rotate_graph(self, graph, rand_rot):
-        for attr in self.attr_list:
-            if hasattr(graph, attr):
-                setattr(graph, attr, self.rotate_attr(getattr(graph, attr), rand_rot))
+    def rotate_graph(self, graph, rand_rot, rand_rot_for_batch):
+        for rotate_def in self.attr_list:
+            attr_name = rotate_def.attr_name
+            if hasattr(graph, attr_name):
+                setattr(graph, attr_name, self.rotate_attr(getattr(graph, attr_name), rand_rot, rand_rot_for_batch, rotate_def))
         return graph
         
-    def rotate_attr(self, attr, rand_rot):
+    def rotate_attr(self, attr, rand_rot, rand_rot_for_batch: torch.Tensor, rotate_def: RotateDef):
             rand_rot = rand_rot.type_as(attr)
+            if rotate_def.rotate_for_batch:
+                return torch.einsum('bij,bcj->bci', rand_rot_for_batch, attr)
             if len(rand_rot.shape)==3:
                 if len(attr.shape)==2:
                     return torch.einsum('bij,bj->bi', rand_rot, attr)
@@ -56,7 +65,9 @@ class RandomRotate(BaseTransform):
         if graph.batch is not None:
             batch_size = graph.batch.max() + 1
             random_rotation_matrix = self.random_rotation_matrix_fn(batch_size).to(graph.batch.device)
-            random_rotation_matrix = random_rotation_matrix[graph.batch]
+            rand_rot_for_batch = random_rotation_matrix
+            random_rotation_matrix = rand_rot_for_batch[graph.batch]
         else:
             random_rotation_matrix = self.random_rotation_matrix(1)[0]
-        return random_rotation_matrix
+            rand_rot_for_batch = random_rotation_matrix
+        return random_rotation_matrix, rand_rot_for_batch
