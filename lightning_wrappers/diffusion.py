@@ -99,7 +99,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             self.train_metric,
             prog_bar=True,
             on_step=False,
-            on_epoch=False,
+            on_epoch=True,
         )
 
     def validation_step(self, graph, batch_idx):
@@ -120,7 +120,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.test_metric.update(loss["loss"], graph)
 
     def on_test_epoch_end(self):
-        self.log("test loss", self.test_metric, on_step=False, on_epoch=False)
+        self.log("test loss", self.test_metric, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         """
