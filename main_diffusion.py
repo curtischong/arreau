@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train_augm",
         type=eval,
-        default=True,
+        default=False,
         help="whether or not to use random rotations during training",
     )
 

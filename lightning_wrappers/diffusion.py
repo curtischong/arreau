@@ -41,7 +41,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # For rotation augmentations during training and testing
         self.train_augm = args.train_augm
-        self.rotation_transform = RandomRotate([RotateDef('pos', False), RotateDef('L0', True)], n=3)
+        self.rotation_transform = RandomRotate(
+            [RotateDef("pos", False), RotateDef("L0", True)], n=3
+        )
         # Note I'm not rotating the fractional coords "X0", since these are lengths
 
         self.t_emb = GaussianFourierProjection(t_emb_dim // 2, fourier_scale)
