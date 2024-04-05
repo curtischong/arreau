@@ -10,6 +10,7 @@ from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate, RotateDef
 import numpy as np
+import gc
 
 
 fourier_scale = 16
@@ -90,6 +91,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
         self.train_metric.update(loss, graph)
+        return loss
 
     def on_train_epoch_end(self):
         self.log(
@@ -112,6 +114,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             on_step=False,
             on_epoch=True,
         )
+        gc.collect()
 
     def test_step(self, graph, batch_idx):
         loss = self.diffusion_loss(self, graph, self.t_emb)
