@@ -146,7 +146,8 @@ class DiffusionLoss(torch.nn.Module):
         symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
         inv_rot_mat = torch.linalg.inv(rot_mat)
 
-        return self.lattice_diffusion(symmetric_lattice_vec, t_int), inv_rot_mat
+        l_t, eps_l = self.lattice_diffusion(symmetric_lattice_vec, t_int)
+        return l_t, eps_l, inv_rot_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -169,20 +170,20 @@ class DiffusionLoss(torch.nn.Module):
             t_int = (
                 torch.ones((batch.num_atoms.size(0), 1), device=x.device).long() * t_int
             )
-        t_int = t_int.repeat_interleave(num_atoms, dim=0)
+        t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
-            x, t_int, lattice, num_atoms
+            x, t_int_atoms, lattice, num_atoms
         )
-        h_t, eps_h = self.type_diffusion(h, t_int)  # eps is the noise
+        h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         l_t, eps_l, inv_rot_mat = self.diffuse_lattice(lattice, t_int)
 
         # Compute the prediction.
         pred_eps_x, pred_eps_h, pred_eps_l = self.phi(
             frac_x_t,
             h_t,
-            t_int,
+            t_int_atoms,
             num_atoms,
             l_t,
             model,
