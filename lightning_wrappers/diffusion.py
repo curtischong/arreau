@@ -90,7 +90,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         loss = self.diffusion_loss(self, graph, self.t_emb)
         self.train_metric.update(loss, graph)
-        return loss
 
     def on_train_epoch_end(self):
         self.log(
