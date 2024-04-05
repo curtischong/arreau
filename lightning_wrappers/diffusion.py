@@ -112,7 +112,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             self.valid_metric,
             prog_bar=True,
             on_step=False,
-            on_epoch=False,
+            on_epoch=True,
         )
 
     def test_step(self, graph, batch_idx):
