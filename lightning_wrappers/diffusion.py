@@ -56,8 +56,10 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # Input/output specifications:
         in_channels_scalar = (
-            num_atomic_states + 64
-        )  # atomic_number + the time embedding (from GaussianFourierProjection)
+            num_atomic_states
+            + 64  # the time embedding (from GaussianFourierProjection)
+        )
+
         in_channels_vec = 0  # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)

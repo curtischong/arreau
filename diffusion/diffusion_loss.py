@@ -55,13 +55,13 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         self.type_diffusion = VP(
-            self.T,
+            num_steps=self.T,
             power=type_power,
             clipmax=type_clipmax,
         )
 
         self.lattice_diffusion = VP(
-            self.T,
+            num_steps=self.T,
             power=lattice_power,
             clipmax=lattice_clipmax,
         )
@@ -139,6 +139,9 @@ class DiffusionLoss(torch.nn.Module):
         return x, h
 
     def diffuse_lattice(self, lattice, t_int):
+        # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
+        # This is so the model can use vector features for the equivariance
+
         rot_mat, symmetric_lattice = polar_decomposition(lattice)
         symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
         inv_rot_mat = torch.linalg.inv(rot_mat)
@@ -197,7 +200,7 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        l_tilda_eps = torch.matmul(inv_rot_mat, pred_eps_l)
+        l_tilda_eps = symmetric_matrix_to_vector(torch.matmul(inv_rot_mat, pred_eps_l))
         error_l = self.compute_error(l_tilda_eps, eps_l, batch)
 
         loss = (
