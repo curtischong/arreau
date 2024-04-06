@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 import torch
 from torch_geometric.data import Data
+import time
 
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
@@ -20,20 +21,41 @@ class Configuration:
     L0: np.ndarray
 
 
-def load_data(filename):
-    with h5py.File(filename, "r") as f:
-        # Load atom one-hot matrices
-        atomic_number_vectors = []
-        for key in sorted(f["atomic_number"], key=lambda x: int(x)):
-            atomic_number_vectors.append(np.array(f["atomic_number"][key]))
+# def process_field(file: h5py.File, field: str, key: str):
+#     return np.array(file[field][key])
 
+
+def load_data(filename: str):
+    with h5py.File(filename, "r") as f:
+        t0 = time.time()
+        # Load atom one-hot matrices
+        t00 = time.time()
+        sorted_keys = sorted(f["atomic_number"], key=int)
+        atomic_number_vectors = [None] * len(sorted_keys)
+        for i in range(len(sorted_keys)):
+            key = sorted_keys[i]
+            atomic_number_vectors[i] = np.array(f["atomic_number"][key])
+        # with mp.Pool() as pool:
+        #     atomic_number_vectors = pool.map(process_field, [(f, "atomic_number", key) for key in sorted_keys])
+        t01 = time.time()
+        print(f"load_data atomic_number_vectors in {t01-t00:.3f} seconds")
+
+        t00 = time.time()
         # Load lattice matrices
         lattice_matrices = np.array(f["lattice_matrix"])
+        t01 = time.time()
+        print(f"load_data lattice_matrices in {t01-t00:.3f} seconds")
 
+        t00 = time.time()
         # Load fractional coordinates arrays
         frac_coords_arrays = []
-        for key in sorted(f["frac_coord"], key=lambda x: int(x)):
+        for key in sorted(f["frac_coord"], key=int):
             frac_coords_arrays.append(np.array(f["frac_coord"][key]))
+        t01 = time.time()
+        print(f"load_data frac_coords_arrays in {t01-t00:.3f} seconds")
+
+        t1 = time.time()
+        print(f"load_data in {t1-t0:.3f} seconds")
 
     return atomic_number_vectors, lattice_matrices, frac_coords_arrays
 
