@@ -6,7 +6,7 @@ from ponita.nn.embedding import PolynomialFeatures
 from ponita.utils.windowing import PolynomialCutoff
 from ponita.transforms import PositionOrientationGraph, SEnInvariantAttributes
 from torch_geometric.transforms import Compose
-from torch_scatter import scatter_mean
+from torch_scatter import scatter_add, scatter_mean
 from ponita.nn.conv import Conv, FiberBundleConv
 from ponita.nn.convnext import ConvNext
 from torch_geometric.transforms import BaseTransform, Compose, RadiusGraph
@@ -128,7 +128,9 @@ class PonitaFiberBundle(nn.Module):
     
     def global_vec_readout_fn(self, readout_vec, ori_grid, batch):
         if self.output_dim_global_vec > 0:
-            output_vector = global_add_pool(sphere_to_vec(readout_vec, ori_grid), batch)
+            output_vectors = sphere_to_vec(readout_vec, ori_grid)
+            # we are not using global_add_pool since it doesn't work with dim()=3 tensors (it'll sum on the wrong dimension)
+            output_vector = scatter_add(output_vectors, batch, dim=0)
         else:
             output_vector = None
         return output_vector

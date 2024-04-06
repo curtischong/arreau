@@ -15,6 +15,7 @@ from diffusion.diffusion_helpers import (
     radius_graph_pbc,
     subtract_cog,
     symmetric_matrix_to_vector,
+    vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
@@ -73,6 +74,15 @@ class DiffusionLoss(torch.nn.Module):
         # self.norm_h = 10.
         self.norm_x = 1.0
         self.norm_h = 1.0
+
+    def compute_error_for_global_vec(self, pred_eps, eps, weights=None):
+        """Computes error, i.e. the most likely prediction of x."""
+        error = (eps - pred_eps) ** 2
+        if weights is not None:
+            error *= weights
+        if len(error.shape) > 1:
+            error = error.sum()
+        return error
 
     def compute_error(self, pred_eps, eps, batch, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -146,8 +156,10 @@ class DiffusionLoss(torch.nn.Module):
         symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
         inv_rot_mat = torch.linalg.inv(rot_mat)
 
-        l_t, eps_l = self.lattice_diffusion(symmetric_lattice_vec, t_int)
-        return l_t, eps_l, inv_rot_mat
+        symmetric_vector, noise = self.lattice_diffusion(symmetric_lattice_vec, t_int)
+        l_t = vector_to_symmetric_matrix(symmetric_vector)
+        noisy_l_t = vector_to_symmetric_matrix(noise)
+        return l_t, noisy_l_t, inv_rot_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -201,8 +213,8 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        l_tilda_eps = symmetric_matrix_to_vector(torch.matmul(inv_rot_mat, pred_eps_l))
-        error_l = self.compute_error(l_tilda_eps, eps_l, batch)
+        noisy_symmetric_lattice = torch.matmul(inv_rot_mat, pred_eps_l)
+        error_l = self.compute_error_for_global_vec(noisy_symmetric_lattice, eps_l)
 
         loss = (
             self.cost_coord_coeff * error_x

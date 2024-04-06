@@ -63,7 +63,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         in_channels_vec = 0  # since the position is already encoded in the graph
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
-        out_channels_global_vec = 1
+        out_channels_global_vec = 3  # we need three vectors to represent the lattice
 
         # Make the model
         self.model = PonitaFiberBundle(
