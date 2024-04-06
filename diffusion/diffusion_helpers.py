@@ -440,6 +440,9 @@ def polar_decomposition(matrix: torch.Tensor):
     # Compute the symmetric positive-definite matrix l_tilda
     L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
 
+    # enforce symmetry to avoid numerical instabilities
+    L_tilda = (L_tilda + L_tilda.transpose(1, 2)) / 2
+
     return u, L_tilda
 
 
@@ -462,14 +465,9 @@ def symmetric_matrix_to_vector(matrix: torch.Tensor):
     ), "Input must be a batch of matrices with shape (batch_size, 3, 3)"
     assert matrix.shape[1:] == (3, 3), "Each matrix in the batch must be 3x3"
 
-    # enforce symmetry to avoid numerical instabilities
-    matrix = (matrix + matrix.transpose(1, 2)) / 2
-
-    # I am commenting out this assert statement since we have numerical instabilities, which makes the matrix not symmetric
-    # for i in range(matrix.shape[0]):
-    #     assert torch.allclose(
-    #         matrix[i], matrix[i].transpose(0, 1)
-    #     ), f"Each matrix in the batch must be symmetric {matrix[i]}"
+    assert torch.allclose(
+        matrix, matrix.transpose(0, 1)
+    ), "Each matrix in the batch must be symmetric"
 
     vector = torch.stack(
         [
