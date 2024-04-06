@@ -53,8 +53,8 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/last.ckpt",
-                "--max_neighbors=24", // TODO: should we save this in the model params?
+                "--model_path=models/last-v15-local-test.ckpt",
+                // "--max_neighbors=24", // TODO: should we save this in the model params?
             ],
         },
         {

@@ -9,7 +9,6 @@ from diffusion.tools.atomic_number_table import AtomicNumberTable
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate, RotateDef
-import numpy as np
 
 
 fourier_scale = 16
@@ -196,7 +195,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
     @torch.no_grad()
     def sample(
         self,
-        lattice: np.ndarray,
         num_atoms: int,
         vis_name: str,
         only_visualize_last: bool,
@@ -206,7 +204,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
         return self.diffusion_loss.sample(
             self,
             z_table,
-            lattice,
             self.t_emb,
             num_atoms,
             vis_name,

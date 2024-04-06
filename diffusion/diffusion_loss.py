@@ -3,7 +3,6 @@ import torch
 from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
-import numpy as np
 from tqdm import tqdm
 
 from diffusion.diffusion_helpers import (
@@ -243,7 +242,6 @@ class DiffusionLoss(torch.nn.Module):
         self,
         model,
         z_table: AtomicNumberTable,
-        lattice: np.ndarray,
         t_emb_weights,
         num_atoms: int,
         vis_name: str,
@@ -251,6 +249,10 @@ class DiffusionLoss(torch.nn.Module):
         show_bonds: bool,
     ):
         num_atomic_states = len(z_table)
+
+        lattice = torch.randn([3, 3]).unsqueeze(0)
+        # lattice = lattice.repeat(num_atoms.sum(), 1, 1)
+
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
         x = (
@@ -265,17 +267,22 @@ class DiffusionLoss(torch.nn.Module):
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
 
-            score_x, score_h = self.phi(
+            score_x, score_h, score_l = self.phi(
                 frac_x,
                 h,
                 t,
                 num_atoms,
                 lattice,
                 model,
-                Batch(),
+                Batch(
+                    num_atoms=num_atoms, batch=torch.tensor(0).repeat(num_atoms.sum())
+                ),
                 t_emb_weights,
                 frac=True,
             )
+            lattice = self.lattice_diffusion.reverse(
+                lattice, score_l, timestep
+            )  # TODO: think about this. is it correct?
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)

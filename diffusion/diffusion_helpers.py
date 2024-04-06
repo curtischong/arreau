@@ -5,7 +5,7 @@ import itertools
 from torch_scatter import scatter
 import copy
 
-SUPERCELLS = torch.FloatTensor(list(itertools.product((-1, 0, 1), repeat=3)))
+SUPERCELLS = torch.DoubleTensor(list(itertools.product((-1, 0, 1), repeat=3)))
 EPSILON = 1e-8
 
 
@@ -279,7 +279,7 @@ def radius_graph_pbc(
     pos1 = torch.index_select(atom_pos, 0, index1)
     pos2 = torch.index_select(atom_pos, 0, index2)
 
-    unit_cell = torch.tensor(SUPERCELLS, device=device).float()
+    unit_cell = torch.tensor(SUPERCELLS, device=device, dtype=torch.get_default_dtype())
     num_cells = len(unit_cell)
     unit_cell_per_atom = unit_cell.view(1, num_cells, 3).repeat(len(index2), 1, 1)
     unit_cell = torch.transpose(unit_cell, 0, 1)
