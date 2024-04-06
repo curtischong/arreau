@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import multiprocessing
 from torch.utils.data import Dataset
 import h5py
 import numpy as np
@@ -6,7 +7,7 @@ import torch
 from torch_geometric.data import Data
 
 from diffusion.tools.atomic_number_table import (
-    AtomicNumberTable,
+    get_atomic_number_table_from_zs,
     one_hot_encode_atomic_numbers,
 )
 from diffusion.tools.neighborhood import get_neighborhood
@@ -20,20 +21,24 @@ class Configuration:
     L0: np.ndarray
 
 
-def load_data(filename):
+def load_data(filename: str):
     with h5py.File(filename, "r") as f:
         # Load atom one-hot matrices
-        atomic_number_vectors = []
-        for key in sorted(f["atomic_number"], key=lambda x: int(x)):
-            atomic_number_vectors.append(np.array(f["atomic_number"][key]))
+        sorted_keys = sorted(f["atomic_number"], key=int)
+        atomic_number_vectors = [None] * len(sorted_keys)
+        for i in range(len(sorted_keys)):
+            key = sorted_keys[i]
+            atomic_number_vectors[i] = np.array(f["atomic_number"][key])
 
         # Load lattice matrices
         lattice_matrices = np.array(f["lattice_matrix"])
 
         # Load fractional coordinates arrays
-        frac_coords_arrays = []
-        for key in sorted(f["frac_coord"], key=lambda x: int(x)):
-            frac_coords_arrays.append(np.array(f["frac_coord"][key]))
+        sorted_keys = sorted(f["frac_coord"], key=int)
+        frac_coords_arrays = [None] * len(sorted_keys)
+        for i in range(len(sorted_keys)):
+            key = sorted_keys[i]
+            frac_coords_arrays[i] = np.array(f["frac_coord"][key])
 
     return atomic_number_vectors, lattice_matrices, frac_coords_arrays
 
@@ -53,25 +58,37 @@ def load_dataset(file_path) -> list[Configuration]:
     return dataset
 
 
+def parallelize_configs(config_paths):
+    with multiprocessing.Pool() as pool:
+        configs = pool.map(load_dataset, config_paths)
+        return [item for sublist in configs for item in sublist]
+
+
+# This dataset will not be good for larger systems since it loads all of the data into memory
+# if we are to scale this for much larger datasets, we need to only load the hdf5 files during training
+# We also need to precalculate the number of unique atomic numbers when generating the hdf5 files
+# so we don't have to load all the data initially
 class CrystalDataset(Dataset):
     def __init__(self, config_paths: list[str], cutoff: int = 5.0):
         # configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
         # configs = load_dataset("datasets/alexandria_hdf5/alexandria_ps_000.h5")
         self.unique_atomic_numbers = set()
-        configs = []
-        for config_path in config_paths:
-            configs += load_dataset(config_path)
+        configs = parallelize_configs(config_paths)
         for config in configs:
             self.unique_atomic_numbers.update(set(config.atomic_numbers))
         self.configs = configs
         self.cutoff = cutoff
+
+        self.z_table = get_atomic_number_table_from_zs(
+            [
+                self.unique_atomic_numbers,
+            ]
+        )
+        print(f"There are {len(self.z_table)} unique atomic numbers")
+
         print(
             f"finished loading datasets {str(config_paths)}. Found {len(self.configs)} entries"
         )
-
-    def set_z_table(self, z_table: AtomicNumberTable):
-        self.z_table = z_table
-        self.num_atomic_states = len(z_table)
 
     def get_cell_info(
         self, *, Xt: np.ndarray, Lt: np.ndarray
