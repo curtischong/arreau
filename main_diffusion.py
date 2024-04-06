@@ -1,7 +1,6 @@
 import argparse
 import os
 from diffusion.lattice_dataset import CrystalDataset
-from diffusion.tools.atomic_number_table import get_atomic_number_table_from_zs
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
@@ -198,6 +197,7 @@ if __name__ == "__main__":
                 "datasets/alexandria_hdf5/10_examples.h5",
             ]
         )
+        z_table = train_dataset.z_table
     else:
         dataset = CrystalDataset(
             [
@@ -208,21 +208,11 @@ if __name__ == "__main__":
                 "datasets/alexandria_hdf5/alexandria_ps_004.h5",
             ]
         )
-    train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
-        dataset, [0.7, 0.15, 0.15]
-    )
+        z_table = dataset.z_table
 
-    z_table = get_atomic_number_table_from_zs(
-        [
-            train_dataset.unique_atomic_numbers,
-            valid_dataset.unique_atomic_numbers,
-            test_dataset.unique_atomic_numbers,
-        ]
-    )
-    print(f"There are {len(z_table)} unique atomic numbers")
-    train_dataset.set_z_table(z_table)
-    valid_dataset.set_z_table(z_table)
-    test_dataset.set_z_table(z_table)
+        train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
+            dataset, [0.7, 0.15, 0.15]
+        )
 
     datasets = {"train": train_dataset, "valid": valid_dataset, "test": test_dataset}
 

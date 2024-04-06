@@ -7,7 +7,7 @@ import torch
 from torch_geometric.data import Data
 
 from diffusion.tools.atomic_number_table import (
-    AtomicNumberTable,
+    get_atomic_number_table_from_zs,
     one_hot_encode_atomic_numbers,
 )
 from diffusion.tools.neighborhood import get_neighborhood
@@ -78,13 +78,17 @@ class CrystalDataset(Dataset):
             self.unique_atomic_numbers.update(set(config.atomic_numbers))
         self.configs = configs
         self.cutoff = cutoff
+
+        self.z_table = get_atomic_number_table_from_zs(
+            [
+                self.unique_atomic_numbers,
+            ]
+        )
+        print(f"There are {len(self.z_table)} unique atomic numbers")
+
         print(
             f"finished loading datasets {str(config_paths)}. Found {len(self.configs)} entries"
         )
-
-    def set_z_table(self, z_table: AtomicNumberTable):
-        self.z_table = z_table
-        self.num_atomic_states = len(z_table)
 
     def get_cell_info(
         self, *, Xt: np.ndarray, Lt: np.ndarray

@@ -16,7 +16,7 @@
                 "--gpus=0", // force it to use cpu (for development)
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
-                "--use_dev_dataset=true",
+                // "--use_dev_dataset=true",
                 "--experiment_name=local-test",
                 "--max_neighbors=24",
             ],
