@@ -9,7 +9,6 @@ from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
 from lightning_wrappers.callbacks import EMA, EpochTimer
 import torch
-import time
 
 
 # ------------------------ Function to convert the nbody dataset to a dataloader for pytorch geometric graphs
@@ -182,7 +181,6 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
-    t0 = time.time()
     if args.use_dev_dataset:
         print("Using dev dataset")
         train_dataset = CrystalDataset(
@@ -213,9 +211,6 @@ if __name__ == "__main__":
     train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
         dataset, [0.7, 0.15, 0.15]
     )
-    t1 = time.time()
-    print(f"Loaded dataset in {t1-t0:.3f} seconds")
-    exit()
 
     z_table = get_atomic_number_table_from_zs(
         [
