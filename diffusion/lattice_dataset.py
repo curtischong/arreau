@@ -34,9 +34,11 @@ def load_data(filename: str):
         lattice_matrices = np.array(f["lattice_matrix"])
 
         # Load fractional coordinates arrays
-        frac_coords_arrays = []
-        for key in sorted(f["frac_coord"], key=int):
-            frac_coords_arrays.append(np.array(f["frac_coord"][key]))
+        sorted_keys = sorted(f["frac_coord"], key=int)
+        frac_coords_arrays = [None] * len(sorted_keys)
+        for i in range(len(sorted_keys)):
+            key = sorted_keys[i]
+            frac_coords_arrays[i] = np.array(f["frac_coord"][key])
 
     return atomic_number_vectors, lattice_matrices, frac_coords_arrays
 
