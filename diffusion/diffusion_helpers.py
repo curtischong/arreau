@@ -5,7 +5,7 @@ import itertools
 from torch_scatter import scatter
 import copy
 
-SUPERCELLS = torch.FloatTensor(list(itertools.product((-1, 0, 1), repeat=3)))
+SUPERCELLS = torch.DoubleTensor(list(itertools.product((-1, 0, 1), repeat=3)))
 EPSILON = 1e-8
 
 
@@ -279,7 +279,7 @@ def radius_graph_pbc(
     pos1 = torch.index_select(atom_pos, 0, index1)
     pos2 = torch.index_select(atom_pos, 0, index2)
 
-    unit_cell = torch.tensor(SUPERCELLS, device=device).float()
+    unit_cell = torch.tensor(SUPERCELLS, device=device, dtype=torch.get_default_dtype())
     num_cells = len(unit_cell)
     unit_cell_per_atom = unit_cell.view(1, num_cells, 3).repeat(len(index2), 1, 1)
     unit_cell = torch.transpose(unit_cell, 0, 1)
@@ -429,3 +429,61 @@ def radius_graph_pbc(
         return edge_index, -unit_cell, num_neighbors_image
     else:
         return edge_index, -unit_cell, num_neighbors_image, topk_mask
+
+
+# from claude and https://discuss.pytorch.org/t/polar-decomposition-of-matrices-in-pytorch/188458/2
+def polar_decomposition(matrix: torch.Tensor):
+    # Perform SVD on the input matrix
+    U, S, Vt = torch.linalg.svd(matrix)
+    u = U @ Vt
+
+    # Compute the symmetric positive-definite matrix l_tilda
+    L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
+
+    # enforce symmetry to avoid numerical instabilities
+    L_tilda = (L_tilda + L_tilda.transpose(1, 2)) / 2
+
+    return u, L_tilda
+
+
+def symmetric_matrix_to_vector(matrix: torch.Tensor):
+    """
+    Converts a batch of 3x3 symmetric matrices to vectors containing the upper triangular part (including diagonal).
+    """
+    assert (
+        matrix.dim() == 3
+    ), "Input must be a batch of matrices with shape (batch_size, 3, 3)"
+    assert matrix.shape[1:] == (3, 3), "Each matrix in the batch must be 3x3"
+
+    assert torch.allclose(
+        matrix, matrix.transpose(1, 2)
+    ), "Each matrix in the batch must be symmetric"
+
+    vector = torch.stack(
+        [
+            matrix[:, 0, 0],
+            matrix[:, 0, 1],
+            matrix[:, 0, 2],
+            matrix[:, 1, 1],
+            matrix[:, 1, 2],
+            matrix[:, 2, 2],
+        ],
+        dim=1,
+    )
+    return vector
+
+
+def vector_to_symmetric_matrix(vector: torch.Tensor):
+    """
+    Reconstructs a batch of 3x3 symmetric matrices from a batch of vectors containing the upper triangular part (including diagonal).
+    """
+    assert vector.shape[-1] == 6, "Last dimension of input vector must have 6 elements"
+    batch_size = vector.shape[:-1]
+    matrix = torch.zeros((*batch_size, 3, 3), dtype=vector.dtype, device=vector.device)
+    matrix[:, 0, 0] = vector[:, 0]
+    matrix[:, 0, 1] = matrix[:, 1, 0] = vector[:, 1]
+    matrix[:, 0, 2] = matrix[:, 2, 0] = vector[:, 2]
+    matrix[:, 1, 1] = vector[:, 3]
+    matrix[:, 1, 2] = matrix[:, 2, 1] = vector[:, 4]
+    matrix[:, 2, 2] = vector[:, 5]
+    return matrix

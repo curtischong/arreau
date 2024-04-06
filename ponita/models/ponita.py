@@ -6,7 +6,7 @@ from ponita.nn.embedding import PolynomialFeatures
 from ponita.utils.windowing import PolynomialCutoff
 from ponita.transforms import PositionOrientationGraph, SEnInvariantAttributes
 from torch_geometric.transforms import Compose
-from torch_scatter import scatter_mean
+from torch_scatter import scatter_add, scatter_mean
 from ponita.nn.conv import Conv, FiberBundleConv
 from ponita.nn.convnext import ConvNext
 from torch_geometric.transforms import BaseTransform, Compose, RadiusGraph
@@ -32,6 +32,7 @@ class PonitaFiberBundle(nn.Module):
                  input_dim,
                  hidden_dim,
                  output_dim,
+                 output_dim_global_vec: int,
                  num_layers,
                  output_dim_vec = 0,
                  radius = None,
@@ -46,7 +47,7 @@ class PonitaFiberBundle(nn.Module):
         super().__init__()
 
         # Input output settings
-        self.output_dim, self.output_dim_vec = output_dim, output_dim_vec
+        self.output_dim, self.output_dim_vec, self.output_dim_global_vec = output_dim, output_dim_vec, output_dim_global_vec
         self.global_pooling = task_level=='graph'
 
         # For constructing the position-orientation graph and its invariants
@@ -73,7 +74,7 @@ class PonitaFiberBundle(nn.Module):
             self.interaction_layers.append(layer)
             # self.interaction_layers.append(ConvNextR3S2(hidden_dim, basis_dim, act=act_fn, widening_factor=widening_factor, layer_scale=layer_scale))
             if multiple_readouts or i == (num_layers - 1):
-                self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec))
+                self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_vec))
             else:
                 self.read_out_layers.append(None)
     
@@ -97,14 +98,15 @@ class PonitaFiberBundle(nn.Module):
         readout = sum(readouts) / len(readouts)
         
         # Read out the scalar and vector part of the output
-        readout_scalar, readout_vec = torch.split(readout, [self.output_dim, self.output_dim_vec], dim=-1)
+        readout_scalar, readout_vec, readout_global_vec = torch.split(readout, [self.output_dim, self.output_dim_vec, self.output_dim_global_vec], dim=-1)
         
         # Read out scalar and vector predictions
         output_scalar = self.scalar_readout_fn(readout_scalar, graph.batch)
         output_vector = self.vec_readout_fn(readout_vec, graph.ori_grid, graph.batch)
+        global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
 
         # Return predictions
-        return output_scalar, output_vector
+        return output_scalar, output_vector, global_output_vector
     
     def scalar_readout_fn(self, readout_scalar, batch):
         if self.output_dim > 0:
@@ -120,6 +122,15 @@ class PonitaFiberBundle(nn.Module):
             output_vector = sphere_to_vec(readout_vec, ori_grid)
             if self.global_pooling:
                 output_vector = global_add_pool(output_vector, batch)
+        else:
+            output_vector = None
+        return output_vector
+    
+    def global_vec_readout_fn(self, readout_vec, ori_grid, batch):
+        if self.output_dim_global_vec > 0:
+            output_vectors = sphere_to_vec(readout_vec, ori_grid)
+            # we are not using global_add_pool since it doesn't work with dim()=3 tensors (it'll sum on the wrong dimension)
+            output_vector = scatter_add(output_vectors, batch, dim=0) # sum over the batch dimension (dim=0) but group by the batch index
         else:
             output_vector = None
         return output_vector

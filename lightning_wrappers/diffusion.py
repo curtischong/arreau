@@ -9,7 +9,6 @@ from diffusion.tools.atomic_number_table import AtomicNumberTable
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
 from ponita.transforms.random_rotate import RandomRotate, RotateDef
-import numpy as np
 
 
 fourier_scale = 16
@@ -56,17 +55,21 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # Input/output specifications:
         in_channels_scalar = (
-            num_atomic_states + 64
-        )  # atomic_number + the time embedding (from GaussianFourierProjection)
-        in_channels_vec = 0  # since the position is already encoded in the graph
+            num_atomic_states
+            + 64  # the time embedding (from GaussianFourierProjection)
+        )
+
+        in_channels_vec = 3  # although the position is already encoded in the graph, we still need to pass in the lattice vectors, since the model needs to predict its noise
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
+        out_channels_global_vec = 3  # we need three vectors to represent the lattice
 
         # Make the model
         self.model = PonitaFiberBundle(
             in_channels_scalar + in_channels_vec,
             args.hidden_dim,
             out_channels_scalar,
+            out_channels_global_vec,
             args.layers,
             output_dim_vec=out_channels_vec,
             radius=args.radius,
@@ -192,7 +195,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
     @torch.no_grad()
     def sample(
         self,
-        lattice: np.ndarray,
         num_atoms: int,
         vis_name: str,
         only_visualize_last: bool,
@@ -202,7 +204,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
         return self.diffusion_loss.sample(
             self,
             z_table,
-            lattice,
             self.t_emb,
             num_atoms,
             vis_name,
