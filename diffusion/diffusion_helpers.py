@@ -462,6 +462,9 @@ def symmetric_matrix_to_vector(matrix: torch.Tensor):
     ), "Input must be a batch of matrices with shape (batch_size, 3, 3)"
     assert matrix.shape[1:] == (3, 3), "Each matrix in the batch must be 3x3"
 
+    # enforce symmetry to avoid numerical instabilities
+    matrix = (matrix + matrix.transpose(1, 2)) / 2
+
     # I am commenting out this assert statement since we have numerical instabilities, which makes the matrix not symmetric
     # for i in range(matrix.shape[0]):
     #     assert torch.allclose(
