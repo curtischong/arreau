@@ -431,7 +431,7 @@ def radius_graph_pbc(
         return edge_index, -unit_cell, num_neighbors_image, topk_mask
 
 
-# from claude
+# from claude and https://discuss.pytorch.org/t/polar-decomposition-of-matrices-in-pytorch/188458/2
 def polar_decomposition(matrix: torch.Tensor):
     # Perform SVD on the input matrix
     U, S, Vt = torch.linalg.svd(matrix)
@@ -444,16 +444,6 @@ def polar_decomposition(matrix: torch.Tensor):
     L_tilda = (L_tilda + L_tilda.transpose(1, 2)) / 2
 
     return u, L_tilda
-
-
-# https://discuss.pytorch.org/t/polar-decomposition-of-matrices-in-pytorch/188458/2
-# def polar_decomposition(
-#     m: torch.Tensor,
-# ):  # express polar decomposition in terms of singular-value decomposition
-#     U, S, Vh = torch.linalg.svd(m)
-#     u = U @ Vh
-#     p = Vh.T.conj() @ S.diag().to(dtype=m.dtype) @ Vh
-#     return u, p
 
 
 def symmetric_matrix_to_vector(matrix: torch.Tensor):

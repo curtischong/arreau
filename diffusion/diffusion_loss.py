@@ -253,7 +253,6 @@ class DiffusionLoss(torch.nn.Module):
         num_atomic_states = len(z_table)
 
         lattice = torch.randn([3, 3]).unsqueeze(0)
-        # lattice = lattice.repeat(num_atoms.sum(), 1, 1)
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
@@ -283,9 +282,7 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
                 frac=True,
             )
-            lattice = self.lattice_diffusion.reverse(
-                lattice, score_l, timestep_vec
-            )  # TODO: think about this. is it correct?
+            lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
