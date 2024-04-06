@@ -119,7 +119,8 @@ class DiffusionLoss(torch.nn.Module):
         batch.pos = cart_x_t
         batch.vec = torch.repeat_interleave(
             lattice, num_atoms, dim=0
-        )  # perf. combine with frac_to_cart_coords above. since frac is always true, we're recomputing this twice
+        )  # This line is needed to have each node have it's corresponding lattice vector
+        # perf. combine with frac_to_cart_coords above. since frac is always true, we're recomputing this twice
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
