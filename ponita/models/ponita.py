@@ -130,7 +130,7 @@ class PonitaFiberBundle(nn.Module):
         if self.output_dim_global_vec > 0:
             output_vectors = sphere_to_vec(readout_vec, ori_grid)
             # we are not using global_add_pool since it doesn't work with dim()=3 tensors (it'll sum on the wrong dimension)
-            output_vector = scatter_add(output_vectors, batch, dim=0)
+            output_vector = scatter_add(output_vectors, batch, dim=0) # sum over the batch dimension (dim=0) but group by the batch index
         else:
             output_vector = None
         return output_vector
