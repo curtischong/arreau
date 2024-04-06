@@ -266,6 +266,7 @@ class DiffusionLoss(torch.nn.Module):
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
+            timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
             score_x, score_h, score_l = self.phi(
                 frac_x,
@@ -281,7 +282,7 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             lattice = self.lattice_diffusion.reverse(
-                lattice, score_l, timestep
+                lattice, score_l, timestep_vec
             )  # TODO: think about this. is it correct?
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
