@@ -159,10 +159,12 @@ class DiffusionLoss(torch.nn.Module):
         symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
         inv_rot_mat = torch.linalg.inv(rot_mat)
 
-        symmetric_vector, noise = self.lattice_diffusion(symmetric_lattice_vec, t_int)
-        l_t = vector_to_symmetric_matrix(symmetric_vector)
-        noisy_l_t = vector_to_symmetric_matrix(noise)
-        return l_t, noisy_l_t, inv_rot_mat
+        noisy_symmetric_vector, noise = self.lattice_diffusion(
+            symmetric_lattice_vec, t_int
+        )
+        l_t = vector_to_symmetric_matrix(noisy_symmetric_vector)
+        noise_matrix = vector_to_symmetric_matrix(noise)
+        return l_t, noise_matrix, inv_rot_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -216,8 +218,8 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        noisy_symmetric_lattice = torch.matmul(inv_rot_mat, pred_eps_l)
-        error_l = self.compute_error_for_global_vec(noisy_symmetric_lattice, eps_l)
+        noisy_symmetric_lattice_hat = torch.matmul(inv_rot_mat, pred_eps_l)
+        error_l = self.compute_error_for_global_vec(noisy_symmetric_lattice_hat, eps_l)
 
         loss = (
             self.cost_coord_coeff * error_x
