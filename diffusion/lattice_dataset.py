@@ -75,6 +75,10 @@ def load_dataset(file_path) -> list[Configuration]:
     return dataset
 
 
+# This dataset will not be good for larger systems since it loads all of the data into memory
+# if we are to scale this for much larger datasets, we need to only load the hdf5 files during training
+# We also need to precalculate the number of unique atomic numbers when generating the hdf5 files
+# so we don't have to load all the data initially
 class CrystalDataset(Dataset):
     def __init__(self, config_paths: list[str], cutoff: int = 5.0):
         # configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
