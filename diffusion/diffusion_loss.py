@@ -102,7 +102,7 @@ class DiffusionLoss(torch.nn.Module):
         h_t,
         t_int,
         num_atoms,
-        lattice,
+        lattice: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -117,6 +117,9 @@ class DiffusionLoss(torch.nn.Module):
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = h_time
         batch.pos = cart_x_t
+        batch.vec = torch.repeat_interleave(
+            lattice, num_atoms, dim=0
+        )  # perf. combine with frac_to_cart_coords above. since frac is always true, we're recomputing this twice
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
