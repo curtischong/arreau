@@ -432,24 +432,25 @@ def radius_graph_pbc(
 
 
 # from claude
-# def polar_decomposition(matrix: torch.Tensor):
-#     # Perform SVD on the input matrix
-#     U, S, Vt = torch.linalg.svd(matrix)
+def polar_decomposition(matrix: torch.Tensor):
+    # Perform SVD on the input matrix
+    U, S, Vt = torch.linalg.svd(matrix)
+    u = U @ Vt
 
-#     # Compute the symmetric positive-definite matrix l_tilda
-#     L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
+    # Compute the symmetric positive-definite matrix l_tilda
+    L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
 
-#     return U, L_tilda
+    return u, L_tilda
 
 
 # https://discuss.pytorch.org/t/polar-decomposition-of-matrices-in-pytorch/188458/2
-def polar_decomposition(
-    m: torch.Tensor,
-):  # express polar decomposition in terms of singular-value decomposition
-    U, S, Vh = torch.linalg.svd(m)
-    u = U @ Vh
-    p = Vh.T.conj() @ S.diag().to(dtype=m.dtype) @ Vh
-    return u, p
+# def polar_decomposition(
+#     m: torch.Tensor,
+# ):  # express polar decomposition in terms of singular-value decomposition
+#     U, S, Vh = torch.linalg.svd(m)
+#     u = U @ Vh
+#     p = Vh.T.conj() @ S.diag().to(dtype=m.dtype) @ Vh
+#     return u, p
 
 
 def symmetric_matrix_to_vector(matrix: torch.Tensor):
