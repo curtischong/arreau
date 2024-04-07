@@ -162,9 +162,11 @@ class DiffusionLoss(torch.nn.Module):
         noisy_symmetric_vector, noise = self.lattice_diffusion(
             symmetric_lattice_vec, t_int
         )
-        l_t = vector_to_symmetric_matrix(noisy_symmetric_vector)
-        noise_matrix = vector_to_symmetric_matrix(noise)
-        return l_t, noise_matrix, inv_rot_mat
+        noise_mat = vector_to_symmetric_matrix(noise)
+        noisy_symmetric_mat = vector_to_symmetric_matrix(noisy_symmetric_vector)
+
+        noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_mat)
+        return noisy_lattice, noisy_symmetric_mat, noise_mat, inv_rot_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -194,15 +196,17 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        l_t, eps_l, inv_rot_mat = self.diffuse_lattice(lattice, t_int)
+        noisy_lattice, noisy_symmetric_mat, noisy_mat, inv_rot_mat = (
+            self.diffuse_lattice(lattice, t_int)
+        )
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_eps_l = self.phi(
+        pred_eps_x, pred_eps_h, pred_noise_in_lattice = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
             num_atoms,
-            l_t,
+            noisy_lattice,
             model,
             batch,
             t_emb_weights,
@@ -218,8 +222,10 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        noisy_symmetric_lattice_hat = torch.matmul(inv_rot_mat, pred_eps_l)
-        error_l = self.compute_error_for_global_vec(noisy_symmetric_lattice_hat, eps_l)
+        pred_noisy_symmetric_lattice = torch.matmul(inv_rot_mat, pred_noise_in_lattice)
+        error_l = self.compute_error_for_global_vec(
+            pred_noisy_symmetric_lattice, noisy_mat
+        )
 
         loss = (
             self.cost_coord_coeff * error_x
