@@ -492,3 +492,17 @@ def vector_to_symmetric_matrix(vector: torch.Tensor):
     matrix[:, 1, 2] = matrix[:, 2, 1] = vector[:, 4]
     matrix[:, 2, 2] = vector[:, 5]
     return matrix
+
+
+# Convert a bx3x3 matrix to a vector bxn
+def matrix_to_vector(matrix):
+    # Flatten the matrix into a 1D tensor (vector)
+    vector = matrix.view(matrix.size(0), -1)
+    return vector
+
+
+# Convert a vector bxn to a bx3x3 matrix
+def vector_to_matrix(vector):
+    # Reshape the vector into a 3x3 matrix
+    matrix = vector.view(vector.size(0), 3, 3)
+    return matrix

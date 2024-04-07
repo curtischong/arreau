@@ -10,11 +10,10 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
-    polar_decomposition,
+    matrix_to_vector,
     radius_graph_pbc,
     subtract_cog,
-    symmetric_matrix_to_vector,
-    vector_to_symmetric_matrix,
+    vector_to_matrix,
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
@@ -155,19 +154,24 @@ class DiffusionLoss(torch.nn.Module):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance
 
-        rot_mat, symmetric_lattice = polar_decomposition(lattice)
-        symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
-        inv_rot_mat = torch.linalg.inv(rot_mat)
+        # rot_mat, symmetric_lattice = polar_decomposition(lattice)
+        # symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
+        # inv_rot_mat = torch.linalg.inv(rot_mat)
 
-        noisy_symmetric_vector, noise = self.lattice_diffusion(
-            symmetric_lattice_vec, t_int
-        )
-        noise_mat = vector_to_symmetric_matrix(noise)
-        noisy_symmetric_mat = vector_to_symmetric_matrix(noisy_symmetric_vector)
+        # noisy_symmetric_vector, noise = self.lattice_diffusion(
+        #     symmetric_lattice_vec, t_int
+        # )
+        # noise_mat = vector_to_symmetric_matrix(noise)
+        # noisy_symmetric_mat = vector_to_symmetric_matrix(noisy_symmetric_vector)
 
-        noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_mat)
-        noise_diff = noisy_lattice - lattice
-        return noisy_lattice, noisy_symmetric_mat, noise_mat, inv_rot_mat, noise_diff
+        # noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_mat)
+        # noise_diff = noisy_lattice - lattice
+        lattice_vec = matrix_to_vector(lattice)
+        noisy_lattice_vec, noise = self.lattice_diffusion(lattice_vec, t_int)
+
+        noisy_lattice = vector_to_matrix(noisy_lattice_vec)
+        noise_mat = vector_to_matrix(noise)
+        return noisy_lattice, noise_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -197,9 +201,7 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        noisy_lattice, noisy_symmetric_mat, noisy_mat, inv_rot_mat, noise_diff = (
-            self.diffuse_lattice(lattice, t_int)
-        )
+        noisy_lattice, noise_mat = self.diffuse_lattice(lattice, t_int)
 
         # Compute the prediction.
         pred_eps_x, pred_eps_h, pred_noisy_diff = self.phi(
@@ -227,7 +229,7 @@ class DiffusionLoss(torch.nn.Module):
         #     inv_rot_mat, pred_noisy_symmetric_mat
         # )
         # pred_noisy_mat = enforce_symmetry(pred_noisy_mat)
-        error_l = self.compute_error_for_global_vec(pred_noisy_diff, noise_diff)
+        error_l = self.compute_error_for_global_vec(pred_noisy_diff, noise_mat)
 
         loss = (
             self.cost_coord_coeff * error_x
