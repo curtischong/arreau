@@ -84,6 +84,7 @@ class VP(nn.Module):
     def __init__(self, num_steps=1000, s=0.0001, power=2, clipmax=0.999):
         super().__init__()
         t = torch.arange(0, num_steps + 1, dtype=torch.float)
+        # play with the parameters here: https://www.desmos.com/calculator/jtb6whrvej
         # cosine schedule introduced in https://arxiv.org/abs/2102.09672
         f_t = torch.cos((np.pi / 2) * ((t / num_steps) + s) / (1 + s)) ** power
         alpha_bars = f_t / f_t[0]
