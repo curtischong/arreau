@@ -432,6 +432,10 @@ def radius_graph_pbc(
         return edge_index, -unit_cell, num_neighbors_image, topk_mask
 
 
+def enforce_symmetry(matrix: torch.Tensor):
+    return (matrix + matrix.transpose(1, 2)) / 2
+
+
 # from claude and https://discuss.pytorch.org/t/polar-decomposition-of-matrices-in-pytorch/188458/2
 def polar_decomposition(matrix: torch.Tensor):
     # Perform SVD on the input matrix
@@ -442,7 +446,7 @@ def polar_decomposition(matrix: torch.Tensor):
     L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
 
     # enforce symmetry to avoid numerical instabilities
-    L_tilda = (L_tilda + L_tilda.transpose(1, 2)) / 2
+    L_tilda = enforce_symmetry(L_tilda)
 
     return u, L_tilda
 

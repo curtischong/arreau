@@ -9,6 +9,7 @@ from diffusion.diffusion_helpers import (
     VP,
     VE_pbc,
     cart_to_frac_coords,
+    enforce_symmetry,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -102,6 +103,7 @@ class DiffusionLoss(torch.nn.Module):
         t_int,
         num_atoms,
         lattice: torch.Tensor,
+        noisy_symmetric_mat: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -117,7 +119,7 @@ class DiffusionLoss(torch.nn.Module):
         batch.x = h_time
         batch.pos = cart_x_t
         batch.vec = torch.repeat_interleave(
-            lattice, num_atoms, dim=0
+            noisy_symmetric_mat, num_atoms, dim=0
         )  # This line is needed to have each node have it's corresponding lattice vector
         # perf. combine with frac_to_cart_coords above. since frac is always true, we're recomputing this twice
 
@@ -201,12 +203,13 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_noise_in_lattice = self.phi(
+        pred_eps_x, pred_eps_h, pred_noisy_mat = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
             num_atoms,
             noisy_lattice,
+            noisy_symmetric_mat,
             model,
             batch,
             t_emb_weights,
@@ -222,10 +225,11 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        pred_noisy_symmetric_lattice = torch.matmul(inv_rot_mat, pred_noise_in_lattice)
-        error_l = self.compute_error_for_global_vec(
-            pred_noisy_symmetric_lattice, noisy_mat
-        )
+        # pred_noisy_symmetric_lattice = torch.matmul(
+        #     inv_rot_mat, pred_noisy_symmetric_mat
+        # )
+        pred_noisy_mat = enforce_symmetry(pred_noisy_mat)
+        error_l = self.compute_error_for_global_vec(pred_noisy_mat, noisy_mat)
 
         loss = (
             self.cost_coord_coeff * error_x
