@@ -177,19 +177,22 @@ class DiffusionLoss(torch.nn.Module):
         return x, h
 
     def lattice_loss(self, pred_lengths_and_angles, lattice):
-        # self.lattice_scaler.match_device(pred_lengths_and_angles)
-        # if self.hparams.data.lattice_scale_method == "scale_length":
-        # target_lengths = batch.frac_coords / batch.num_atoms.view(-1, 1).float() ** (1 / 3)
         target_lengths_and_angles = matrix_to_params(lattice)
-        # target_lengths_and_angles = self.lattice_scaler.transform(
-        #     target_lengths_and_angles
-        # )
-        decoded_angles = decode_angles(pred_lengths_and_angles[:, 3:])
-        pred_lengths_and_angles_decoded = torch.cat(
-            [pred_lengths_and_angles[:, :3], decoded_angles], dim=-1
-        )
 
-        return F.mse_loss(pred_lengths_and_angles_decoded, target_lengths_and_angles)
+        decoded_angles = decode_angles(pred_lengths_and_angles[:, 3:])
+
+        lengths_loss = F.mse_loss(
+            pred_lengths_and_angles[:, :3], target_lengths_and_angles[:, :3]
+        )
+        # angles_loss = F.mse_loss(decoded_angles, target_lengths_and_angles[:, 3:])
+        # loss function from: https://stats.stackexchange.com/questions/425234/loss-function-and-encoding-for-angles
+        angles_loss = torch.sqrt(
+            2 * (1 - torch.cos(decoded_angles - target_lengths_and_angles[:, 3:]))
+        ).mean()
+        # print(
+        #     lengths_loss, angles_loss, decoded_angles, target_lengths_and_angles[0, 3:]
+        # )
+        return lengths_loss + angles_loss
 
     def diffuse_lattice(self, lattice, t_int):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
@@ -205,7 +208,7 @@ class DiffusionLoss(torch.nn.Module):
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vec)
         # noise_mat = vector_to_symmetric_matrix(noise_vec)
         noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_matrix)
-        return lattice, noisy_lattice, noise_vec, noisy_symmetric_vec
+        return noisy_lattice, noise_vec, noisy_symmetric_vec
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -235,7 +238,7 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        lattice, noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
+        noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
             lattice, t_int
         )
 
