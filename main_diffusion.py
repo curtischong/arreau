@@ -182,21 +182,14 @@ if __name__ == "__main__":
 
     if args.use_dev_dataset:
         print("Using dev dataset")
-        train_dataset = CrystalDataset(
+        dataset = CrystalDataset(
             [
                 "datasets/alexandria_hdf5/10_examples.h5",
             ]
         )
-        valid_dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/10_examples.h5",
-            ]
-        )
-        test_dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/10_examples.h5",
-            ]
-        )
+        train_dataset = dataset
+        valid_dataset = dataset
+        test_dataset = dataset
         z_table = train_dataset.z_table
     else:
         dataset = CrystalDataset(
