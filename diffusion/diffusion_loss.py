@@ -184,7 +184,12 @@ class DiffusionLoss(torch.nn.Module):
         # target_lengths_and_angles = self.lattice_scaler.transform(
         #     target_lengths_and_angles
         # )
-        return F.mse_loss(pred_lengths_and_angles, target_lengths_and_angles)
+        decoded_angles = decode_angles(pred_lengths_and_angles[:, 3:])
+        pred_lengths_and_angles_decoded = torch.cat(
+            [pred_lengths_and_angles[:, :3], decoded_angles], dim=-1
+        )
+
+        return F.mse_loss(pred_lengths_and_angles_decoded, target_lengths_and_angles)
 
     def diffuse_lattice(self, lattice, t_int):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
