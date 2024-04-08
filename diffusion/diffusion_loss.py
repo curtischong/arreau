@@ -166,7 +166,7 @@ class DiffusionLoss(torch.nn.Module):
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
 
         pred_lengths = raw_pred_lengths_and_angles[:, :3]
-        pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
+        # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
         decoded_angles = decode_angles(raw_pred_lengths_and_angles[:, 3:])
         pred_lengths_and_angles = torch.cat([pred_lengths, decoded_angles], dim=-1)
 
@@ -345,6 +345,11 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
+            pred_lengths = pred_lattice_lengths_and_angles[:, :3]
+            pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
+            pred_lattice_lengths_and_angles = torch.cat(
+                [pred_lengths, pred_lattice_lengths_and_angles[:, 3:]], dim=-1
+            )
             lattice = lattice_from_params(pred_lattice_lengths_and_angles)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
