@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import multiprocessing
 from torch.utils.data import Dataset
 import h5py
 import numpy as np
@@ -59,9 +58,11 @@ def load_dataset(file_path) -> list[Configuration]:
 
 
 def parallelize_configs(config_paths):
-    with multiprocessing.Pool() as pool:
-        configs = pool.map(load_dataset, config_paths)
-        return [item for sublist in configs for item in sublist]
+    # with multiprocessing.Pool() as pool:
+    #     configs = pool.map(load_dataset, config_paths)
+    #     return [item for sublist in configs for item in sublist]
+    configs = [load_dataset(config_path) for config_path in config_paths]
+    return [item for sublist in configs for item in sublist]
 
 
 # This dataset will not be good for larger systems since it loads all of the data into memory

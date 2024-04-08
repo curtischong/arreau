@@ -184,7 +184,7 @@ if __name__ == "__main__":
         print("Using dev dataset")
         dataset = CrystalDataset(
             [
-                "datasets/alexandria_hdf5/10_examples.h5",
+                "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
             ]
         )
         train_dataset = dataset
