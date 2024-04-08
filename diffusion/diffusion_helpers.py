@@ -1,4 +1,3 @@
-import math
 import torch
 import torch.nn as nn
 import numpy as np
@@ -519,32 +518,32 @@ def get_lattice_parameters(lattice_matrices: torch.Tensor):
     return torch.stack([a_length, b_length, c_length, alpha, beta, gamma], dim=-1)
 
 
-def get_lattice_matrix(lengths_and_angles):
-    a, b, c, alpha, beta, gamma = lengths_and_angles.squeeze()
+# def get_lattice_matrix(lengths_and_angles):
+#     a, b, c, alpha, beta, gamma = lengths_and_angles.squeeze()
 
-    # Add 2π to negative angles
-    alpha = torch.where(alpha < 0, alpha + 2 * math.pi, alpha)
-    beta = torch.where(beta < 0, beta + 2 * math.pi, beta)
-    gamma = torch.where(gamma < 0, gamma + 2 * math.pi, gamma)
+#     # Add 2π to negative angles
+#     alpha = torch.where(alpha < 0, alpha + 2 * math.pi, alpha)
+#     beta = torch.where(beta < 0, beta + 2 * math.pi, beta)
+#     gamma = torch.where(gamma < 0, gamma + 2 * math.pi, gamma)
 
-    cos_alpha = torch.cos(alpha)
-    cos_beta = torch.cos(beta)
-    cos_gamma = torch.cos(gamma)
-    sin_gamma = torch.sin(gamma)
+#     cos_alpha = torch.cos(alpha)
+#     cos_beta = torch.cos(beta)
+#     cos_gamma = torch.cos(gamma)
+#     sin_gamma = torch.sin(gamma)
 
-    term1 = 1 - cos_alpha**2 - cos_beta**2 - cos_gamma**2
-    term2 = 2 * cos_alpha * cos_beta * cos_gamma
-    term3 = torch.sqrt(term1 + term2)
+#     term1 = 1 - cos_alpha**2 - cos_beta**2 - cos_gamma**2
+#     term2 = 2 * cos_alpha * cos_beta * cos_gamma
+#     term3 = torch.sqrt(term1 + term2)
 
-    lattice_matrix = torch.tensor(
-        [
-            [a, b * cos_gamma, c * cos_beta],
-            [0, b * sin_gamma, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma],
-            [0, 0, c * term3 / sin_gamma],
-        ]
-    )
+#     lattice_matrix = torch.tensor(
+#         [
+#             [a, b * cos_gamma, c * cos_beta],
+#             [0, b * sin_gamma, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma],
+#             [0, 0, c * term3 / sin_gamma],
+#         ]
+#     )
 
-    return lattice_matrix
+#     return lattice_matrix
 
 
 # def get_lattice_matrix(lattice_parameters: torch.Tensor):
@@ -570,102 +569,46 @@ def get_lattice_matrix(lengths_and_angles):
 #     return lattice_matrix.unsqueeze(0)
 
 
-# def get_lattice_matrix(lattice_parameters: torch.Tensor):
-#     """Batched torch version to compute lattice matrix from params.
+def get_lattice_matrix(lattice_parameters: torch.Tensor):
+    """Batched torch version to compute lattice matrix from params.
 
-#     lengths: torch.Tensor of shape (N, 3), unit A
-#     angles: torch.Tensor of shape (N, 3), unit degree
-#     """
-#     # a_length, b_length, c_length, alpha, beta, gamma = lattice_parameters
-#     lengths = lattice_parameters[:, :3]
-#     angles_r = lattice_parameters[:, 3:]
-#     # angles_r = torch.deg2rad(angles)
-#     coses = torch.cos(angles_r)
-#     sins = torch.sin(angles_r)
+    lengths: torch.Tensor of shape (N, 3), unit A
+    angles: torch.Tensor of shape (N, 3), unit degree
+    """
+    # angles_r = torch.deg2rad(angles)
+    lengths = lattice_parameters[:, :3]
+    angles_r = lattice_parameters[:, 3:]
+    coses = torch.cos(angles_r)
+    sins = torch.sin(angles_r)
 
-#     val = (coses[:, 0] * coses[:, 1] - coses[:, 2]) / (sins[:, 0] * sins[:, 1])
-#     # Sometimes rounding errors result in values slightly > 1.
-#     val = torch.clamp(val, -1.0, 1.0)
-#     gamma_star = torch.arccos(val)
+    val = (coses[:, 0] * coses[:, 1] - coses[:, 2]) / (sins[:, 0] * sins[:, 1])
+    # Sometimes rounding errors result in values slightly > 1.
+    val = torch.clamp(val, -1.0, 1.0)
+    gamma_star = torch.arccos(val)
 
-#     vector_a = torch.stack(
-#         [
-#             lengths[:, 0] * sins[:, 1],
-#             torch.zeros(lengths.size(0), device=lengths.device),
-#             lengths[:, 0] * coses[:, 1],
-#         ],
-#         dim=1,
-#     )
-#     vector_b = torch.stack(
-#         [
-#             -lengths[:, 1] * sins[:, 0] * torch.cos(gamma_star),
-#             lengths[:, 1] * sins[:, 0] * torch.sin(gamma_star),
-#             lengths[:, 1] * coses[:, 0],
-#         ],
-#         dim=1,
-#     )
-#     vector_c = torch.stack(
-#         [
-#             torch.zeros(lengths.size(0), device=lengths.device),
-#             torch.zeros(lengths.size(0), device=lengths.device),
-#             lengths[:, 2],
-#         ],
-#         dim=1,
-#     )
+    vector_a = torch.stack(
+        [
+            lengths[:, 0] * sins[:, 1],
+            torch.zeros(lengths.size(0), device=lengths.device),
+            lengths[:, 0] * coses[:, 1],
+        ],
+        dim=1,
+    )
+    vector_b = torch.stack(
+        [
+            -lengths[:, 1] * sins[:, 0] * torch.cos(gamma_star),
+            lengths[:, 1] * sins[:, 0] * torch.sin(gamma_star),
+            lengths[:, 1] * coses[:, 0],
+        ],
+        dim=1,
+    )
+    vector_c = torch.stack(
+        [
+            torch.zeros(lengths.size(0), device=lengths.device),
+            torch.zeros(lengths.size(0), device=lengths.device),
+            lengths[:, 2],
+        ],
+        dim=1,
+    )
 
-#     return torch.stack([vector_a, vector_b, vector_c], dim=1)
-
-
-# def get_lattice_matrix(lattice_parameters: torch.Tensor):
-#     # Extract the lattice lengths and angles from the input tensor
-#     a_length, b_length, c_length, alpha, beta, gamma = lattice_parameters.T
-
-#     # Convert angles from radians to degrees (if needed)
-#     # alpha = torch.deg2rad(alpha)
-#     # beta = torch.deg2rad(beta)
-#     # gamma = torch.deg2rad(gamma)
-
-#     # Calculate the necessary trigonometric values
-#     cos_alpha = torch.cos(alpha)
-#     cos_beta = torch.cos(beta)
-#     cos_gamma = torch.cos(gamma)
-#     sin_gamma = torch.sin(gamma)
-
-#     # Calculate the volume of the unit cell
-#     volume = (
-#         a_length
-#         * b_length
-#         * c_length
-#         * torch.sqrt(
-#             1
-#             - cos_alpha**2
-#             - cos_beta**2
-#             - cos_gamma**2
-#             + 2 * cos_alpha * cos_beta * cos_gamma
-#         )
-#     )
-
-#     # Calculate the components of the lattice vectors
-#     a_x = a_length
-#     a_y = torch.zeros_like(a_length)
-#     a_z = torch.zeros_like(a_length)
-
-#     b_x = b_length * cos_gamma
-#     b_y = b_length * sin_gamma
-#     b_z = torch.zeros_like(b_length)
-
-#     c_x = c_length * cos_beta
-#     c_y = c_length * (cos_alpha - cos_beta * cos_gamma) / sin_gamma
-#     c_z = volume / (a_length * b_length * sin_gamma)
-
-#     # Construct the lattice matrix
-#     lattice_matrix = torch.stack(
-#         [
-#             torch.stack([a_x, a_y, a_z], dim=-1),
-#             torch.stack([b_x, b_y, b_z], dim=-1),
-#             torch.stack([c_x, c_y, c_z], dim=-1),
-#         ],
-#         dim=-1,
-#     )
-
-#     return lattice_matrix
+    return torch.stack([vector_a, vector_b, vector_c], dim=1)
