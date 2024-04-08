@@ -4,12 +4,14 @@ from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
+from torch.nn import functional as F
 
 from diffusion.diffusion_helpers import (
     VP,
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
+    get_lattice_parameters,
     polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
@@ -102,7 +104,7 @@ class DiffusionLoss(torch.nn.Module):
         t_int,
         num_atoms,
         lattice: torch.Tensor,
-        noisy_symmetric_vec: torch.Tensor,
+        # noisy_symmetric_vec: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -110,10 +112,15 @@ class DiffusionLoss(torch.nn.Module):
     ):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
-        noisy_symmetric_vec_expanded = torch.repeat_interleave(
-            noisy_symmetric_vec, num_atoms, dim=0
+        # noisy_symmetric_vec_expanded = torch.repeat_interleave(
+        #     noisy_symmetric_vec, num_atoms, dim=0
+        # )
+        # h_time = torch.cat([h_t, t_emb, noisy_symmetric_vec_expanded], dim=1)
+        lattice_lengths_and_angles = get_lattice_parameters(lattice)
+        lattice_lengths_and_angles = torch.repeat_interleave(
+            lattice_lengths_and_angles, num_atoms, dim=0
         )
-        h_time = torch.cat([h_t, t_emb, noisy_symmetric_vec_expanded], dim=1)
+        h_time = torch.cat([h_t, t_emb, lattice_lengths_and_angles], dim=1)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
@@ -157,16 +164,14 @@ class DiffusionLoss(torch.nn.Module):
         h = h * self.norm_h
         return x, h
 
-    def lattice_loss(self, pred_lengths_and_angles, batch):
-        self.lattice_scaler.match_device(pred_lengths_and_angles)
-        if self.hparams.data.lattice_scale_method == "scale_length":
-            target_lengths = batch.lengths / batch.num_atoms.view(-1, 1).float() ** (
-                1 / 3
-            )
-        target_lengths_and_angles = torch.cat([target_lengths, batch.angles], dim=-1)
-        target_lengths_and_angles = self.lattice_scaler.transform(
-            target_lengths_and_angles
-        )
+    def lattice_loss(self, pred_lengths_and_angles, lattice):
+        # self.lattice_scaler.match_device(pred_lengths_and_angles)
+        # if self.hparams.data.lattice_scale_method == "scale_length":
+        # target_lengths = batch.frac_coords / batch.num_atoms.view(-1, 1).float() ** (1 / 3)
+        target_lengths_and_angles = get_lattice_parameters(lattice)
+        # target_lengths_and_angles = self.lattice_scaler.transform(
+        #     target_lengths_and_angles
+        # )
         return F.mse_loss(pred_lengths_and_angles, target_lengths_and_angles)
 
     def diffuse_lattice(self, lattice, t_int):
@@ -182,8 +187,8 @@ class DiffusionLoss(torch.nn.Module):
         )
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vec)
         # noise_mat = vector_to_symmetric_matrix(noise_vec)
-        lattice = torch.matmul(rot_mat, noisy_symmetric_matrix)
-        return lattice, noise_vec, noisy_symmetric_vec
+        noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_matrix)
+        return lattice, noisy_lattice, noise_vec, noisy_symmetric_vec
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -213,16 +218,18 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        l_t, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(lattice, t_int)
+        lattice, noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
+            lattice, t_int
+        )
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_noise_vec = self.phi(
+        pred_eps_x, pred_eps_h, pred_lengths_and_angles = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
             num_atoms,
-            l_t,
-            noisy_symmetric_vec,
+            noisy_lattice,
+            # noisy_symmetric_vec,
             model,
             batch,
             t_emb_weights,
@@ -238,8 +245,8 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        # noisy_symmetric_lattice_hat = torch.matmul(inv_rot_mat, pred_noise_mat)
-        error_l = self.compute_error_for_global_vec(pred_noise_vec, noise_vec)
+        # error_l = self.compute_error_for_global_vec(pred_noise_vec, noise_vec)
+        error_l = self.lattice_loss(pred_lengths_and_angles, lattice)
 
         loss = (
             self.cost_coord_coeff * error_x

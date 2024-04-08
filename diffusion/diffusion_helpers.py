@@ -514,4 +514,5 @@ def get_lattice_parameters(lattice_matrices: torch.Tensor):
     # beta = torch.rad2deg(beta)
     # gamma = torch.rad2deg(gamma)
 
-    return a_length, b_length, c_length, alpha, beta, gamma
+    # return a_length, b_length, c_length, alpha, beta, gamma
+    return torch.stack([a_length, b_length, c_length, alpha, beta, gamma], dim=-1)
