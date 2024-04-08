@@ -11,14 +11,13 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
-    get_lattice_matrix,
     polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
-from diffusion.lattice_helpers import matrix_to_params
+from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
 
@@ -311,7 +310,7 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
-            lattice = get_lattice_matrix(pred_lattice_lengths_and_angles)
+            lattice = lattice_from_params(pred_lattice_lengths_and_angles)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
