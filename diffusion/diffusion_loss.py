@@ -176,22 +176,26 @@ class DiffusionLoss(torch.nn.Module):
         h = h * self.norm_h
         return x, h
 
-    def lattice_loss(self, pred_lengths_and_angles, lattice):
+    def lattice_loss(
+        self,
+        pred_lengths_and_angles: torch.Tensor,
+        lattice: torch.Tensor,
+        num_atoms: torch.Tensor,
+    ):
         target_lengths_and_angles = matrix_to_params(lattice)
 
         decoded_angles = decode_angles(pred_lengths_and_angles[:, 3:])
 
-        lengths_loss = F.mse_loss(
-            pred_lengths_and_angles[:, :3], target_lengths_and_angles[:, :3]
-        )
-        # angles_loss = F.mse_loss(decoded_angles, target_lengths_and_angles[:, 3:])
+        target_lengths = pred_lengths_and_angles[:, :3]
+        target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
+        lengths_loss = F.mse_loss(pred_lengths_and_angles[:, :3], target_lengths)
+        angles_loss = F.mse_loss(decoded_angles, target_lengths_and_angles[:, 3:])
         # loss function from: https://stats.stackexchange.com/questions/425234/loss-function-and-encoding-for-angles
-        angles_loss = torch.sqrt(
-            2 * (1 - torch.cos(decoded_angles - target_lengths_and_angles[:, 3:]))
-        ).mean()
-        # print(
-        #     lengths_loss, angles_loss, decoded_angles, target_lengths_and_angles[0, 3:]
-        # )
+        # However, it's really slow for the computer to calculate the loss of these angles
+        # angles_loss = torch.sqrt(
+        #     2 * (1 - torch.cos(decoded_angles - target_lengths_and_angles[:, 3:]))
+        # ).mean()
+        # print(lengths_loss)
         return lengths_loss + angles_loss
 
     def diffuse_lattice(self, lattice, t_int):
@@ -266,7 +270,7 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         # error_l = self.compute_error_for_global_vec(pred_noise_vec, noise_vec)
-        error_l = self.lattice_loss(pred_lengths_and_angles, lattice)
+        error_l = self.lattice_loss(pred_lengths_and_angles, lattice, num_atoms)
 
         loss = (
             self.cost_coord_coeff * error_x
