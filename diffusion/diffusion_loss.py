@@ -11,6 +11,7 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
+    get_lattice_matrix,
     get_lattice_parameters,
     polar_decomposition,
     radius_graph_pbc,
@@ -294,9 +295,9 @@ class DiffusionLoss(torch.nn.Module):
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
-            timestep_vec = torch.tensor([timestep])  # add a batch dimension
+            # timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_x, score_h, score_l = self.phi(
+            score_x, score_h, pred_lattice_lengths_and_angles = self.phi(
                 frac_x,
                 h,
                 t,
@@ -309,7 +310,9 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
                 frac=True,
             )
-            lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
+            # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
+            lattice = get_lattice_matrix(pred_lattice_lengths_and_angles)
+
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
