@@ -195,7 +195,7 @@ class DiffusionLoss(torch.nn.Module):
         target_lengths_and_angles = matrix_to_params(lattice)
 
         target_lengths = target_lengths_and_angles[:, :3]
-        target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
+        # target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
 
         lengths_loss = F.mse_loss(pred_lengths_and_angles[:, :3], target_lengths)
         angles_loss = F.mse_loss(
@@ -346,7 +346,7 @@ class DiffusionLoss(torch.nn.Module):
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
             pred_lengths = pred_lattice_lengths_and_angles[:, :3]
-            pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
+            # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
             pred_lattice_lengths_and_angles = torch.cat(
                 [pred_lengths, pred_lattice_lengths_and_angles[:, 3:]], dim=-1
             )

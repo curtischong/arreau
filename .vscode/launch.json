@@ -53,7 +53,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/last-v43.ckpt",
+                "--model_path=models/last-v47.ckpt",
             ],
         },
         {
