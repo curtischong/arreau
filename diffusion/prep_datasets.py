@@ -1,5 +1,6 @@
 # This file converts the alexandria datasets to hdf5 format so it's faster to load
 # These hdf5 files are also more efficient since we drop unused columns
+from multiprocessing import Process
 from pymatgen.entries.computed_entries import ComputedStructureEntry
 import numpy as np
 import h5py
@@ -66,12 +67,12 @@ def main():
     processes = []
     for i in range(NUM_FILES):
         file_name = f"alexandria_ps_00{i}"
-        prep_data_and_save_hdf5(file_name)
+        # prep_data_and_save_hdf5(file_name)
 
-        # # https://stackoverflow.com/questions/55529319/how-to-create-multiple-threads-dynamically-in-python
-        # p = Process(target=prep_data_and_save_hdf5, args=(file_name,))
-        # p.start()
-        # processes.append(p)
+        # https://stackoverflow.com/questions/55529319/how-to-create-multiple-threads-dynamically-in-python
+        p = Process(target=prep_data_and_save_hdf5, args=(file_name,))
+        p.start()
+        processes.append(p)
 
     # Wait all processes to finish.
     for p in processes:
