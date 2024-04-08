@@ -4,13 +4,13 @@ import torch
 
 
 def encode_angles(angles: torch.Tensor) -> torch.Tensor:
-    return torch.stack([torch.sin(angles), torch.cos(angles)], dim=-1)
+    # I verified in a debugger that these are the same:
+    # torch.atan2(torch.sin(angles), torch.cos(angles)) == angles
+    return torch.cat([torch.sin(angles), torch.cos(angles)], dim=-1)
 
 
 def decode_angles(angles: torch.Tensor) -> torch.Tensor:
-    # I think the first param is x, the second is y: https://stackoverflow.com/a/1313753/4647924
-    # This is why we're passing in index 1 first, then 0
-    return torch.atan2(angles[..., 1], angles[..., 0])
+    return torch.atan2(angles[..., 0], angles[..., 1])
 
 
 # https://github.com/materialsproject/pymatgen/blob/b789d74639aa851d7e5ee427a765d9fd5a8d1079/pymatgen/core/lattice.py#L67
@@ -33,8 +33,7 @@ def matrix_to_params(matrix: torch.Tensor) -> torch.Tensor:
             )
         )
     # angles = angles * 180.0 / torch.pi # convert radians to degrees
-    res = torch.cat([lengths, encode_angles(angles)], dim=1)
-    return res
+    return torch.cat([lengths, angles], dim=1)
 
 
 def abs_cap(val, max_abs_val=1):

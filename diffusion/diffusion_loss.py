@@ -17,7 +17,12 @@ from diffusion.diffusion_helpers import (
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
-from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
+from diffusion.lattice_helpers import (
+    decode_angles,
+    encode_angles,
+    lattice_from_params,
+    matrix_to_params,
+)
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
 
@@ -116,11 +121,18 @@ class DiffusionLoss(torch.nn.Module):
         #     noisy_symmetric_vec, num_atoms, dim=0
         # )
         # h_time = torch.cat([h_t, t_emb, noisy_symmetric_vec_expanded], dim=1)
+
+        # encode the lengths and angles for the model
         lattice_lengths_and_angles = matrix_to_params(lattice)
-        lattice_lengths_and_angles = torch.repeat_interleave(
-            lattice_lengths_and_angles, num_atoms, dim=0
+        angles = encode_angles(lattice_lengths_and_angles[:, 3:])
+        encoded_lengths_and_angles = torch.cat(
+            [lattice_lengths_and_angles[:, :3], angles], dim=-1
         )
-        h_time = torch.cat([h_t, t_emb, lattice_lengths_and_angles], dim=1)
+        encoded_lengths_and_angles = torch.repeat_interleave(
+            encoded_lengths_and_angles, num_atoms, dim=0
+        )
+
+        h_time = torch.cat([h_t, t_emb, encoded_lengths_and_angles], dim=1)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
@@ -310,6 +322,8 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
+            pred_lattice_angles = pred_lattice_lengths_and_angles[:, 3:]
+            pred_lattice_lengths_and_angles[:, 3:] = decode_angles(pred_lattice_angles)
             lattice = lattice_from_params(pred_lattice_lengths_and_angles)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
