@@ -96,8 +96,14 @@ def vis_crystal(atomic_numbers, L_t, X, name, show_bonds: bool):
     for i in range(len(atomic_numbers)):
         pos_arr.append(X[i].tolist())
 
-    # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
-    structure = Structure(lattice, element_symbols, pos_arr, coords_are_cartesian=True)
+    try:
+        # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
+        structure = Structure(
+            lattice, element_symbols, pos_arr, coords_are_cartesian=True
+        )
+    except Exception as e:
+        print("Error in visualizing crystal", e)
+        return
 
     # Create a Plotly figure
     fig = go.Figure()
