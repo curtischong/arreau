@@ -328,8 +328,11 @@ class DiffusionLoss(torch.nn.Module):
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
             pred_lattice_angles = pred_lattice_lengths_and_angles[:, 3:]
-            pred_lattice_lengths_and_angles[:, 3:] = decode_angles(pred_lattice_angles)
-            lattice = lattice_from_params(pred_lattice_lengths_and_angles)
+            decoded_angles = decode_angles(pred_lattice_angles)
+            pred_lattice_lengths_and_angles_decoded = torch.cat(
+                [pred_lattice_lengths_and_angles[:, :3], decoded_angles], dim=-1
+            )
+            lattice = lattice_from_params(pred_lattice_lengths_and_angles_decoded)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
