@@ -12,13 +12,13 @@ from diffusion.diffusion_helpers import (
     cart_to_frac_coords,
     frac_to_cart_coords,
     get_lattice_matrix,
-    get_lattice_parameters,
     polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
+from diffusion.lattice_helpers import matrix_to_params
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
 
@@ -117,7 +117,7 @@ class DiffusionLoss(torch.nn.Module):
         #     noisy_symmetric_vec, num_atoms, dim=0
         # )
         # h_time = torch.cat([h_t, t_emb, noisy_symmetric_vec_expanded], dim=1)
-        lattice_lengths_and_angles = get_lattice_parameters(lattice)
+        lattice_lengths_and_angles = matrix_to_params(lattice)
         lattice_lengths_and_angles = torch.repeat_interleave(
             lattice_lengths_and_angles, num_atoms, dim=0
         )
@@ -169,7 +169,7 @@ class DiffusionLoss(torch.nn.Module):
         # self.lattice_scaler.match_device(pred_lengths_and_angles)
         # if self.hparams.data.lattice_scale_method == "scale_length":
         # target_lengths = batch.frac_coords / batch.num_atoms.view(-1, 1).float() ** (1 / 3)
-        target_lengths_and_angles = get_lattice_parameters(lattice)
+        target_lengths_and_angles = matrix_to_params(lattice)
         # target_lengths_and_angles = self.lattice_scaler.transform(
         #     target_lengths_and_angles
         # )
