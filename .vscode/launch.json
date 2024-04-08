@@ -64,6 +64,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "test lattice helpers",
+            "type": "python",
+            "request": "launch",
+            "program": "diffusion/lattice_helpers_test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
