@@ -157,6 +157,18 @@ class DiffusionLoss(torch.nn.Module):
         h = h * self.norm_h
         return x, h
 
+    def lattice_loss(self, pred_lengths_and_angles, batch):
+        self.lattice_scaler.match_device(pred_lengths_and_angles)
+        if self.hparams.data.lattice_scale_method == "scale_length":
+            target_lengths = batch.lengths / batch.num_atoms.view(-1, 1).float() ** (
+                1 / 3
+            )
+        target_lengths_and_angles = torch.cat([target_lengths, batch.angles], dim=-1)
+        target_lengths_and_angles = self.lattice_scaler.transform(
+            target_lengths_and_angles
+        )
+        return F.mse_loss(pred_lengths_and_angles, target_lengths_and_angles)
+
     def diffuse_lattice(self, lattice, t_int):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance

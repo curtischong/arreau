@@ -491,3 +491,27 @@ def vector_to_symmetric_matrix(vector: torch.Tensor):
     matrix[:, 1, 2] = matrix[:, 2, 1] = vector[:, 4]
     matrix[:, 2, 2] = vector[:, 5]
     return matrix
+
+
+def get_lattice_parameters(lattice_matrices: torch.Tensor):
+    # Extract the lattice vectors from the matrices
+    a = lattice_matrices[:, 0]
+    b = lattice_matrices[:, 1]
+    c = lattice_matrices[:, 2]
+
+    # Calculate the lengths of the lattice vectors
+    a_length = torch.norm(a, dim=1)
+    b_length = torch.norm(b, dim=1)
+    c_length = torch.norm(c, dim=1)
+
+    # Calculate the angles between the lattice vectors
+    alpha = torch.acos(torch.sum(b * c, dim=1) / (b_length * c_length))
+    beta = torch.acos(torch.sum(a * c, dim=1) / (a_length * c_length))
+    gamma = torch.acos(torch.sum(a * b, dim=1) / (a_length * b_length))
+
+    # # Convert anges from radians to degrees
+    # alpha = torch.rad2deg(alpha)
+    # beta = torch.rad2deg(beta)
+    # gamma = torch.rad2deg(gamma)
+
+    return a_length, b_length, c_length, alpha, beta, gamma
