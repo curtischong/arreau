@@ -3,6 +3,16 @@ import torch
 # TODO: use better angle encoding: https://stats.stackexchange.com/questions/218407/encoding-angle-data-for-neural-network
 
 
+def encode_angles(angles: torch.Tensor) -> torch.Tensor:
+    return torch.stack([torch.sin(angles), torch.cos(angles)], dim=-1)
+
+
+def decode_angles(angles: torch.Tensor) -> torch.Tensor:
+    # I think the first param is x, the second is y: https://stackoverflow.com/a/1313753/4647924
+    # This is why we're passing in index 1 first, then 0
+    return torch.atan2(angles[..., 1], angles[..., 0])
+
+
 # https://github.com/materialsproject/pymatgen/blob/b789d74639aa851d7e5ee427a765d9fd5a8d1079/pymatgen/core/lattice.py#L67
 def matrix_to_params(matrix: torch.Tensor) -> torch.Tensor:
     """
@@ -22,8 +32,9 @@ def matrix_to_params(matrix: torch.Tensor) -> torch.Tensor:
                 1.0,
             )
         )
-    angles = angles * 180.0 / torch.pi  # scrw radians. we're using degrees
-    return torch.cat([lengths, angles], dim=1)
+    # angles = angles * 180.0 / torch.pi # convert radians to degrees
+    res = torch.cat([lengths, encode_angles(angles)], dim=1)
+    return res
 
 
 def abs_cap(val, max_abs_val=1):
@@ -61,9 +72,9 @@ def lattice_from_params(
         Lattice with the specified lattice parameters.
     """
     a, b, c, alpha, beta, gamma = params.unbind(-1)
-    beta = torch.deg2rad(beta)
-    gamma = torch.deg2rad(gamma)
-    alpha = torch.deg2rad(alpha)
+    # beta = torch.deg2rad(beta)
+    # gamma = torch.deg2rad(gamma)
+    # alpha = torch.deg2rad(alpha)
     num_lattices = a.shape[0]
 
     # angles_r = torch.radians([alpha, beta, gamma])
