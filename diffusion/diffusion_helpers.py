@@ -518,57 +518,6 @@ def get_lattice_parameters(lattice_matrices: torch.Tensor):
     return torch.stack([a_length, b_length, c_length, alpha, beta, gamma], dim=-1)
 
 
-# def get_lattice_matrix(lengths_and_angles):
-#     a, b, c, alpha, beta, gamma = lengths_and_angles.squeeze()
-
-#     # Add 2π to negative angles
-#     alpha = torch.where(alpha < 0, alpha + 2 * math.pi, alpha)
-#     beta = torch.where(beta < 0, beta + 2 * math.pi, beta)
-#     gamma = torch.where(gamma < 0, gamma + 2 * math.pi, gamma)
-
-#     cos_alpha = torch.cos(alpha)
-#     cos_beta = torch.cos(beta)
-#     cos_gamma = torch.cos(gamma)
-#     sin_gamma = torch.sin(gamma)
-
-#     term1 = 1 - cos_alpha**2 - cos_beta**2 - cos_gamma**2
-#     term2 = 2 * cos_alpha * cos_beta * cos_gamma
-#     term3 = torch.sqrt(term1 + term2)
-
-#     lattice_matrix = torch.tensor(
-#         [
-#             [a, b * cos_gamma, c * cos_beta],
-#             [0, b * sin_gamma, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma],
-#             [0, 0, c * term3 / sin_gamma],
-#         ]
-#     )
-
-#     return lattice_matrix
-
-
-# def get_lattice_matrix(lattice_parameters: torch.Tensor):
-#     a, b, c, alpha, beta, gamma = lattice_parameters.squeeze()
-
-#     cos_alpha = torch.cos(alpha)
-#     cos_beta = torch.cos(beta)
-#     cos_gamma = torch.cos(gamma)
-#     sin_gamma = torch.sin(gamma)
-
-#     term1 = 1 - cos_alpha**2 - cos_beta**2 - cos_gamma**2
-#     term2 = 2 * cos_alpha * cos_beta * cos_gamma
-#     term3 = torch.sqrt(term1 + term2)
-
-#     lattice_matrix = torch.tensor(
-#         [
-#             [a, b * cos_gamma, c * cos_beta],
-#             [0, b * sin_gamma, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma],
-#             [0, 0, c * term3 / sin_gamma],
-#         ]
-#     )
-
-#     return lattice_matrix.unsqueeze(0)
-
-
 def get_lattice_matrix(lattice_parameters: torch.Tensor):
     """Batched torch version to compute lattice matrix from params.
 
