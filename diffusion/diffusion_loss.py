@@ -157,14 +157,24 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_eps_global_scalar, _pred_eps_global_vec = model(
-            batch
+        pred_eps_h, pred_eps_x, raw_pred_lengths_and_angles, _pred_eps_global_vec = (
+            model(batch)
         )
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
-        return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h, pred_eps_global_scalar
+
+        pred_lengths = raw_pred_lengths_and_angles[:, :3]
+        pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
+        decoded_angles = decode_angles(raw_pred_lengths_and_angles[:, 3:])
+        pred_lengths_and_angles = torch.cat([pred_lengths, decoded_angles], dim=-1)
+
+        return (
+            pred_eps_x.squeeze(1) / used_sigmas_x,
+            pred_eps_h,
+            pred_lengths_and_angles,
+        )
 
     def normalize(self, x, h):
         x = x / self.norm_x
@@ -184,12 +194,13 @@ class DiffusionLoss(torch.nn.Module):
     ):
         target_lengths_and_angles = matrix_to_params(lattice)
 
-        decoded_angles = decode_angles(pred_lengths_and_angles[:, 3:])
-
-        target_lengths = pred_lengths_and_angles[:, :3]
+        target_lengths = target_lengths_and_angles[:, :3]
         target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
+
         lengths_loss = F.mse_loss(pred_lengths_and_angles[:, :3], target_lengths)
-        angles_loss = F.mse_loss(decoded_angles, target_lengths_and_angles[:, 3:])
+        angles_loss = F.mse_loss(
+            pred_lengths_and_angles[:, 3:], target_lengths_and_angles[:, 3:]
+        )
         # loss function from: https://stats.stackexchange.com/questions/425234/loss-function-and-encoding-for-angles
         # However, it's really slow for the computer to calculate the loss of these angles
         # angles_loss = torch.sqrt(
@@ -334,12 +345,7 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
-            pred_lattice_angles = pred_lattice_lengths_and_angles[:, 3:]
-            decoded_angles = decode_angles(pred_lattice_angles)
-            pred_lattice_lengths_and_angles_decoded = torch.cat(
-                [pred_lattice_lengths_and_angles[:, :3], decoded_angles], dim=-1
-            )
-            lattice = lattice_from_params(pred_lattice_lengths_and_angles_decoded)
+            lattice = lattice_from_params(pred_lattice_lengths_and_angles)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
