@@ -73,6 +73,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "prep datasets",
+            "type": "python",
+            "request": "launch",
+            "program": "diffusion/prep_datasets.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
