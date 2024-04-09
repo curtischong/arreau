@@ -237,7 +237,8 @@ class DiffusionLoss(torch.nn.Module):
         clean_params = matrix_to_params(lattice)
         # TODO: we might want to normalize lattice lengths, so the noise is appropriately scaled.
         noisy_params, param_noise = self.lattice_diffusion(clean_params, t_int)
-        noisy_lattice = lattice_from_params(noisy_params)
+        print("lattice device", lattice.device, "t_int device", t_int.device)
+        noisy_lattice = lattice_from_params(noisy_params.to(lattice.device))
         return noisy_lattice, param_noise, clean_params
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
