@@ -13,10 +13,6 @@ from diffusion.diffusion_helpers import (
     radius_graph_pbc,
     subtract_cog,
 )
-from diffusion.lattice_helpers import (
-    decode_angles,
-    lattice_from_params,
-)
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
 
@@ -203,6 +199,7 @@ class DiffusionLoss(torch.nn.Module):
         loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
         return loss.mean()
 
+    # TODO fix this sampling code when we have the new lattice diffusion
     @torch.no_grad()
     def sample(
         self,
@@ -233,7 +230,7 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             # timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_x, score_h, score_params = self.phi(
+            score_x, score_h = self.phi(
                 frac_x,
                 h,
                 t,
@@ -246,15 +243,6 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
                 frac=True,
             )
-            # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
-            pred_lengths = score_params[:, :3]
-            pred_angles = decode_angles(score_params[:, 3:])
-            # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
-            score_params = torch.cat([pred_lengths, pred_angles], dim=-1)
-            next_params = self.lattice_diffusion.reverse(
-                score_params, t
-            )  # TODO: score fed into model
-            lattice = lattice_from_params(next_params)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
