@@ -42,14 +42,12 @@ class PonitaFiberBundle(nn.Module):
                  degree=3,
                  widening_factor=4,
                  layer_scale=None,
-                 task_level='graph',
                  multiple_readouts=True,
                  **kwargs):
         super().__init__()
 
         # Input output settings
         self.output_dim, self.output_dim_vec, self.output_dim_global_scalar, self.output_dim_global_vec = output_dim, output_dim_vec, output_dim_global_scalar, output_dim_global_vec
-        self.global_pooling = task_level=='graph'
 
         # For constructing the position-orientation graph and its invariants
         self.transform = Compose([PositionOrientationGraph(num_ori), SEnInvariantAttributes(separable=True)])
@@ -102,28 +100,24 @@ class PonitaFiberBundle(nn.Module):
         readout_scalar, readout_vec, readout_global_vec, readout_global_scalar = torch.split(readout, [self.output_dim, self.output_dim_vec, self.output_dim_global_vec, self.output_dim_global_scalar], dim=-1)
         
         # Read out scalar and vector predictions
-        output_scalar = self.scalar_readout_fn(readout_scalar, graph.batch)
-        output_vector = self.vec_readout_fn(readout_vec, graph.ori_grid, graph.batch)
+        output_scalar = self.scalar_readout_fn(readout_scalar)
+        output_vector = self.vec_readout_fn(readout_vec, graph.ori_grid)
         global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
         global_output_scalar = self.global_scalar_readout_fn(readout_global_scalar, graph.batch)
 
         # Return predictions
         return output_scalar, output_vector, global_output_scalar, global_output_vector
     
-    def scalar_readout_fn(self, readout_scalar, batch):
+    def scalar_readout_fn(self, readout_scalar):
         if self.output_dim > 0:
             output_scalar = sphere_to_scalar(readout_scalar)
-            if self.global_pooling:
-                output_scalar=global_add_pool(output_scalar, batch)
         else:
             output_scalar = None
         return output_scalar
     
-    def vec_readout_fn(self, readout_vec, ori_grid, batch):
+    def vec_readout_fn(self, readout_vec, ori_grid):
         if self.output_dim_vec > 0:
             output_vector = sphere_to_vec(readout_vec, ori_grid)
-            if self.global_pooling:
-                output_vector = global_add_pool(output_vector, batch)
         else:
             output_vector = None
         return output_vector

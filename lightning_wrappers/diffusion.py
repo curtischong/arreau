@@ -81,7 +81,6 @@ class PONITA_DIFFUSION(pl.LightningModule):
             degree=args.degree,
             widening_factor=args.widening_factor,
             layer_scale=args.layer_scale,
-            task_level="node",
             multiple_readouts=args.multiple_readouts,
         )
         # should we have lift_graph=True???
