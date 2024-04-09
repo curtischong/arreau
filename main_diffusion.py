@@ -172,7 +172,7 @@ if __name__ == "__main__":
     if args.gpus > 0:
         accelerator = "gpu"
         devices = args.gpus
-        torch.set_default_device("cuda:0")
+        # torch.set_default_device("cuda:0")
     else:
         accelerator = "cpu"
         devices = "auto"
@@ -211,10 +211,10 @@ if __name__ == "__main__":
         )
         z_table = dataset.z_table
 
-        train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
+        train_dataset, valid_dataset, test_dataset = torch.utils.data.split(
             dataset,
             [0.7, 0.15, 0.15],
-            generator=torch.Generator(device=get_default_device()),
+            # generator=torch.Generator(device=get_default_device()),
         )
 
     datasets = {"train": train_dataset, "valid": valid_dataset, "test": test_dataset}

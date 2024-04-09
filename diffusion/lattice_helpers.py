@@ -85,7 +85,7 @@ def lattice_from_params(
     gamma_star = torch.arccos(val)
 
     vector_a = torch.stack(
-        [a * sin_beta, torch.zeros(num_lattices), a * cos_beta], dim=1
+        [a * sin_beta, torch.zeros(num_lattices, device=a.device), a * cos_beta], dim=1
     )
     vector_b = torch.stack(
         [
@@ -96,7 +96,12 @@ def lattice_from_params(
         dim=1,
     )
     vector_c = torch.stack(
-        [torch.zeros(num_lattices), torch.zeros(num_lattices), c], dim=1
+        [
+            torch.zeros(num_lattices, device=a.device),
+            torch.zeros(num_lattices, device=a.device),
+            c,
+        ],
+        dim=1,
     )
 
     res = torch.cat([vector_a, vector_b, vector_c], dim=-1).view(num_lattices, 3, 3)
