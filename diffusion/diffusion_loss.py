@@ -134,7 +134,7 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_eps_l = model(batch)
+        pred_eps_h, pred_eps_x, pred_eps_l, _ = model(batch)
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)

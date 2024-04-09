@@ -62,6 +62,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         in_channels_vec = 3  # although the position is already encoded in the graph, we still need to pass in the lattice vectors, since the model needs to predict its noise
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
+        out_channels_global_scalar = 6  # 3 lengths, 3 sin(angles), 3 cos(angles)
         out_channels_global_vec = 3  # we need three vectors to represent the lattice
 
         # Make the model
@@ -69,6 +70,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             in_channels_scalar + in_channels_vec,
             args.hidden_dim,
             out_channels_scalar,
+            out_channels_global_scalar,
             out_channels_global_vec,
             args.layers,
             output_dim_vec=out_channels_vec,
