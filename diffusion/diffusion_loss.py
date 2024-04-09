@@ -192,6 +192,7 @@ class DiffusionLoss(torch.nn.Module):
         lattice: torch.Tensor,
         num_atoms: torch.Tensor,
     ):
+        return 0
         target_lengths_and_angles = matrix_to_params(lattice)
 
         target_lengths = target_lengths_and_angles[:, :3]
