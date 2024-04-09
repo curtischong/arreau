@@ -181,6 +181,13 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
+    def get_default_device():
+        """Pick GPU if available, else CPU"""
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        else:
+            return torch.device("cpu")
+
     if args.use_dev_dataset:
         print("Using dev dataset")
         dataset = CrystalDataset(
@@ -205,7 +212,9 @@ if __name__ == "__main__":
         z_table = dataset.z_table
 
         train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
-            dataset, [0.7, 0.15, 0.15]
+            dataset,
+            [0.7, 0.15, 0.15],
+            generator=torch.Generator(device=get_default_device()),
         )
 
     datasets = {"train": train_dataset, "valid": valid_dataset, "test": test_dataset}
