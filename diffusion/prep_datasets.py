@@ -15,6 +15,26 @@ IN_DIR = f"{ROOT_PATH}/datasets/alexandria"
 OUT_DIR = f"{ROOT_PATH}/datasets/alexandria_hdf5"
 
 
+def normalize_lattice(lattice):
+    # The reason why we want to normalize the lattice is because if you convert the lengths / angles of a lattice into the matrix form, there are more than one valid matrix forms (since it's a basis)
+    # To make our functions consistent when converting a lattice from params to matrix form, we first convert all lattices in the dataset to params first.
+    # However, if you think about it, learning the lattice matrix isn't good. we should probably learn the angles / lengths.
+    # if you think aboout it some more, a lattice is just a human-defined basis. we could technically make due by representing everything as cubes, although, there may be multiple lattice cells in one cube.
+    # so I guess learning a lattice is better (reduces number of atoms needed in the system). One example is if the lattice parallelepied are REALLY slanted, so one cartesian cube has 10 parallelepied cells in it (a waste of atoms to simulate).
+
+    # original_lattice = torch.tensor(structure.lattice.matrix).unsqueeze(0)
+    # new_lattice = lattice_from_params(matrix_to_params(original_lattice)).squeeze(0)
+    # lattice_matrices[idx] = new_lattice.detach().cpu().numpy()
+
+    # inv_lattice = torch.linalg.pinv(new_lattice)
+    # cart_coords = torch.tensor(structure.cart_coords)
+    # frac_coords_in_new_lattice = cart_coords @ inv_lattice
+    # # I used the below code to verify that the caresian coords are the same in the new lattice
+    # # cart_coords_in_new_lattice = frac_coords_in_new_lattice @ new_lattice
+    # frac_coords_arrays.append(frac_coords_in_new_lattice.detach().cpu().numpy())
+    pass
+
+
 def prep_data_and_save_hdf5(filename, take_max_num_examples=None):
     print(f"prepping {filename}")
     with bz2.open(f"{IN_DIR}/{filename}.json.bz2", "rt", encoding="utf-8") as fh:
@@ -36,16 +56,8 @@ def prep_data_and_save_hdf5(filename, take_max_num_examples=None):
             atomic_number_vector[i] = species.Z
         atomic_number_vectors.append(atomic_number_vector)
 
-        # original_lattice = torch.tensor(structure.lattice.matrix).unsqueeze(0)
-        # new_lattice = lattice_from_params(matrix_to_params(original_lattice)).squeeze(0)
-        # lattice_matrices[idx] = new_lattice.detach().cpu().numpy()
+        # new_lattice = normalize_lattice(lattice)
 
-        # inv_lattice = torch.linalg.pinv(new_lattice)
-        # cart_coords = torch.tensor(structure.cart_coords)
-        # frac_coords_in_new_lattice = cart_coords @ inv_lattice
-        # # I used the below code to verify that the caresian coords are the same in the new lattice
-        # # cart_coords_in_new_lattice = frac_coords_in_new_lattice @ new_lattice
-        # frac_coords_arrays.append(frac_coords_in_new_lattice.detach().cpu().numpy())
         lattice_matrices[idx] = structure.lattice.matrix
         frac_coords_arrays.append(structure.frac_coords)
 
@@ -68,7 +80,8 @@ def prep_10_examples():
 
 
 def main():
-    # prep_10_examples()
+    prep_10_examples()  # this prepares a small sample dataset so when we train locally, it's fast.
+
     NUM_FILES = 5
 
     processes = []

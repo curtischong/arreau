@@ -62,6 +62,7 @@ def parallelize_configs(config_paths):
     with multiprocessing.Pool() as pool:
         configs = pool.map(load_dataset, config_paths)
         return [item for sublist in configs for item in sublist]
+    # keep this here so we can use the single-threded version for debugging
     # configs = [load_dataset(config_path) for config_path in config_paths]
     # return [item for sublist in configs for item in sublist]
 
