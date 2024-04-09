@@ -352,7 +352,7 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             # timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_x, score_h, pred_lattice_lengths_and_angles = self.phi(
+            score_x, score_h, score_params = self.phi(
                 frac_x,
                 h,
                 t,
@@ -366,12 +366,14 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
-            pred_lengths = pred_lattice_lengths_and_angles[:, :3]
+            pred_lengths = score_params[:, :3]
+            pred_angles = decode_angles(score_params[:, 3:])
             # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
-            pred_lattice_lengths_and_angles = torch.cat(
-                [pred_lengths, pred_lattice_lengths_and_angles[:, 3:]], dim=-1
-            )
-            lattice = lattice_from_params(pred_lattice_lengths_and_angles)
+            score_params = torch.cat([pred_lengths, pred_angles], dim=-1)
+            next_params = self.lattice_diffusion.reverse(
+                score_params, t
+            )  # TODO: score fed into model
+            lattice = lattice_from_params(next_params)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
