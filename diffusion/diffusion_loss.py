@@ -11,6 +11,7 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
+    get_lattice_parameters,
     polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
@@ -189,19 +190,21 @@ class DiffusionLoss(torch.nn.Module):
     def lattice_loss(
         self,
         pred_lengths_and_angles: torch.Tensor,
+        noisy_lattice: torch.Tensor,
         lattice: torch.Tensor,
         num_atoms: torch.Tensor,
     ):
-        return 0
-        target_lengths_and_angles = matrix_to_params(lattice)
+        target_lengths_and_angles = get_lattice_parameters(lattice)
 
         target_lengths = target_lengths_and_angles[:, :3]
+        target_angles = target_lengths_and_angles[:, 3:]
         # target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
 
         lengths_loss = F.mse_loss(pred_lengths_and_angles[:, :3], target_lengths)
-        angles_loss = F.mse_loss(
-            pred_lengths_and_angles[:, 3:], target_lengths_and_angles[:, 3:]
-        )
+        # angles_loss = F.mse_loss(
+        #     pred_lengths_and_angles[:, 3:], target_lengths_and_angles[:, 3:]
+        # )
+        angles_loss = F.mse_loss(pred_lengths_and_angles[:, 3:], target_angles)
         # loss function from: https://stats.stackexchange.com/questions/425234/loss-function-and-encoding-for-angles
         # However, it's really slow for the computer to calculate the loss of these angles
         # angles_loss = torch.sqrt(
@@ -282,7 +285,9 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         # error_l = self.compute_error_for_global_vec(pred_noise_vec, noise_vec)
-        error_l = self.lattice_loss(pred_lengths_and_angles, lattice, num_atoms)
+        error_l = self.lattice_loss(
+            pred_lengths_and_angles, noisy_lattice, lattice, num_atoms
+        )
 
         loss = (
             self.cost_coord_coeff * error_x

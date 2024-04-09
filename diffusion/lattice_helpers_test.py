@@ -30,6 +30,7 @@ def main():
     params = matrix_to_params(lattice)
     print(params)
     lattice = lattice_from_params(params)
+    # lattice = get_lattice_parameters(params)
     print(lattice)
 
     # basically, there are different representations of the same lattice. we just need to make sure that the code is consistent with the same form
