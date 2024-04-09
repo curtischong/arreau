@@ -211,7 +211,7 @@ if __name__ == "__main__":
         )
         z_table = dataset.z_table
 
-        train_dataset, valid_dataset, test_dataset = torch.utils.data.split(
+        train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
             dataset,
             [0.7, 0.15, 0.15],
             # generator=torch.Generator(device=get_default_device()),
