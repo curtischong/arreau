@@ -8,14 +8,12 @@ from torch.nn import functional as F
 
 from diffusion.diffusion_helpers import (
     VP,
+    VE_lengths,
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
-    polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
-    symmetric_matrix_to_vector,
-    vector_to_symmetric_matrix,
 )
 from diffusion.lattice_helpers import (
     decode_angles,
@@ -67,11 +65,19 @@ class DiffusionLoss(torch.nn.Module):
             clipmax=type_clipmax,
         )
 
-        self.lattice_diffusion = VP(
+        self.length_diffusion = VE_lengths(
+            self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+        )
+
+        self.angle_diffusion = VP(
             num_steps=self.T,
             power=lattice_power,
             clipmax=lattice_clipmax,
         )
+
+        # self.lattice_angle = VE_angles(
+        #     self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+        # )
 
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
@@ -186,64 +192,44 @@ class DiffusionLoss(torch.nn.Module):
         h = h * self.norm_h
         return x, h
 
-    def lattice_loss(
-        self,
-        pred_lengths_and_angles: torch.Tensor,
-        noisy_lattice: torch.Tensor,
-        lattice: torch.Tensor,
-        num_atoms: torch.Tensor,
-    ):
-        target_lengths_and_angles = matrix_to_params(lattice)
-
-        target_lengths = target_lengths_and_angles[:, :3]
-        target_angles = target_lengths_and_angles[:, 3:]
-        # target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
-
-        lengths_loss = F.mse_loss(pred_lengths_and_angles[:, :3], target_lengths)
-        angles_loss = F.mse_loss(pred_lengths_and_angles[:, 3:], target_angles)
-        # loss function from: https://stats.stackexchange.com/questions/425234/loss-function-and-encoding-for-angles
-        # However, it's really slow for the computer to calculate the loss of these angles
-        # angles_loss = torch.sqrt(
-        #     2 * (1 - torch.cos(decoded_angles - target_lengths_and_angles[:, 3:]))
-        # ).mean()
-        # print(lengths_loss)
-        return lengths_loss + angles_loss
-
     def lattice_loss2(
         self,
-        param_noise: torch.Tensor,
+        length_noise: torch.Tensor,
+        length_used_sigmas: torch.Tensor,
+        angle_noise: torch.Tensor,
         pred_param_noise: torch.Tensor,
     ):
-        return F.mse_loss(pred_param_noise, param_noise)
+        pred_length_noise = pred_param_noise[:, :3]
+        pred_angle_noise = pred_param_noise[:, 3:]
 
-    def diffuse_lattice(self, lattice, t_int):
-        # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
-        # This is so the model can use vector features for the equivariance
+        length_weights = 0.5 * length_used_sigmas**2
+        adjusted_length_noise = length_noise / length_used_sigmas**2
 
-        rot_mat, symmetric_lattice = polar_decomposition(lattice)
-        symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
-        # inv_rot_mat = torch.linalg.inv(rot_mat)
-
-        noisy_symmetric_vec, noise_vec = self.lattice_diffusion(
-            symmetric_lattice_vec, t_int
-        )
-        noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vec)
-        # noise_mat = vector_to_symmetric_matrix(noise_vec)
-        noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_matrix)
-        return noisy_lattice, noise_vec, noisy_symmetric_vec
+        length_loss = (
+            length_weights * ((pred_length_noise - adjusted_length_noise) ** 2)
+        ).mean()
+        angle_loss = F.mse_loss(pred_angle_noise, angle_noise)
+        return length_loss + angle_loss
 
     # screw the frac coords. they're just from 0 to 1. this new lattice will just purturb their cartesian pos a lot
     def diffuse_lattice_params(self, lattice, t_int, num_atoms):
         clean_params = matrix_to_params(lattice)
-        clean_lengths = clean_params[:, :3] / num_atoms.view(-1, 1) ** (
+        clean_lengths = clean_params[:, :3]
+        clean_lengths = clean_lengths / num_atoms.view(-1, 1) ** (
             1 / 3
         )  # scale the lengths to the number of atoms
+
+        noisy_lengths, length_noise, length_used_sigmas = self.length_diffusion(
+            clean_lengths, t_int
+        )
+
         clean_angles = clean_params[:, 3:]
-        scaled_clean_params = torch.cat([clean_lengths, clean_angles], dim=-1)
-        # TODO: we might want to normalize lattice lengths, so the noise is appropriately scaled.
-        noisy_params, param_noise = self.lattice_diffusion(scaled_clean_params, t_int)
+        noisy_angles, angle_noise = self.angle_diffusion(clean_angles, t_int)
+
+        noisy_params = torch.cat([noisy_lengths, noisy_angles], dim=-1)
         noisy_lattice = lattice_from_params(noisy_params.to(lattice.device))
-        return noisy_lattice, param_noise, scaled_clean_params
+
+        return noisy_lattice, length_noise, length_used_sigmas, angle_noise
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -276,8 +262,8 @@ class DiffusionLoss(torch.nn.Module):
         # noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
         #     lattice, t_int
         # )
-        noisy_lattice, param_noise, clean_params = self.diffuse_lattice_params(
-            lattice, t_int, num_atoms
+        noisy_lattice, length_noise, length_used_sigmas, angle_noise = (
+            self.diffuse_lattice_params(lattice, t_int, num_atoms)
         )
 
         # Compute the prediction.
@@ -307,7 +293,9 @@ class DiffusionLoss(torch.nn.Module):
         # error_l = self.lattice_loss(
         #     pred_lengths_and_angles, noisy_lattice, lattice, num_atoms
         # )
-        error_l = self.lattice_loss2(param_noise, pred_param_noise)
+        error_l = self.lattice_loss2(
+            length_noise, length_used_sigmas, angle_noise, pred_param_noise
+        )
 
         loss = (
             self.cost_coord_coeff * error_x

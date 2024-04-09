@@ -54,6 +54,7 @@ class VE_pbc(nn.Module):
             x0.device,
             return_vector=True,
         )
+        # wrapped_eps_x is like the noise. it's a vector tat points from the noisy coords to the clean x0 coord.
         return frac_p_noisy, wrapped_eps_x, used_sigmas
 
     def reverse(self, xt, epx_x, t, lattice, num_atoms):
@@ -74,6 +75,95 @@ class VE_pbc(nn.Module):
         cart_p_next = cart_p_mean + cart_p_rand  # before wrapping
         frac_p_next = cart_to_frac_coords(cart_p_next, lattice, num_atoms)
         return frac_p_next
+
+
+class VE_lengths(nn.Module):
+    def __init__(self, num_steps, sigma_min, sigma_max):
+        super().__init__()
+        self.T = num_steps
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
+        self.register_buffer(
+            "sigmas",
+            torch.exp(torch.linspace(np.log(sigma_min), np.log(sigma_max), self.T + 1)),
+        )
+
+    def forward(self, length_0, t, **kwargs):
+        """
+        x0 should be wrapped cart coords.
+        """
+        used_sigmas = self.sigmas[t].view(-1, 1)
+        eps_x = torch.randn_like(length_0) * used_sigmas
+        length_noisy = length_0 + eps_x
+        return length_noisy, eps_x, used_sigmas
+
+    def reverse(self, xt, epx_x, t, lattice, num_atoms):
+        """
+        xt should be wrapped cart coords.
+        """
+        sigmas = self.sigmas[t].view(-1, 1)
+        adjacent_sigmas = torch.where(
+            (t == 0).view(-1, 1),
+            torch.zeros_like(sigmas),
+            self.sigmas[t - 1].view(-1, 1),
+        )
+        cart_p_mean = xt - epx_x * (sigmas**2 - adjacent_sigmas**2)
+        # the sign of eps_p here is related to the verification above.
+        cart_p_rand = torch.sqrt(
+            (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
+        ) * torch.randn_like(xt)
+        cart_p_next = cart_p_mean + cart_p_rand  # before wrapping
+        frac_p_next = cart_to_frac_coords(cart_p_next, lattice, num_atoms)
+        return frac_p_next
+
+
+def wrap_angles(angle_0):
+    return (angle_0 + torch.pi) % (2 * torch.pi) - torch.pi
+
+
+class VE_angles(nn.Module):
+    """
+    variance exploding diffusion under periodic boundary condition.
+    """
+
+    def __init__(self, num_steps, sigma_min, sigma_max):
+        super().__init__()
+        self.T = num_steps
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
+        self.register_buffer(
+            "sigmas",
+            torch.exp(torch.linspace(np.log(sigma_min), np.log(sigma_max), self.T + 1)),
+        )
+
+    def forward(self, angle_0, t, **kwargs):
+        """
+        x0 should be wrapped cart coords.
+        """
+        used_sigmas = self.sigmas[t].view(-1, 1)
+        eps_x = torch.randn_like(angle_0) * used_sigmas
+        angle_noisy = angle_0 + eps_x
+        # Ensure the angle is between -π and π
+        angle_noisy = wrap_angles(angle_noisy)
+        return angle_noisy, eps_x, used_sigmas
+
+    def reverse(self, xt, epx_x, t):
+        """
+        xt should be wrapped cart coords.
+        """
+        sigmas = self.sigmas[t].view(-1, 1)
+        adjacent_sigmas = torch.where(
+            (t == 0).view(-1, 1),
+            torch.zeros_like(sigmas),
+            self.sigmas[t - 1].view(-1, 1),
+        )
+        cart_p_mean = xt - epx_x * (sigmas**2 - adjacent_sigmas**2)
+        # the sign of eps_p here is related to the verification above.
+        cart_p_rand = torch.sqrt(
+            (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
+        ) * torch.randn_like(xt)
+        angle_next = cart_p_mean + cart_p_rand  # before wrapping
+        return self.wrap_angles(angle_next)
 
 
 class VP(nn.Module):
