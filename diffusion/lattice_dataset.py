@@ -125,11 +125,16 @@ class CrystalDataset(Dataset):
         cell_info = self.get_cell_info(Xt=X0, Lt=L0)
 
         #  Data(pos=loc, x=x, vec=vec, y=loc_end)
+        device = torch.cuda.current_device()
         return Data(
-            pos=torch.tensor(cell_info["positions"], dtype=torch.get_default_dtype()),
+            pos=torch.tensor(
+                cell_info["positions"],
+                dtype=torch.get_default_dtype(),
+                device=device,
+            ),
             x=A0,  # These are the node features (that's why it's called x, not A0)
             # A0=A0,
-            X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
-            L0=torch.tensor(L0, dtype=torch.get_default_dtype()),
+            X0=torch.tensor(X0, dtype=torch.get_default_dtype(), device=device),
+            L0=torch.tensor(L0, dtype=torch.get_default_dtype(), device=device),
             num_atoms=len(config.atomic_numbers),
         )
