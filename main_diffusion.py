@@ -172,6 +172,7 @@ if __name__ == "__main__":
     if args.gpus > 0:
         accelerator = "gpu"
         devices = args.gpus
+        torch.set_default_device("cuda:0")
     else:
         accelerator = "cpu"
         devices = "auto"

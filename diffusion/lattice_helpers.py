@@ -84,24 +84,6 @@ def lattice_from_params(
     val = abs_cap(val)
     gamma_star = torch.arccos(val)
 
-    print("a device", a.device, "b device", b.device, "c device", c.device)
-    print(
-        "alpha device",
-        alpha.device,
-        "beta device",
-        beta.device,
-        "gamma device",
-        gamma.device,
-    )
-    print(
-        "cos_alpha device",
-        cos_alpha.device,
-        "cos_beta device",
-        cos_beta.device,
-        "cos_gamma device",
-        cos_gamma.device,
-    )
-    print("sin_alpha device", sin_alpha.device, "sin_beta device", sin_beta.device)
     vector_a = torch.stack(
         [a * sin_beta, torch.zeros(num_lattices), a * cos_beta], dim=1
     )
