@@ -8,7 +8,6 @@ from torch.nn import functional as F
 
 from diffusion.diffusion_helpers import (
     VP,
-    VE_lengths,
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
@@ -64,20 +63,6 @@ class DiffusionLoss(torch.nn.Module):
             power=type_power,
             clipmax=type_clipmax,
         )
-
-        self.length_diffusion = VE_lengths(
-            self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
-        )
-
-        self.angle_diffusion = VP(
-            num_steps=self.T,
-            power=lattice_power,
-            clipmax=lattice_clipmax,
-        )
-
-        # self.lattice_angle = VE_angles(
-        #     self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
-        # )
 
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
