@@ -58,13 +58,9 @@ def lattice_from_params(
     """
     Create a Lattice using unit cell lengths and angles (in degrees).
 
-    Args:
-        a (float): *a* lattice parameter.
-        b (float): *b* lattice parameter.
-        c (float): *c* lattice parameter.
-        alpha (float): *alpha* angle in degrees.
-        beta (float): *beta* angle in degrees.
-        gamma (float): *gamma* angle in degrees.
+    we expect params to be: [length1, length2, length3, alpha, beta, gamma]
+    where alpha, beta, gamma are in radians
+
 
     Returns:
         Lattice with the specified lattice parameters.
@@ -75,7 +71,6 @@ def lattice_from_params(
     # alpha = torch.deg2rad(alpha)
     num_lattices = a.shape[0]
 
-    # angles_r = torch.radians([alpha, beta, gamma])
     cos_alpha, cos_beta, cos_gamma = torch.cos(alpha), torch.cos(beta), torch.cos(gamma)
     sin_alpha, sin_beta = torch.sin(alpha), torch.sin(beta)
 

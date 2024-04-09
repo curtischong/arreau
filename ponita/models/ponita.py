@@ -73,7 +73,7 @@ class PonitaFiberBundle(nn.Module):
             self.interaction_layers.append(layer)
             # self.interaction_layers.append(ConvNextR3S2(hidden_dim, basis_dim, act=act_fn, widening_factor=widening_factor, layer_scale=layer_scale))
             if multiple_readouts or i == (num_layers - 1):
-                self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_vec + output_dim_global_scalar))
+                self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_scalar + output_dim_global_vec))
             else:
                 self.read_out_layers.append(None)
     
@@ -102,8 +102,8 @@ class PonitaFiberBundle(nn.Module):
         # Read out scalar and vector predictions
         output_scalar = self.scalar_readout_fn(readout_scalar)
         output_vector = self.vec_readout_fn(readout_vec, graph.ori_grid)
-        global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
         global_output_scalar = self.global_scalar_readout_fn(readout_global_scalar, graph.batch)
+        global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
 
         # Return predictions
         return output_scalar, output_vector, global_output_scalar, global_output_vector
