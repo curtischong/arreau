@@ -235,7 +235,7 @@ class DiffusionLoss(torch.nn.Module):
     # screw the frac coords. they're just from 0 to 1. this new lattice will just purturb their cartesian pos a lot
     def diffuse_lattice_params(self, lattice, t_int, num_atoms):
         clean_params = matrix_to_params(lattice)
-        clean_lengths = clean_params[:, :3] / num_atoms ** (
+        clean_lengths = clean_params[:, :3] / num_atoms.view(-1, 1) ** (
             1 / 3
         )  # scale the lengths to the number of atoms
         clean_angles = clean_params[:, 3:]
