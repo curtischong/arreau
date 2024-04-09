@@ -126,6 +126,7 @@ class CrystalDataset(Dataset):
 
         #  Data(pos=loc, x=x, vec=vec, y=loc_end)
         device = torch.cuda.current_device()
+        print("current device", device)
         return Data(
             pos=torch.tensor(
                 cell_info["positions"],
