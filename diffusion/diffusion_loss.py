@@ -4,7 +4,6 @@ from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
-from torch.nn import functional as F
 
 from diffusion.diffusion_helpers import (
     VP,
@@ -16,9 +15,7 @@ from diffusion.diffusion_helpers import (
 )
 from diffusion.lattice_helpers import (
     decode_angles,
-    encode_angles,
     lattice_from_params,
-    matrix_to_params,
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
@@ -100,7 +97,6 @@ class DiffusionLoss(torch.nn.Module):
         t_int,
         num_atoms,
         lattice: torch.Tensor,
-        # noisy_symmetric_vec: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -108,32 +104,14 @@ class DiffusionLoss(torch.nn.Module):
     ):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
-        # noisy_symmetric_vec_expanded = torch.repeat_interleave(
-        #     noisy_symmetric_vec, num_atoms, dim=0
-        # )
-        # h_time = torch.cat([h_t, t_emb, noisy_symmetric_vec_expanded], dim=1)
 
-        # encode the lengths and angles for the model
-        lattice_lengths_and_angles = matrix_to_params(lattice)
-        angles = encode_angles(lattice_lengths_and_angles[:, 3:])
-        encoded_lengths_and_angles = torch.cat(
-            [lattice_lengths_and_angles[:, :3], angles], dim=-1
-        )
-        encoded_lengths_and_angles = torch.repeat_interleave(
-            encoded_lengths_and_angles, num_atoms, dim=0
-        )
-
-        h_time = torch.cat([h_t, t_emb, encoded_lengths_and_angles], dim=1)
+        h_time = torch.cat([h_t, t_emb], dim=1)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = h_time
         batch.pos = cart_x_t
-        # batch.vec = torch.repeat_interleave(
-        #     noisy_symmetric_matrix, num_atoms, dim=0
-        # )  # This line is needed to have each node have it's corresponding lattice vector
-        # perf. combine with frac_to_cart_coords above. since frac is always true, we're recomputing this twice
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
@@ -148,23 +126,17 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, raw_pred_lengths_and_angles, _pred_eps_global_vec = (
-            model(batch)
+        pred_eps_h, pred_eps_x, _pred_eps_global_scalar, _pred_eps_global_vec = model(
+            batch
         )
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
 
-        pred_lengths = raw_pred_lengths_and_angles[:, :3]
-        # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
-        decoded_angles = decode_angles(raw_pred_lengths_and_angles[:, 3:])
-        pred_lengths_and_angles = torch.cat([pred_lengths, decoded_angles], dim=-1)
-
         return (
             pred_eps_x.squeeze(1) / used_sigmas_x,
             pred_eps_h,
-            pred_lengths_and_angles,
         )
 
     def normalize(self, x, h):
@@ -176,45 +148,6 @@ class DiffusionLoss(torch.nn.Module):
         x = x * self.norm_x
         h = h * self.norm_h
         return x, h
-
-    def lattice_loss2(
-        self,
-        length_noise: torch.Tensor,
-        length_used_sigmas: torch.Tensor,
-        angle_noise: torch.Tensor,
-        pred_param_noise: torch.Tensor,
-    ):
-        pred_length_noise = pred_param_noise[:, :3]
-        pred_angle_noise = pred_param_noise[:, 3:]
-
-        length_weights = 0.5 * length_used_sigmas**2
-        adjusted_length_noise = length_noise / length_used_sigmas**2
-
-        length_loss = (
-            length_weights * ((pred_length_noise - adjusted_length_noise) ** 2)
-        ).mean()
-        angle_loss = F.mse_loss(pred_angle_noise, angle_noise)
-        return length_loss + angle_loss
-
-    # screw the frac coords. they're just from 0 to 1. this new lattice will just purturb their cartesian pos a lot
-    def diffuse_lattice_params(self, lattice, t_int, num_atoms):
-        clean_params = matrix_to_params(lattice)
-        clean_lengths = clean_params[:, :3]
-        clean_lengths = clean_lengths / num_atoms.view(-1, 1) ** (
-            1 / 3
-        )  # scale the lengths to the number of atoms
-
-        noisy_lengths, length_noise, length_used_sigmas = self.length_diffusion(
-            clean_lengths, t_int
-        )
-
-        clean_angles = clean_params[:, 3:]
-        noisy_angles, angle_noise = self.angle_diffusion(clean_angles, t_int)
-
-        noisy_params = torch.cat([noisy_lengths, noisy_angles], dim=-1)
-        noisy_lattice = lattice_from_params(noisy_params.to(lattice.device))
-
-        return noisy_lattice, length_noise, length_used_sigmas, angle_noise
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -244,21 +177,14 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        # noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
-        #     lattice, t_int
-        # )
-        noisy_lattice, length_noise, length_used_sigmas, angle_noise = (
-            self.diffuse_lattice_params(lattice, t_int, num_atoms)
-        )
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_param_noise = self.phi(
+        pred_eps_x, pred_eps_h = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
             num_atoms,
-            noisy_lattice,
-            # noisy_symmetric_vec,
+            lattice,
             model,
             batch,
             t_emb_weights,
@@ -274,31 +200,8 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        # error_l = self.compute_error_for_global_vec(pred_noise_vec, noise_vec)
-        # error_l = self.lattice_loss(
-        #     pred_lengths_and_angles, noisy_lattice, lattice, num_atoms
-        # )
-        error_l = self.lattice_loss2(
-            length_noise, length_used_sigmas, angle_noise, pred_param_noise
-        )
-
-        loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
-        )
+        loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
         return loss.mean()
-
-        # return {
-        #     "t": t_int.squeeze(),
-        #     "loss": loss.mean(),  # needs to be called "loss" for pytorch lightning to see it.
-        #     "coord_loss": error_x.mean(),
-        #     "type_loss": error_h.mean(),
-        #     "pred_eps_x": pred_eps_x,
-        #     "pred_eps_h": pred_eps_h,
-        #     "eps_x": target_eps_x,
-        #     "eps_h": eps_h,
-        # }
 
     @torch.no_grad()
     def sample(
