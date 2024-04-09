@@ -11,7 +11,6 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
-    get_lattice_parameters,
     polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
@@ -194,16 +193,13 @@ class DiffusionLoss(torch.nn.Module):
         lattice: torch.Tensor,
         num_atoms: torch.Tensor,
     ):
-        target_lengths_and_angles = get_lattice_parameters(lattice)
+        target_lengths_and_angles = matrix_to_params(lattice)
 
         target_lengths = target_lengths_and_angles[:, :3]
         target_angles = target_lengths_and_angles[:, 3:]
         # target_lengths = target_lengths / num_atoms.view(-1, 1).float() ** (1 / 3)
 
         lengths_loss = F.mse_loss(pred_lengths_and_angles[:, :3], target_lengths)
-        # angles_loss = F.mse_loss(
-        #     pred_lengths_and_angles[:, 3:], target_lengths_and_angles[:, 3:]
-        # )
         angles_loss = F.mse_loss(pred_lengths_and_angles[:, 3:], target_angles)
         # loss function from: https://stats.stackexchange.com/questions/425234/loss-function-and-encoding-for-angles
         # However, it's really slow for the computer to calculate the loss of these angles
@@ -212,6 +208,13 @@ class DiffusionLoss(torch.nn.Module):
         # ).mean()
         # print(lengths_loss)
         return lengths_loss + angles_loss
+
+    def lattice_loss2(
+        self,
+        param_noise: torch.Tensor,
+        pred_param_noise: torch.Tensor,
+    ):
+        return F.mse_loss(pred_param_noise, param_noise)
 
     def diffuse_lattice(self, lattice, t_int):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
@@ -228,6 +231,14 @@ class DiffusionLoss(torch.nn.Module):
         # noise_mat = vector_to_symmetric_matrix(noise_vec)
         noisy_lattice = torch.matmul(rot_mat, noisy_symmetric_matrix)
         return noisy_lattice, noise_vec, noisy_symmetric_vec
+
+    # screw the frac coords. they're just from 0 to 1. this new lattice will just purturb their cartesian pos a lot
+    def diffuse_lattice_params(self, lattice, t_int):
+        clean_params = matrix_to_params(lattice)
+        # TODO: we might want to normalize lattice lengths, so the noise is appropriately scaled.
+        noisy_params, param_noise = self.lattice_diffusion(clean_params, t_int)
+        noisy_lattice = lattice_from_params(noisy_params)
+        return noisy_lattice, param_noise, clean_params
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -257,12 +268,15 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
+        # noisy_lattice, noise_vec, noisy_symmetric_vec = self.diffuse_lattice(
+        #     lattice, t_int
+        # )
+        noisy_lattice, param_noise, clean_params = self.diffuse_lattice_params(
             lattice, t_int
         )
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_lengths_and_angles = self.phi(
+        pred_eps_x, pred_eps_h, pred_param_noise = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
@@ -285,9 +299,10 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         # error_l = self.compute_error_for_global_vec(pred_noise_vec, noise_vec)
-        error_l = self.lattice_loss(
-            pred_lengths_and_angles, noisy_lattice, lattice, num_atoms
-        )
+        # error_l = self.lattice_loss(
+        #     pred_lengths_and_angles, noisy_lattice, lattice, num_atoms
+        # )
+        error_l = self.lattice_loss2(param_noise, pred_param_noise)
 
         loss = (
             self.cost_coord_coeff * error_x
