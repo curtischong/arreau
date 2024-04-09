@@ -233,12 +233,17 @@ class DiffusionLoss(torch.nn.Module):
         return noisy_lattice, noise_vec, noisy_symmetric_vec
 
     # screw the frac coords. they're just from 0 to 1. this new lattice will just purturb their cartesian pos a lot
-    def diffuse_lattice_params(self, lattice, t_int):
+    def diffuse_lattice_params(self, lattice, t_int, num_atoms):
         clean_params = matrix_to_params(lattice)
+        clean_lengths = clean_params[:, :3] / num_atoms ** (
+            1 / 3
+        )  # scale the lengths to the number of atoms
+        clean_angles = clean_params[:, 3:]
+        scaled_clean_params = torch.cat([clean_lengths, clean_angles], dim=-1)
         # TODO: we might want to normalize lattice lengths, so the noise is appropriately scaled.
-        noisy_params, param_noise = self.lattice_diffusion(clean_params, t_int)
+        noisy_params, param_noise = self.lattice_diffusion(scaled_clean_params, t_int)
         noisy_lattice = lattice_from_params(noisy_params.to(lattice.device))
-        return noisy_lattice, param_noise, clean_params
+        return noisy_lattice, param_noise, scaled_clean_params
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -272,7 +277,7 @@ class DiffusionLoss(torch.nn.Module):
         #     lattice, t_int
         # )
         noisy_lattice, param_noise, clean_params = self.diffuse_lattice_params(
-            lattice, t_int
+            lattice, t_int, num_atoms
         )
 
         # Compute the prediction.
