@@ -247,7 +247,7 @@ class DiffusionLoss(torch.nn.Module):
         x = batch.pos
         h = batch.x
         lattice = batch.L0
-        lattice = lattice.view(-1, 3, 3)
+        lattice = lattice.view(-1, 3, 3).to(x.device)
         num_atoms = batch.num_atoms
 
         x, h = self.normalize(x, h)
