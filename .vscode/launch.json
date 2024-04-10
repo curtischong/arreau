@@ -17,7 +17,7 @@
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
                 "--use_dev_dataset=true",
-                "--experiment_name=local-clean-model-for-merge",
+                "--experiment_name=local-add-main-parts-of-pred-param-noise",
                 "--max_neighbors=24",
             ],
         },
