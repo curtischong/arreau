@@ -17,7 +17,7 @@
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
                 "--use_dev_dataset=true",
-                "--experiment_name=local-test",
+                "--experiment_name=local-clean-model-for-merge",
                 "--max_neighbors=24",
             ],
         },
@@ -53,7 +53,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/last.ckpt",
+                "--model_path=models/last-v47.ckpt",
             ],
         },
         {
@@ -61,6 +61,24 @@
             "type": "python",
             "request": "launch",
             "program": "diffusion/inference/relax.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
+        },
+        {
+            "name": "test lattice helpers",
+            "type": "python",
+            "request": "launch",
+            "program": "diffusion/lattice_helpers_test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
+        },
+        {
+            "name": "prep datasets",
+            "type": "python",
+            "request": "launch",
+            "program": "diffusion/prep_datasets.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],

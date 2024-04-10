@@ -10,11 +10,8 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     cart_to_frac_coords,
     frac_to_cart_coords,
-    polar_decomposition,
     radius_graph_pbc,
     subtract_cog,
-    symmetric_matrix_to_vector,
-    vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
@@ -60,12 +57,6 @@ class DiffusionLoss(torch.nn.Module):
             clipmax=type_clipmax,
         )
 
-        self.lattice_diffusion = VP(
-            num_steps=self.T,
-            power=lattice_power,
-            clipmax=lattice_clipmax,
-        )
-
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
@@ -109,6 +100,7 @@ class DiffusionLoss(torch.nn.Module):
     ):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
+
         h_time = torch.cat([h_t, t_emb], dim=1)
         cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
 
@@ -116,10 +108,6 @@ class DiffusionLoss(torch.nn.Module):
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = h_time
         batch.pos = cart_x_t
-        batch.vec = torch.repeat_interleave(
-            lattice, num_atoms, dim=0
-        )  # This line is needed to have each node have it's corresponding lattice vector
-        # perf. combine with frac_to_cart_coords above. since frac is always true, we're recomputing this twice
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
@@ -134,12 +122,18 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_eps_l = model(batch)
+        pred_eps_h, pred_eps_x, _pred_eps_global_scalar, _pred_eps_global_vec = model(
+            batch
+        )
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
-        return pred_eps_x.squeeze(1) / used_sigmas_x, pred_eps_h, pred_eps_l
+
+        return (
+            pred_eps_x.squeeze(1) / used_sigmas_x,
+            pred_eps_h,
+        )
 
     def normalize(self, x, h):
         x = x / self.norm_x
@@ -150,21 +144,6 @@ class DiffusionLoss(torch.nn.Module):
         x = x * self.norm_x
         h = h * self.norm_h
         return x, h
-
-    def diffuse_lattice(self, lattice, t_int):
-        # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
-        # This is so the model can use vector features for the equivariance
-
-        rot_mat, symmetric_lattice = polar_decomposition(lattice)
-        symmetric_lattice_vec = symmetric_matrix_to_vector(symmetric_lattice)
-        inv_rot_mat = torch.linalg.inv(rot_mat)
-
-        noisy_symmetric_vector, noise = self.lattice_diffusion(
-            symmetric_lattice_vec, t_int
-        )
-        l_t = vector_to_symmetric_matrix(noisy_symmetric_vector)
-        noise_matrix = vector_to_symmetric_matrix(noise)
-        return l_t, noise_matrix, inv_rot_mat
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         """
@@ -194,15 +173,14 @@ class DiffusionLoss(torch.nn.Module):
             x, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        l_t, eps_l, inv_rot_mat = self.diffuse_lattice(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_eps_l = self.phi(
+        pred_eps_x, pred_eps_h = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
             num_atoms,
-            l_t,
+            lattice,
             model,
             batch,
             t_emb_weights,
@@ -218,27 +196,10 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
-        noisy_symmetric_lattice_hat = torch.matmul(inv_rot_mat, pred_eps_l)
-        error_l = self.compute_error_for_global_vec(noisy_symmetric_lattice_hat, eps_l)
-
-        loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
-        )
+        loss = self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
         return loss.mean()
 
-        # return {
-        #     "t": t_int.squeeze(),
-        #     "loss": loss.mean(),  # needs to be called "loss" for pytorch lightning to see it.
-        #     "coord_loss": error_x.mean(),
-        #     "type_loss": error_h.mean(),
-        #     "pred_eps_x": pred_eps_x,
-        #     "pred_eps_h": pred_eps_h,
-        #     "eps_x": target_eps_x,
-        #     "eps_h": eps_h,
-        # }
-
+    # TODO fix this sampling code when we have the new lattice diffusion
     @torch.no_grad()
     def sample(
         self,
@@ -267,9 +228,9 @@ class DiffusionLoss(torch.nn.Module):
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
-            timestep_vec = torch.tensor([timestep])  # add a batch dimension
+            # timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_x, score_h, score_l = self.phi(
+            score_x, score_h = self.phi(
                 frac_x,
                 h,
                 t,
@@ -282,7 +243,7 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
                 frac=True,
             )
-            lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
+
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)

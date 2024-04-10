@@ -54,6 +54,7 @@ class VE_pbc(nn.Module):
             x0.device,
             return_vector=True,
         )
+        # wrapped_eps_x is like the noise. it's a vector tat points from the noisy coords to the clean x0 coord.
         return frac_p_noisy, wrapped_eps_x, used_sigmas
 
     def reverse(self, xt, epx_x, t, lattice, num_atoms):
@@ -431,6 +432,10 @@ def radius_graph_pbc(
         return edge_index, -unit_cell, num_neighbors_image, topk_mask
 
 
+def symmetrize_matrix(matrix: torch.Tensor) -> torch.Tensor:
+    return (matrix + matrix.transpose(1, 2)) / 2
+
+
 # from claude and https://discuss.pytorch.org/t/polar-decomposition-of-matrices-in-pytorch/188458/2
 def polar_decomposition(matrix: torch.Tensor):
     # Perform SVD on the input matrix
@@ -441,49 +446,6 @@ def polar_decomposition(matrix: torch.Tensor):
     L_tilda = torch.matmul(Vt.transpose(-2, -1), torch.matmul(torch.diag_embed(S), Vt))
 
     # enforce symmetry to avoid numerical instabilities
-    L_tilda = (L_tilda + L_tilda.transpose(1, 2)) / 2
+    L_tilda = symmetrize_matrix(L_tilda)
 
     return u, L_tilda
-
-
-def symmetric_matrix_to_vector(matrix: torch.Tensor):
-    """
-    Converts a batch of 3x3 symmetric matrices to vectors containing the upper triangular part (including diagonal).
-    """
-    assert (
-        matrix.dim() == 3
-    ), "Input must be a batch of matrices with shape (batch_size, 3, 3)"
-    assert matrix.shape[1:] == (3, 3), "Each matrix in the batch must be 3x3"
-
-    assert torch.allclose(
-        matrix, matrix.transpose(1, 2)
-    ), "Each matrix in the batch must be symmetric"
-
-    vector = torch.stack(
-        [
-            matrix[:, 0, 0],
-            matrix[:, 0, 1],
-            matrix[:, 0, 2],
-            matrix[:, 1, 1],
-            matrix[:, 1, 2],
-            matrix[:, 2, 2],
-        ],
-        dim=1,
-    )
-    return vector
-
-
-def vector_to_symmetric_matrix(vector: torch.Tensor):
-    """
-    Reconstructs a batch of 3x3 symmetric matrices from a batch of vectors containing the upper triangular part (including diagonal).
-    """
-    assert vector.shape[-1] == 6, "Last dimension of input vector must have 6 elements"
-    batch_size = vector.shape[:-1]
-    matrix = torch.zeros((*batch_size, 3, 3), dtype=vector.dtype, device=vector.device)
-    matrix[:, 0, 0] = vector[:, 0]
-    matrix[:, 0, 1] = matrix[:, 1, 0] = vector[:, 1]
-    matrix[:, 0, 2] = matrix[:, 2, 0] = vector[:, 2]
-    matrix[:, 1, 1] = vector[:, 3]
-    matrix[:, 1, 2] = matrix[:, 2, 1] = vector[:, 4]
-    matrix[:, 2, 2] = vector[:, 5]
-    return matrix

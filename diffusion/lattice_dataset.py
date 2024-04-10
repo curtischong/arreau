@@ -62,6 +62,9 @@ def parallelize_configs(config_paths):
     with multiprocessing.Pool() as pool:
         configs = pool.map(load_dataset, config_paths)
         return [item for sublist in configs for item in sublist]
+    # keep this here so we can use the single-threded version for debugging
+    # configs = [load_dataset(config_path) for config_path in config_paths]
+    # return [item for sublist in configs for item in sublist]
 
 
 # This dataset will not be good for larger systems since it loads all of the data into memory
@@ -124,7 +127,10 @@ class CrystalDataset(Dataset):
 
         #  Data(pos=loc, x=x, vec=vec, y=loc_end)
         return Data(
-            pos=torch.tensor(cell_info["positions"], dtype=torch.get_default_dtype()),
+            pos=torch.tensor(
+                cell_info["positions"],
+                dtype=torch.get_default_dtype(),
+            ),
             x=A0,  # These are the node features (that's why it's called x, not A0)
             # A0=A0,
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),

@@ -172,6 +172,7 @@ if __name__ == "__main__":
     if args.gpus > 0:
         accelerator = "gpu"
         devices = args.gpus
+        # torch.set_default_device("cuda:0")
     else:
         accelerator = "cpu"
         devices = "auto"
@@ -180,23 +181,23 @@ if __name__ == "__main__":
 
     # ------------------------ Dataset
 
+    def get_default_device():
+        """Pick GPU if available, else CPU"""
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        else:
+            return torch.device("cpu")
+
     if args.use_dev_dataset:
         print("Using dev dataset")
-        train_dataset = CrystalDataset(
+        dataset = CrystalDataset(
             [
-                "datasets/alexandria_hdf5/10_examples.h5",
+                "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
             ]
         )
-        valid_dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/10_examples.h5",
-            ]
-        )
-        test_dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/10_examples.h5",
-            ]
-        )
+        train_dataset = dataset
+        valid_dataset = dataset
+        test_dataset = dataset
         z_table = train_dataset.z_table
     else:
         dataset = CrystalDataset(
@@ -211,7 +212,9 @@ if __name__ == "__main__":
         z_table = dataset.z_table
 
         train_dataset, valid_dataset, test_dataset = torch.utils.data.random_split(
-            dataset, [0.7, 0.15, 0.15]
+            dataset,
+            [0.7, 0.15, 0.15],
+            # generator=torch.Generator(device=get_default_device()),
         )
 
     datasets = {"train": train_dataset, "valid": valid_dataset, "test": test_dataset}
