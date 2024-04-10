@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 from diffusion.lattice_dataset import CrystalDataset
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
@@ -29,6 +30,16 @@ def make_pyg_loader(dataset, batch_size, shuffle, num_workers, radius, loop):
     return DataLoader(
         data_list, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers
     )
+
+
+def get_active_branch_name():
+    head_dir = Path(".") / ".git" / "HEAD"
+    with head_dir.open("r") as f:
+        content = f.read().splitlines()
+
+    for line in content:
+        if line[0:4] == "ref:":
+            return line.partition("refs/heads/")[2]
 
 
 # ------------------------ Start of the main experiment script
@@ -146,10 +157,10 @@ if __name__ == "__main__":
         help="the maximum number of other atoms an atom can be directly influenced by",
     )
     parser.add_argument(
-        "--use_dev_dataset",
+        "--is_local_dev",
         type=bool,
         default=False,
-        help="the number of diffusion timesteps",
+        help="set to true if you are training on your local machine",
     )
     parser.add_argument(
         "--experiment_name", type=str, help="the number of diffusion timesteps"
@@ -188,7 +199,7 @@ if __name__ == "__main__":
         else:
             return torch.device("cpu")
 
-    if args.use_dev_dataset:
+    if args.is_local_dev:
         print("Using dev dataset")
         dataset = CrystalDataset(
             [
@@ -248,6 +259,11 @@ if __name__ == "__main__":
     model = PONITA_DIFFUSION(args, z_table)
 
     # ------------------------ Weights and Biases logger
+
+    if args.experiment_name is None:
+        args.experiment_name = get_active_branch_name()
+        if args.is_local_dev:
+            args.experiment_name = "local-" + args.experiment_name
 
     if args.log:
         if not args.experiment_name:
