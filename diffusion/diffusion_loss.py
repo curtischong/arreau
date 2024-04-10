@@ -64,6 +64,12 @@ class DiffusionLoss(torch.nn.Module):
             clipmax=type_clipmax,
         )
 
+        self.lattice_diffusion = VP(
+            num_steps=self.T,
+            power=lattice_power,
+            clipmax=lattice_clipmax,
+        )
+
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
