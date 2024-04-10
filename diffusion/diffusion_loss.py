@@ -350,7 +350,7 @@ class DiffusionLoss(torch.nn.Module):
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
-            # timestep_vec = torch.tensor([timestep])  # add a batch dimension
+            timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
             score_x, score_h, score_params = self.phi(
                 frac_x,
@@ -366,12 +366,10 @@ class DiffusionLoss(torch.nn.Module):
                 frac=True,
             )
             # lattice = self.lattice_diffusion.reverse(lattice, score_l, timestep_vec)
-            pred_lengths = score_params[:, :3]
-            pred_angles = decode_angles(score_params[:, 3:])
             # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
-            score_params = torch.cat([pred_lengths, pred_angles], dim=-1)
+            old_params = matrix_to_params(lattice)
             next_params = self.lattice_diffusion.reverse(
-                score_params, t
+                old_params, score_params, timestep_vec
             )  # TODO: score fed into model
             lattice = lattice_from_params(next_params)
 
