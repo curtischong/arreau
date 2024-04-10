@@ -3,13 +3,15 @@ import torch
 
 # we are using this better way to encode angles: https://stats.stackexchange.com/questions/218407/encoding-angle-data-for-neural-network
 def encode_angles(angles: torch.Tensor) -> torch.Tensor:
+    return angles
     # I verified in a debugger that these are the same:
     # torch.atan2(torch.sin(angles), torch.cos(angles)) == angles
-    return torch.cat([torch.sin(angles), torch.cos(angles)], dim=-1)
+    # return torch.cat([torch.sin(angles), torch.cos(angles)], dim=-1)
 
 
 def decode_angles(angles: torch.Tensor) -> torch.Tensor:
-    return torch.atan2(angles[:, :3], angles[:, 3:])
+    return angles
+    # return torch.atan2(angles[:, :3], angles[:, 3:])
 
 
 # https://github.com/materialsproject/pymatgen/blob/b789d74639aa851d7e5ee427a765d9fd5a8d1079/pymatgen/core/lattice.py#L67

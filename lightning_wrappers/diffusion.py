@@ -57,13 +57,13 @@ class PONITA_DIFFUSION(pl.LightningModule):
         in_channels_scalar = (
             num_atomic_states
             + 64  # the time embedding (from GaussianFourierProjection)
-            + 9  # 3 lengths, 3 sin(angles), 3 cos(angles)
+            + 6  # 3 lengths, 3 sin(angles), 3 cos(angles)
         )
 
         in_channels_vec = 0
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
-        out_channels_global_scalar = 9  # 3 lengths, 3 sin(angles), 3 cos(angles)
+        out_channels_global_scalar = 6  # 3 lengths, 3 sin(angles), 3 cos(angles)
         out_channels_global_vector = 0
 
         # Make the model
