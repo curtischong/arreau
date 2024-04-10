@@ -287,7 +287,7 @@ class DiffusionLoss(torch.nn.Module):
             old_params = matrix_to_params(lattice)
             next_params = self.lattice_diffusion.reverse(
                 old_params, score_params, timestep_vec
-            )  # TODO: score fed into model
+            )
             lattice = lattice_from_params(next_params)
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
