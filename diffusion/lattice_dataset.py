@@ -73,8 +73,6 @@ def parallelize_configs(config_paths):
 # so we don't have to load all the data initially
 class CrystalDataset(Dataset):
     def __init__(self, config_paths: list[str], cutoff: int = 5.0):
-        # configs = load_dataset("datasets/alexandria_hdf5/10_examples.h5")
-        # configs = load_dataset("datasets/alexandria_hdf5/alexandria_ps_000.h5")
         self.unique_atomic_numbers = set()
         configs = parallelize_configs(config_paths)
         for config in configs:
