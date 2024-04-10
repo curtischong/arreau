@@ -1,11 +1,20 @@
+from enum import Enum
 from pymatgen.core import Structure, Lattice
 from pymatgen.core.periodic_table import Element
 import numpy as np
 import plotly.graph_objects as go
-import torch
 from diffusion.inference.predict_bonds import predict_bonds
 
-from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.tools.atomic_number_table import (
+    AtomicNumberTable,
+    one_hot_to_atomic_numbers,
+)
+
+
+class VisualizationSetting(Enum):
+    NONE = 0
+    LAST = 1
+    ALL = 2
 
 
 def plot_edges(fig, edges, color):
@@ -84,12 +93,13 @@ def plot_bonds(fig, structure: Structure):
 def vis_crystal_during_sampling(
     z_table: AtomicNumberTable, A, L_t, X, name: str, show_bonds: bool
 ):
-    L_t = L_t[0]  # only get the first lattice vector in the batch
-    atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
+    L_t = L_t.squeeze(0)
+    # atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
+    atomic_numbers = one_hot_to_atomic_numbers(z_table, A)
     return vis_crystal(atomic_numbers, L_t, X, name, show_bonds)
 
 
-def vis_crystal(atomic_numbers, L_t, X, name, show_bonds: bool):
+def vis_crystal(atomic_numbers: np.ndarray, L_t, X, name, show_bonds: bool):
     lattice = Lattice(L_t)
     element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []

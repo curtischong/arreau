@@ -6,6 +6,7 @@ from diffusion.lattice_dataset import load_dataset
 from ase import Atoms
 from pymatgen.core.periodic_table import Element
 from ase.optimize import BFGS
+import numpy as np
 
 
 def get_sample_system():
@@ -14,7 +15,7 @@ def get_sample_system():
     return system_sample.L0, system_sample.X0, system_sample.atomic_numbers
 
 
-def relax(L0, X, atomic_numbers, out_dir):
+def relax(L0: np.ndarray, X: np.ndarray, atomic_numbers: np.ndarray, out_dir: str):
     num_relaxations = 5
 
     model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"

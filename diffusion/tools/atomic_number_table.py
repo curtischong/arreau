@@ -20,7 +20,7 @@ class AtomicNumberTable:
     def index_to_z(self, index: int) -> int:
         return self.zs[index]
 
-    def z_to_index(self, atomic_number: str) -> int:
+    def z_to_index(self, atomic_number: int) -> int:
         return self.zs.index(atomic_number)
 
 
@@ -37,6 +37,14 @@ def atomic_numbers_to_indices(
 ) -> np.ndarray:
     to_index_fn = np.vectorize(z_table.z_to_index)
     return to_index_fn(atomic_numbers)
+
+
+def one_hot_to_atomic_numbers(
+    z_table: AtomicNumberTable, one_hot: np.ndarray
+) -> np.ndarray:
+    to_most_probable_index = np.vectorize(np.argmax)
+    to_atomic_num = np.vectorize(z_table.index_to_z)
+    return to_atomic_num(to_most_probable_index(one_hot))
 
 
 def to_one_hot(indices: torch.Tensor, num_classes: int) -> torch.Tensor:

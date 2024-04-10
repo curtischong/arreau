@@ -3,7 +3,8 @@ import pytorch_lightning as pl
 from diffusion.diffusion_helpers import GaussianFourierProjection
 from torch_geometric.data import Batch
 
-from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric
+from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric, SampleResult
+from diffusion.inference.visualize_crystal import VisualizationSetting
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 
 from .scheduler import CosineWarmupScheduler
@@ -199,18 +200,20 @@ class PONITA_DIFFUSION(pl.LightningModule):
     @torch.no_grad()
     def sample(
         self,
-        num_atoms: int,
+        num_atoms_per_sample: int,
+        num_samples_in_batch: int,
         vis_name: str,
-        only_visualize_last: bool,
+        visualization_setting: VisualizationSetting,
         show_bonds: bool,
-    ):
+    ) -> SampleResult:
         z_table = AtomicNumberTable(self.z_table_zs.tolist())
         return self.diffusion_loss.sample(
-            self,
-            z_table,
-            self.t_emb,
-            num_atoms,
-            vis_name,
-            only_visualize_last,
-            show_bonds,
+            model=self,
+            z_table=z_table,
+            t_emb_weights=self.t_emb,
+            num_atoms_per_sample=num_atoms_per_sample,
+            num_samples_in_batch=num_samples_in_batch,
+            vis_name=vis_name,
+            visualization_setting=visualization_setting,
+            show_bonds=show_bonds,
         )
