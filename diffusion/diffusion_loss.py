@@ -116,10 +116,11 @@ class DiffusionLoss(torch.nn.Module):
 
         # encode the lengths and angles for the model
         lattice_lengths_and_angles = matrix_to_params(lattice)
-        angles = encode_angles(lattice_lengths_and_angles[:, 3:])
-        encoded_lengths_and_angles = torch.cat(
-            [lattice_lengths_and_angles[:, :3], angles], dim=-1
-        )
+        scaled_lengths = lattice_lengths_and_angles[:, :3] / num_atoms.view(
+            -1, 1
+        ).float() ** (1 / 3)
+        encoded_angles = encode_angles(lattice_lengths_and_angles[:, 3:])
+        encoded_lengths_and_angles = torch.cat([scaled_lengths, encoded_angles], dim=-1)
         encoded_lengths_and_angles = torch.repeat_interleave(
             encoded_lengths_and_angles, num_atoms, dim=0
         )
@@ -154,7 +155,7 @@ class DiffusionLoss(torch.nn.Module):
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
 
         pred_lengths = raw_pred_lengths_and_angles[:, :3]
-        # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
+        pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
         decoded_angles = decode_angles(raw_pred_lengths_and_angles[:, 3:])
         pred_lengths_and_angles = torch.cat([pred_lengths, decoded_angles], dim=-1)
 
