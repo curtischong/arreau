@@ -16,10 +16,6 @@ from diffusion.diffusion_helpers import (
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
-from diffusion.lattice_helpers import (
-    lattice_from_params,
-    matrix_to_params,
-)
 from diffusion.tools.atomic_number_table import AtomicNumberTable
 from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
 from torch.nn import functional as F
@@ -177,25 +173,17 @@ class DiffusionLoss(torch.nn.Module):
         return x, h
 
     def diffuse_lattice_params(self, lattice, t_int):
-        # clean_params = matrix_to_params(lattice)
-        # # TODO: we might want to normalize lattice lengths, so the noise is appropriately scaled.
-        # noisy_params, param_noise = self.lattice_diffusion(clean_params, t_int)
-        # noisy_lattice = lattice_from_params(noisy_params.to(lattice.device))
-        # return noisy_lattice, param_noise
-
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance
 
         rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
-        # inverse_rotation_matrix = torch.linalg.inv(rotation_matrix)
 
         noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
             symmetric_matrix_vector, t_int
         )
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
         noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
-        # noise_matrix = vector_to_symmetric_matrix(noise)
 
         # given the noisy_symmetric_vector, it needs to predict the noise vector
         # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
@@ -294,12 +282,16 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_x, score_h, score_params = self.phi(
+            rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
+            symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
+
+            score_x, score_h, pred_symmetric_vector_noise = self.phi(
                 frac_x,
                 h,
                 t,
                 num_atoms,
                 lattice,
+                symmetric_vector,
                 model,
                 Batch(
                     num_atoms=num_atoms, batch=torch.tensor(0).repeat(num_atoms.sum())
@@ -307,11 +299,12 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
                 frac=True,
             )
-            old_params = matrix_to_params(lattice)
-            next_params = self.lattice_diffusion.reverse(
-                old_params, score_params, timestep_vec
+            next_symmetric_vector = self.lattice_diffusion.reverse(
+                symmetric_vector, pred_symmetric_vector_noise, timestep_vec
             )
-            lattice = lattice_from_params(next_params)
+
+            next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
+            lattice = rotation_matrix @ next_symmetric_matrix
 
             frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
             x = frac_to_cart_coords(frac_x, lattice, num_atoms)

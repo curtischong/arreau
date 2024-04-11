@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/last-v10.ckpt",
+                "--model_path=models/diffuse-symmetric-matrix-2-last-v2.ckpt",
             ],
         },
         {
