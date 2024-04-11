@@ -112,12 +112,6 @@ class DiffusionLoss(torch.nn.Module):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
 
-        # encode the lengths and angles for the model
-        # lattice_lengths_and_angles = matrix_to_params(lattice)
-        # angles = encode_angles(lattice_lengths_and_angles[:, 3:])
-        # encoded_lengths_and_angles = torch.cat(
-        #     [lattice_lengths_and_angles[:, :3], angles], dim=-1
-        # )
         noisy_symmetric_vector = torch.repeat_interleave(
             noisy_symmetric_vector, num_atoms, dim=0
         )
@@ -150,11 +144,6 @@ class DiffusionLoss(torch.nn.Module):
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
-
-        # pred_lengths = raw_pred_lengths_and_angles[:, :3]
-        # # pred_lengths = pred_lengths * num_atoms.view(-1, 1).float() ** (1 / 3)
-        # decoded_angles = decode_angles(raw_pred_lengths_and_angles[:, 3:])
-        # pred_lengths_and_angles = torch.cat([pred_lengths, decoded_angles], dim=-1)
 
         return (
             pred_eps_x.squeeze(1) / used_sigmas_x,
