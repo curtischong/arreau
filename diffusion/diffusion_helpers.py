@@ -450,3 +450,46 @@ def polar_decomposition(matrix: torch.Tensor):
     L_tilda = symmetrize_matrix(L_tilda)
 
     return u, L_tilda
+
+
+def symmetric_matrix_to_vector(matrix: torch.Tensor):
+    """
+    Converts a batch of 3x3 symmetric matrices to vectors containing the upper triangular part (including diagonal).
+    """
+    assert (
+        matrix.dim() == 3
+    ), "Input must be a batch of matrices with shape (batch_size, 3, 3)"
+    assert matrix.shape[1:] == (3, 3), "Each matrix in the batch must be 3x3"
+
+    assert torch.allclose(
+        matrix, matrix.transpose(1, 2)
+    ), "Each matrix in the batch must be symmetric"
+
+    vector = torch.stack(
+        [
+            matrix[:, 0, 0],
+            matrix[:, 0, 1],
+            matrix[:, 0, 2],
+            matrix[:, 1, 1],
+            matrix[:, 1, 2],
+            matrix[:, 2, 2],
+        ],
+        dim=1,
+    )
+    return vector
+
+
+def vector_to_symmetric_matrix(vector: torch.Tensor):
+    """
+    Reconstructs a batch of 3x3 symmetric matrices from a batch of vectors containing the upper triangular part (including diagonal).
+    """
+    assert vector.shape[-1] == 6, "Last dimension of input vector must have 6 elements"
+    batch_size = vector.shape[:-1]
+    matrix = torch.zeros((*batch_size, 3, 3), dtype=vector.dtype, device=vector.device)
+    matrix[:, 0, 0] = vector[:, 0]
+    matrix[:, 0, 1] = matrix[:, 1, 0] = vector[:, 1]
+    matrix[:, 0, 2] = matrix[:, 2, 0] = vector[:, 2]
+    matrix[:, 1, 1] = vector[:, 3]
+    matrix[:, 1, 2] = matrix[:, 2, 1] = vector[:, 4]
+    matrix[:, 2, 2] = vector[:, 5]
+    return matrix
