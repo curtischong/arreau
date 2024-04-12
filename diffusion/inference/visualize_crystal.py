@@ -99,7 +99,6 @@ def vis_crystal_during_sampling(
     show_bonds: bool,
 ):
     lattice = lattice.squeeze(0)
-    # atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
     atomic_numbers = one_hot_to_atomic_numbers(z_table, A)
     return vis_crystal(atomic_numbers, lattice, frac_x, name, show_bonds)
 

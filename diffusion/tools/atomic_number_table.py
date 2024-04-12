@@ -40,11 +40,11 @@ def atomic_numbers_to_indices(
 
 
 def one_hot_to_atomic_numbers(
-    z_table: AtomicNumberTable, one_hot: np.ndarray
+    z_table: AtomicNumberTable, one_hot: torch.Tensor
 ) -> np.ndarray:
-    to_most_probable_index = np.vectorize(np.argmax)
+    atomic_numbers = one_hot.argmax(dim=1).numpy()
     to_atomic_num = np.vectorize(z_table.index_to_z)
-    return to_atomic_num(to_most_probable_index(one_hot))
+    return to_atomic_num(atomic_numbers)
 
 
 def to_one_hot(indices: torch.Tensor, num_classes: int) -> torch.Tensor:

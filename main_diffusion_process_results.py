@@ -15,9 +15,9 @@ def get_one_crystal(sample_result: SampleResult, sample_idx: int):
     crystal_start_idx = sample_result.idx_start[sample_idx]
     num_atoms = sample_result.num_atoms[sample_idx]
     end_idx = crystal_start_idx + num_atoms
-    x = sample_result.frac_x[crystal_start_idx:end_idx]
+    frac_x = sample_result.frac_x[crystal_start_idx:end_idx]
     atomic_numbers = sample_result.atomic_numbers[crystal_start_idx:end_idx]
-    return lattice, x, atomic_numbers
+    return lattice, frac_x, atomic_numbers
 
 
 def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
@@ -27,11 +27,11 @@ def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
 
 
 def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
-    lattice, x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
+    lattice, frac_x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
     name = f"{OUT_DIR}/crystal_{sample_idx}"
-    vis_crystal(atomic_numbers, lattice, x, name, show_bonds=False)
+    vis_crystal(atomic_numbers, lattice, frac_x, name, show_bonds=False)
 
 
 if __name__ == "__main__":
     sample_results = load_sample_results_from_hdf5("out/crystals.h5")
-    visualize_one_crystal(sample_results, sample_idx=2)
+    visualize_one_crystal(sample_results, sample_idx=1)

@@ -50,7 +50,13 @@ def sample_crystal(
 def generate_single_crystal(
     num_atoms: int, visualization_setting: VisualizationSetting
 ):
-    sample_crystal(num_atoms=num_atoms, visualization_setting=visualization_setting)
+    model = get_model()
+    sample_crystal(
+        model=model,
+        num_atoms_per_sample=num_atoms,
+        num_samples_in_batch=1,
+        visualization_setting=visualization_setting,
+    )
     if visualization_setting != VisualizationSetting.NONE:
         generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
 
@@ -90,7 +96,7 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
 
 
 if __name__ == "__main__":
-    # generate_single_crystal(
-    #     num_atoms=15, visualization_setting=VisualizationSetting.LAST
-    # )
-    generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)
+    generate_single_crystal(
+        num_atoms=15, visualization_setting=VisualizationSetting.ALL
+    )
+    # generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)
