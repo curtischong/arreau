@@ -106,12 +106,12 @@ def vis_crystal_during_sampling(
 
 def vis_crystal(
     atomic_numbers: np.ndarray,
-    lattice: np.ndarray,
+    raw_lattice: np.ndarray,
     frac_x: np.ndarray,
     name: str,
     show_bonds: bool,
 ):
-    lattice = Lattice(lattice)
+    lattice = Lattice(raw_lattice)
     element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []
     for i in range(len(atomic_numbers)):
@@ -148,7 +148,7 @@ def vis_crystal(
                 name=atom_type,
             )
         )
-    plot_with_parallelopied(fig, lattice)
+    plot_with_parallelopied(fig, raw_lattice)
     if show_bonds:
         plot_bonds(fig, structure)
 
