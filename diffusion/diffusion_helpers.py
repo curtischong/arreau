@@ -147,12 +147,29 @@ class VP_limited_mean_and_var(nn.Module):
         self.register_buffer("betas", betas)
         self.register_buffer("sigmas", sigmas)
 
-    def forward(self, h0, t):
+    def normalizing_mean_constant(self, n: torch.Tensor):
+        avg_density_of_dataset = 0.05539856385043283
+        c = 1 / avg_density_of_dataset
+        return torch.pow(n * c, 1 / 3)
+
+    def normalizing_variance_constant(self, n: torch.Tensor):
+        v = 152.51649752530176  # assuming that v is the average volume of the dataset
+        return torch.pow(n * v, 1 / 3)
+
+    def forward(self, h0: torch.Tensor, t: torch.Tensor, num_atoms: torch.Tensor):
         alpha_bar = self.alpha_bars[t]
-        eps = torch.randn_like(h0)
         sqrt_alpha_bar = torch.sqrt(alpha_bar).view(-1, 1)
-        mean = sqrt_alpha_bar * h0 + (1 - sqrt_alpha_bar) * eps
-        variance = torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
+
+        mean = sqrt_alpha_bar * h0 + (
+            1 - sqrt_alpha_bar
+        ) * self.normalizing_mean_constant(num_atoms)
+
+        eps = torch.randn_like(h0)
+        variance = (
+            torch.sqrt(1 - alpha_bar).view(-1, 1)
+            * self.normalizing_variance_constant(num_atoms)
+            * eps
+        )
         ht = mean + variance
         return ht, eps
 

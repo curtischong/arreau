@@ -27,7 +27,9 @@ def main():
     for i in range(30):
         rotation_matrix, symmetric_matrix = polar_decomposition(square_lattice)
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
-        noisy_symmetric_vector, _symmetric_vector_noise = vp(symmetric_matrix_vector, t)
+        noisy_symmetric_vector, _symmetric_vector_noise = vp(
+            symmetric_matrix_vector, t, 15
+        )
 
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
         noisy_lattice = rotation_matrix @ noisy_symmetric_matrix

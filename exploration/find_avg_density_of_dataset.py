@@ -38,6 +38,7 @@ def main():
     print(f"Average density: {total_density / num_samples}")
     print(f"Average volume: {total_volume / num_samples}")
     # Average density: 0.05539856385043283
+    # Average volume: 152.51649752530176
 
 
 if __name__ == "__main__":
