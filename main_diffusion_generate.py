@@ -79,18 +79,18 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
     crystals.num_atoms = np.full(num_crystals, num_atoms_per_sample)
 
     for i in range(0, num_crystals, num_crystals_per_batch):
-        batch_crystals = sample_crystal(
+        generated_crystals = sample_crystal(
             model=model,
             num_atoms_per_sample=num_atoms_per_sample,
             num_samples_in_batch=num_crystals_per_batch,
             visualization_setting=VisualizationSetting.NONE,
         )
         num_atoms_in_batch = num_atoms_per_sample * num_crystals_per_batch
-        crystals.frac_x[i : i + num_atoms_in_batch] = batch_crystals.frac_x
+        crystals.frac_x[i : i + num_atoms_in_batch] = generated_crystals.frac_x
         crystals.atomic_numbers[i : i + num_atoms_in_batch] = (
-            batch_crystals.atomic_numbers
+            generated_crystals.atomic_numbers
         )
-        crystals.lattice[i : i + num_crystals_per_batch] = batch_crystals.lattice
+        crystals.lattice[i : i + num_crystals_per_batch] = generated_crystals.lattice
 
     save_sample_results_to_hdf5(crystals, f"{OUT_DIR}/crystals.h5")
 

@@ -21,7 +21,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
     def __init__(self, args, z_table: AtomicNumberTable):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters()  # so when we load a saved model, we don't need to pass in any arguments to instantiate the model
 
         self.register_buffer(
             "z_table_zs",

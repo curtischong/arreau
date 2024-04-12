@@ -1,3 +1,5 @@
+# The purpose of this file is to take the generated crystals (saved in the .h5 file) and do further processing on them (visualization, relaxation, etc)
+
 from diffusion.diffusion_loss import SampleResult
 from diffusion.inference.process_generated_crystals import load_sample_results_from_hdf5
 import os
