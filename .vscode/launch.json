@@ -81,6 +81,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "process results",
+            "type": "python",
+            "request": "launch",
+            "program": "main_diffusion_process_results.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }

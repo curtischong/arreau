@@ -1,14 +1,16 @@
+from dataclasses import dataclass
+from typing import Optional
 import torch
 
 from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
+import numpy as np
 
 from diffusion.diffusion_helpers import (
     VP,
     VE_pbc,
-    cart_to_frac_coords,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -17,7 +19,10 @@ from diffusion.diffusion_helpers import (
     vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import AtomicNumberTable
-from diffusion.inference.visualize_crystal import vis_crystal_during_sampling
+from diffusion.inference.visualize_crystal import (
+    VisualizationSetting,
+    vis_crystal_during_sampling,
+)
 from torch.nn import functional as F
 
 
@@ -28,6 +33,19 @@ type_power = 2
 lattice_power = 2
 type_clipmax = 0.999
 lattice_clipmax = 0.999
+
+
+@dataclass
+class SampleResult:
+    frac_x: Optional[np.ndarray] = None
+    atomic_numbers: Optional[np.ndarray] = None
+
+    # crystal-wide information. If there are m crystals, these arrays have m indexes
+    lattice: Optional[np.ndarray] = None
+    idx_start: Optional[np.ndarray] = (
+        None  # The index (in x, h) of the first atom in each crystal
+    )
+    num_atoms: Optional[np.ndarray] = None  # The number of atoms in each crystal
 
 
 class DiffusionLossMetric(torchmetrics.Metric):
@@ -244,26 +262,30 @@ class DiffusionLoss(torch.nn.Module):
     @torch.no_grad()
     def sample(
         self,
+        *,
         model,
         z_table: AtomicNumberTable,
-        t_emb_weights,
-        num_atoms: int,
+        t_emb_weights,  # TODO: can we store this in diffusion_loss? rather than passing it in every time?
+        num_atoms_per_sample: int,
+        num_samples_in_batch: int,
         vis_name: str,
-        only_visualize_last: bool,
+        visualization_setting: VisualizationSetting,
         show_bonds: bool,
-    ):
+    ) -> SampleResult:
         num_atomic_states = len(z_table)
 
-        lattice = torch.randn([3, 3]).unsqueeze(0)
+        lattice = torch.randn([num_samples_in_batch, 3, 3])
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
-        x = (
-            torch.randn([num_atoms.sum(), 3], dtype=torch.get_default_dtype())
+        frac_x = (
+            torch.randn(
+                [num_samples_in_batch * num_atoms_per_sample, 3],
+                dtype=torch.get_default_dtype(),
+            )
             * pos_sigma_max
         )
-        frac_x = cart_to_frac_coords(x, lattice, num_atoms)
-        x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+        num_atoms = torch.full((num_samples_in_batch,), num_atoms_per_sample)
 
         h = torch.randn([num_atoms.sum(), num_atomic_states])
 
@@ -295,31 +317,31 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
-            x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
 
             if (
-                not only_visualize_last
+                visualization_setting == VisualizationSetting.ALL
                 and (timestep != self.T - 1)
                 and (timestep % 10 == 0)
             ):
                 vis_crystal_during_sampling(
-                    z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds
+                    z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
 
-        x, h = self.unnormalize(
-            x, h
+        frac_x, h = self.unnormalize(
+            frac_x, h
         )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
-        output = {
-            "x": x,
-            "h": h,
-            "num_atoms": num_atoms,
-            "lattice": lattice,
-        }
-        vis_crystal_during_sampling(
-            z_table, h, lattice, x, vis_name + "_final", show_bonds
+        if visualization_setting != VisualizationSetting.NONE:
+            vis_crystal_during_sampling(
+                z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
+            )
+        h_best_idx = torch.argmax(h, dim=1).numpy()
+        atomic_numbers = np.vectorize(z_table.index_to_z)(h_best_idx)
+        return SampleResult(
+            num_atoms=num_atoms.numpy(),
+            frac_x=frac_x.numpy(),
+            atomic_numbers=atomic_numbers,
+            lattice=lattice.numpy(),
         )
-
-        return output
