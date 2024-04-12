@@ -180,7 +180,9 @@ class DiffusionLoss(torch.nn.Module):
         h = h * self.norm_h
         return x, h
 
-    def diffuse_lattice_params(self, lattice, t_int):
+    def diffuse_lattice_params(
+        self, lattice: torch.Tensor, t_int: torch.Tensor, num_atoms: torch.Tensor
+    ):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance
 
@@ -188,7 +190,7 @@ class DiffusionLoss(torch.nn.Module):
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
         noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
-            symmetric_matrix_vector, t_int
+            symmetric_matrix_vector, t_int, num_atoms
         )
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
         noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
@@ -225,7 +227,7 @@ class DiffusionLoss(torch.nn.Module):
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         noisy_lattice, noisy_symmetric_vector, symmetric_vector_noise = (
-            self.diffuse_lattice_params(lattice, t_int)
+            self.diffuse_lattice_params(lattice, t_int, num_atoms)
         )
 
         # Compute the prediction.

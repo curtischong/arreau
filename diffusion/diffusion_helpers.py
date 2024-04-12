@@ -160,6 +160,7 @@ class VP_limited_mean_and_var(nn.Module):
     def forward(self, h0: torch.Tensor, t: torch.Tensor, num_atoms: torch.Tensor):
         alpha_bar = self.alpha_bars[t]
         sqrt_alpha_bar = torch.sqrt(alpha_bar).view(-1, 1)
+        num_atoms = num_atoms.unsqueeze(1)
 
         mean = sqrt_alpha_bar * h0 + (
             1 - sqrt_alpha_bar
