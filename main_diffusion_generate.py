@@ -64,7 +64,6 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
     total_num_atoms = num_crystals * num_atoms_per_sample
 
     model = get_model()
-    num_unique_atomic_numbers = len(model.z_table_zs)
 
     crystals = SampleResult()
     crystals.x = np.empty((total_num_atoms, 3))
