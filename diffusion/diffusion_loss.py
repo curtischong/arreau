@@ -11,6 +11,7 @@ import numpy as np
 from diffusion.diffusion_helpers import (
     VP,
     VE_pbc,
+    VP_limited_mean_and_var,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -79,7 +80,7 @@ class DiffusionLoss(torch.nn.Module):
             clipmax=type_clipmax,
         )
 
-        self.lattice_diffusion = VP(
+        self.lattice_diffusion = VP_limited_mean_and_var(
             num_steps=self.T,
             power=lattice_power,
             clipmax=lattice_clipmax,
