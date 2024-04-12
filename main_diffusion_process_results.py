@@ -3,29 +3,35 @@ from diffusion.inference.process_generated_crystals import load_sample_results_f
 import os
 
 from diffusion.inference.relax import relax
+from diffusion.inference.visualize_crystal import vis_crystal
 
 # TODO: put this in a config file?
 OUT_DIR = "out"
 RELAX_DIR = f"{OUT_DIR}/relax"
 
 
-def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
-    os.makedirs(RELAX_DIR, exist_ok=True)
+def get_one_crystal(sample_result: SampleResult, sample_idx: int):
     lattice = sample_result.lattice[sample_idx]
-
     crystal_start_idx = sample_result.idx_start[sample_idx]
     num_atoms = sample_result.num_atoms[sample_idx]
     end_idx = crystal_start_idx + num_atoms
     x = sample_result.x[crystal_start_idx:end_idx]
-    h = sample_result.atomic_numbers[crystal_start_idx:end_idx]
-    relax(lattice, x, h, RELAX_DIR)
+    atomic_numbers = sample_result.atomic_numbers[crystal_start_idx:end_idx]
+    return lattice, x, atomic_numbers
 
 
-def visualize_one_crystal(sample_result: SampleResult):
-    # vis_crystal(z_table, L_t, X, name, show_bonds)
-    pass
+def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
+    os.makedirs(RELAX_DIR, exist_ok=True)
+    lattice, x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
+    relax(lattice, x, atomic_numbers, RELAX_DIR)
+
+
+def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
+    lattice, x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
+    name = f"{OUT_DIR}/crystal_{sample_idx}"
+    vis_crystal(atomic_numbers, lattice, x, name, show_bonds=False)
 
 
 if __name__ == "__main__":
     sample_results = load_sample_results_from_hdf5("out/crystals.h5")
-    relax_one_crystal(sample_results, sample_idx=2)
+    visualize_one_crystal(sample_results, sample_idx=2)
