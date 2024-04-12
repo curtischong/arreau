@@ -22,8 +22,8 @@ def get_one_crystal(sample_result: SampleResult, sample_idx: int):
 
 def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
     os.makedirs(RELAX_DIR, exist_ok=True)
-    lattice, x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
-    relax(lattice, x, atomic_numbers, RELAX_DIR)
+    lattice, frac_x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
+    relax(lattice, frac_x, atomic_numbers, RELAX_DIR)
 
 
 def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
