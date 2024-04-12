@@ -154,6 +154,7 @@ class VP_limited_mean_and_var(nn.Module):
 
     def normalizing_variance_constant(self, n: torch.Tensor):
         v = 152.51649752530176  # assuming that v is the average volume of the dataset
+        v = v / 6  # This is an adjustment I think will lead to more stable volumes
         return torch.pow(n * v, 1 / 3)
 
     def forward(self, h0: torch.Tensor, t: torch.Tensor, num_atoms: torch.Tensor):

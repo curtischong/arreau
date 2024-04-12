@@ -27,8 +27,9 @@ def main():
     for i in range(30):
         rotation_matrix, symmetric_matrix = polar_decomposition(square_lattice)
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
+        num_atoms = torch.tensor([15])
         noisy_symmetric_vector, _symmetric_vector_noise = vp(
-            symmetric_matrix_vector, t, 15
+            symmetric_matrix_vector, t, num_atoms
         )
 
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
@@ -48,6 +49,9 @@ def main():
         # Save the plot as a PNG file
         fig.write_image(f"{OUT_DIR}/{i}.png")
         print(f"Saved {i} in {OUT_DIR}")
+        print(
+            f"noisy_symmetric_vector: {noisy_symmetric_vector} noisy_symmetric_matrix: {noisy_symmetric_matrix}"
+        )
 
 
 if __name__ == "__main__":
