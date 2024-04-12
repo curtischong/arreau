@@ -36,7 +36,7 @@ def relax(L0: np.ndarray, X: np.ndarray, atomic_numbers: np.ndarray, out_dir: st
         dyn.run(fmax=0.05, steps=5)
 
         positions = system.get_positions()
-        vis_crystal(atomic_numbers, L0, X, f"{out_dir}/relax_{i}")
+        vis_crystal(atomic_numbers, L0, X, f"{out_dir}/relax_{i}", show_bonds=False)
 
 
 if __name__ == "__main__":
