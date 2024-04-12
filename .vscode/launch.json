@@ -99,6 +99,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "find avg density",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/find_avg_density_of_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
