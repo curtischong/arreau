@@ -61,7 +61,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             + 6  # 6 noisy_symmetric_vector params
         )
 
-        in_channels_vec = 0
+        in_channels_vec = 1  # the fractional coords
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
         out_channels_global_scalar = (
