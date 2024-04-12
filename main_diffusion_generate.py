@@ -66,7 +66,7 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
     model = get_model()
 
     crystals = SampleResult()
-    crystals.x = np.empty((total_num_atoms, 3))
+    crystals.frac_x = np.empty((total_num_atoms, 3))
     crystals.atomic_numbers = np.empty((total_num_atoms))
     crystals.lattice = np.empty((num_crystals, 3, 3))
     crystals.idx_start = np.arange(0, total_num_atoms, num_atoms_per_sample)
@@ -80,7 +80,7 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
             visualization_setting=VisualizationSetting.NONE,
         )
         num_atoms_in_batch = num_atoms_per_sample * num_crystals_per_batch
-        crystals.x[i : i + num_atoms_in_batch] = batch_crystals.x
+        crystals.frac_x[i : i + num_atoms_in_batch] = batch_crystals.frac_x
         crystals.atomic_numbers[i : i + num_atoms_in_batch] = (
             batch_crystals.atomic_numbers
         )

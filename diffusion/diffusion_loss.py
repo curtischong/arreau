@@ -11,7 +11,6 @@ import numpy as np
 from diffusion.diffusion_helpers import (
     VP,
     VE_pbc,
-    cart_to_frac_coords,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -38,7 +37,7 @@ lattice_clipmax = 0.999
 
 @dataclass
 class SampleResult:
-    x: Optional[np.ndarray] = None
+    frac_x: Optional[np.ndarray] = None
     atomic_numbers: Optional[np.ndarray] = None
 
     # crystal-wide information. If there are m crystals, these arrays have m indexes
@@ -279,7 +278,7 @@ class DiffusionLoss(torch.nn.Module):
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
-        x = (
+        frac_x = (
             torch.randn(
                 [num_samples_in_batch * num_atoms_per_sample, 3],
                 dtype=torch.get_default_dtype(),
@@ -287,8 +286,8 @@ class DiffusionLoss(torch.nn.Module):
             * pos_sigma_max
         )
         num_atoms = torch.full((num_samples_in_batch,), num_atoms_per_sample)
-        frac_x = cart_to_frac_coords(x, lattice, num_atoms)
-        x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+        # frac_x = cart_to_frac_coords(x, lattice, num_atoms)
+        # x = frac_to_cart_coords(frac_x, lattice, num_atoms)
 
         h = torch.randn([num_atoms.sum(), num_atomic_states])
 
@@ -320,8 +319,8 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            frac_x = self.pos_diffusion.reverse(x, score_x, t, lattice, num_atoms)
-            x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
+            # x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
 
             if (
@@ -330,22 +329,22 @@ class DiffusionLoss(torch.nn.Module):
                 and (timestep % 10 == 0)
             ):
                 vis_crystal_during_sampling(
-                    z_table, h, lattice, x, vis_name + f"_{timestep}", show_bonds
+                    z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
 
-        x, h = self.unnormalize(
-            x, h
+        frac_x, h = self.unnormalize(
+            frac_x, h
         )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
-                z_table, h, lattice, x, vis_name + "_final", show_bonds
+                z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
             )
         h_best_idx = torch.argmax(h, dim=1).numpy()
         atomic_numbers = np.vectorize(z_table.index_to_z)(h_best_idx)
         return SampleResult(
             num_atoms=num_atoms.numpy(),
-            x=x.numpy(),
+            frac_x=frac_x.numpy(),
             atomic_numbers=atomic_numbers,
             lattice=lattice.numpy(),
         )

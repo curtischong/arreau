@@ -91,26 +91,37 @@ def plot_bonds(fig, structure: Structure):
 
 
 def vis_crystal_during_sampling(
-    z_table: AtomicNumberTable, A, L_t, X, name: str, show_bonds: bool
+    z_table: AtomicNumberTable,
+    A: np.ndarray,
+    lattice: np.ndarray,
+    frac_x: np.ndarray,
+    name: str,
+    show_bonds: bool,
 ):
-    L_t = L_t.squeeze(0)
+    lattice = lattice.squeeze(0)
     # atomic_numbers = [z_table.index_to_z(torch.argmax(row)) for row in A]
     atomic_numbers = one_hot_to_atomic_numbers(z_table, A)
-    return vis_crystal(atomic_numbers, L_t, X, name, show_bonds)
+    return vis_crystal(atomic_numbers, lattice, frac_x, name, show_bonds)
 
 
-def vis_crystal(atomic_numbers: np.ndarray, L_t, X, name, show_bonds: bool):
-    lattice = Lattice(L_t)
+def vis_crystal(
+    atomic_numbers: np.ndarray,
+    lattice: np.ndarray,
+    frac_x: np.ndarray,
+    name: str,
+    show_bonds: bool,
+):
+    lattice = Lattice(lattice)
     element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []
     for i in range(len(atomic_numbers)):
-        pos_arr.append(X[i].tolist())
+        pos_arr.append(frac_x[i].tolist())
 
     # TODO: find a workaround. this is so hacky
     try:
         # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
         structure = Structure(
-            lattice, element_symbols, pos_arr, coords_are_cartesian=True
+            lattice, element_symbols, pos_arr, coords_are_cartesian=False
         )
     except Exception as e:
         print("Error in visualizing crystal", e)
@@ -137,7 +148,7 @@ def vis_crystal(atomic_numbers: np.ndarray, L_t, X, name, show_bonds: bool):
                 name=atom_type,
             )
         )
-    plot_with_parallelopied(fig, L_t)
+    plot_with_parallelopied(fig, lattice)
     if show_bonds:
         plot_bonds(fig, structure)
 

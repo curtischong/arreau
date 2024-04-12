@@ -15,7 +15,7 @@ def get_one_crystal(sample_result: SampleResult, sample_idx: int):
     crystal_start_idx = sample_result.idx_start[sample_idx]
     num_atoms = sample_result.num_atoms[sample_idx]
     end_idx = crystal_start_idx + num_atoms
-    x = sample_result.x[crystal_start_idx:end_idx]
+    x = sample_result.frac_x[crystal_start_idx:end_idx]
     atomic_numbers = sample_result.atomic_numbers[crystal_start_idx:end_idx]
     return lattice, x, atomic_numbers
 
