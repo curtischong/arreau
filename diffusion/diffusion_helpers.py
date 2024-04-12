@@ -125,6 +125,54 @@ class VP(nn.Module):
         ) + sigma * z
 
 
+class VP_limited_mean_and_var(nn.Module):
+    """
+    limit the mean and variance of the variance preserving diffusion so the lattice is not too squashed
+    """
+
+    def __init__(self, num_steps=1000, s=0.0001, power=2, clipmax=0.999):
+        super().__init__()
+        t = torch.arange(0, num_steps + 1, dtype=torch.float)
+        # play with the parameters here: https://www.desmos.com/calculator/jtb6whrvej
+        # cosine schedule introduced in https://arxiv.org/abs/2102.09672
+        f_t = torch.cos((np.pi / 2) * ((t / num_steps) + s) / (1 + s)) ** power
+        alpha_bars = f_t / f_t[0]
+        betas = torch.cat(
+            [torch.zeros([1]), 1 - (alpha_bars[1:] / alpha_bars[:-1])], dim=0
+        )
+        betas = betas.clamp_max(clipmax)
+        sigmas = torch.sqrt(betas[1:] * ((1 - alpha_bars[:-1]) / (1 - alpha_bars[1:])))
+        sigmas = torch.cat([torch.zeros([1]), sigmas], dim=0)
+        self.register_buffer("alpha_bars", alpha_bars)
+        self.register_buffer("betas", betas)
+        self.register_buffer("sigmas", sigmas)
+
+    def forward(self, h0, t):
+        alpha_bar = self.alpha_bars[t]
+        eps = torch.randn_like(h0)
+        sqrt_alpha_bar = torch.sqrt(alpha_bar).view(-1, 1)
+        mean = sqrt_alpha_bar * h0 + (1 - sqrt_alpha_bar) * eps
+        variance = torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
+        ht = mean + variance
+        return ht, eps
+
+    def reverse(self, ht, eps_h, t):
+        alpha = 1 - self.betas[t]
+        alpha = alpha.clamp_min(1 - self.betas[-2])
+        alpha_bar = self.alpha_bars[t]
+        sigma = self.sigmas[t].view(-1, 1)
+
+        z = torch.where(
+            (t > 1)[:, None].expand_as(ht),
+            torch.randn_like(ht),
+            torch.zeros_like(ht),
+        )
+
+        return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
+            ht - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1) * eps_h
+        ) + sigma * z
+
+
 def frac_to_cart_coords(
     frac_coords: torch.Tensor,
     lattice: torch.Tensor,

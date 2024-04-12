@@ -90,6 +90,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "verify vp limited mean and var",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/verify_vp_limited_mean_and_var.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
