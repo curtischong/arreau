@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Sequence
 import torch
+from pymatgen.core import Element
 
 
 class AtomicNumberTable:
@@ -72,3 +73,11 @@ def one_hot_encode_atomic_numbers(
     return to_one_hot(
         atomic_number_indices_torch.unsqueeze(-1), num_classes=len(z_table)
     )
+
+
+def atomic_symbols_to_indices(
+    z_table: AtomicNumberTable,
+    atomic_symbols: list[str],
+) -> np.ndarray:
+    atomic_numbers = [Element(symbol).number for symbol in atomic_symbols]
+    return one_hot_encode_atomic_numbers(z_table, atomic_numbers)

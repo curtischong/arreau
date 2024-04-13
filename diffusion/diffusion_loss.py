@@ -19,7 +19,10 @@ from diffusion.diffusion_helpers import (
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
-from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.tools.atomic_number_table import (
+    AtomicNumberTable,
+    atomic_symbols_to_indices,
+)
 from diffusion.inference.visualize_crystal import (
     VisualizationSetting,
     vis_crystal_during_sampling,
@@ -295,6 +298,9 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms = torch.full((num_samples_in_batch,), num_atoms_per_sample)
 
         h = torch.randn([num_atoms.sum(), num_atomic_states])
+        constant_atoms = atomic_symbols_to_indices(
+            z_table, ["C", "C", "C", "C", "C", "C", "C", "C"]
+        )
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
@@ -303,6 +309,7 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
+            h = constant_atoms
             score_x, score_h, pred_symmetric_vector = self.phi(
                 frac_x,
                 h,
@@ -326,6 +333,7 @@ class DiffusionLoss(torch.nn.Module):
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
+            h = constant_atoms
 
             if (
                 visualization_setting == VisualizationSetting.ALL
