@@ -1,6 +1,6 @@
 import pathlib
 from diffusion.diffusion_helpers import (
-    VP,
+    VP_limited_mean_and_var,
     polar_decomposition,
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
@@ -16,7 +16,7 @@ OUT_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../out/vp_limited_mean_and
 # we want to sample many lattices at a high time step to see if the lattices look realistic
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    vp = VP(num_steps=1000, s=0.0001, power=2, clipmax=0.999)
+    vp = VP_limited_mean_and_var(num_steps=1000, s=0.0001, power=2, clipmax=0.999)
     t = 999  # sample from a very high time step for maximal variance
 
     square_lattice = torch.tensor(
