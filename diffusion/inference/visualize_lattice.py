@@ -23,10 +23,6 @@ def plot_with_parallelopied(fig, L):
     v3 = L[2]
     # Create the parallelepiped by combining the basis vectors
     points = np.array([[0, 0, 0], v1, v1 + v2, v2, v3, v1 + v3, v1 + v2 + v3, v2 + v3])
-    # subtract center of gravity
-    # center = np.mean(points, axis=0)
-    # center -= 10
-    # points -= center
 
     # Create the edges of the parallelepiped as tuples of Cartesian coordinates
     edges = [
@@ -46,20 +42,11 @@ def plot_with_parallelopied(fig, L):
     # Plot the edges using the helper function
     plot_edges(fig, edges, "#0d5d85")
 
-    # max_abs = np.absolute(points).max(axis=0)
-
     return points
 
 
 def visualize_lattice(lattice: torch.Tensor, out_path: str):
     # Create a Plotly figure
-
-    # layout = go.Layout(
-
-    #     yaxis=dict(range=[smallest, largest]),
-    #     xaxis=dict(range=[smallest, largest]),
-    #     zaxis=dict(range=[smallest, largest]),
-    # )
     fig = go.Figure()
     points = plot_with_parallelopied(fig, lattice.squeeze(0))
     smallest = np.min(points, axis=0)
