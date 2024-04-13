@@ -209,6 +209,7 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_0, h = self.normalize(frac_x_0, h)
 
         # Sample a timestep t.
+        # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
         if t_int is None:
             t_int = torch.randint(
                 1, self.T + 1, size=(num_atoms.size(0), 1), device=frac_x_0.device
