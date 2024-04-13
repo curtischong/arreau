@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import numpy as np
+import torch
 
 
 def plot_edges(fig, edges, color):
@@ -22,6 +23,11 @@ def plot_with_parallelopied(fig, L):
     v3 = L[2]
     # Create the parallelepiped by combining the basis vectors
     points = np.array([[0, 0, 0], v1, v1 + v2, v2, v3, v1 + v3, v1 + v2 + v3, v2 + v3])
+    # subtract center of gravity
+    # center = np.mean(points, axis=0)
+    # center -= 10
+    # points -= center
+
     # Create the edges of the parallelepiped as tuples of Cartesian coordinates
     edges = [
         (tuple(points[0]), tuple(points[1])),
@@ -40,17 +46,41 @@ def plot_with_parallelopied(fig, L):
     # Plot the edges using the helper function
     plot_edges(fig, edges, "#0d5d85")
 
+    # max_abs = np.absolute(points).max(axis=0)
 
-def visualize_lattice(lattice, out_path):
+    return points
+
+
+def visualize_lattice(lattice: torch.Tensor, out_path: str):
     # Create a Plotly figure
+
+    # layout = go.Layout(
+
+    #     yaxis=dict(range=[smallest, largest]),
+    #     xaxis=dict(range=[smallest, largest]),
+    #     zaxis=dict(range=[smallest, largest]),
+    # )
     fig = go.Figure()
-    plot_with_parallelopied(fig, lattice.squeeze(0))
+    points = plot_with_parallelopied(fig, lattice.squeeze(0))
+    smallest = np.min(points, axis=0)
+    largest = np.max(points, axis=0)
 
     # Set the layout for the 3D plot
     fig.update_layout(
         title="Crystal Structure",
-        scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
+        scene=dict(
+            xaxis_title="X",
+            yaxis_title="Y",
+            zaxis_title="Z",
+        ),
         margin=dict(l=0, r=0, b=0, t=0),
+    )
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(range=[smallest[0], largest[0]]),
+            yaxis=dict(range=[smallest[1], largest[1]]),
+            zaxis=dict(range=[smallest[2], largest[2]]),
+        )
     )
 
     # Save the plot as a PNG file
