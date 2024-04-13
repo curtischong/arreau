@@ -179,7 +179,7 @@ class DiffusionLoss(torch.nn.Module):
         h = h * self.norm_h
         return x, h
 
-    def diffuse_lattice_params(self, lattice, t_int):
+    def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance
 

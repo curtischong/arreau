@@ -97,7 +97,7 @@ class CrystalDataset(Dataset):
         config = self.configs[idx]
         A0 = one_hot_encode_atomic_numbers(self.z_table, config.atomic_numbers)
         X0 = config.X0
-        L0 = config.L0  # TODO(curtis): use the noised Lt
+        L0 = config.L0
 
         X0_cart = torch.tensor(
             X0 @ L0,

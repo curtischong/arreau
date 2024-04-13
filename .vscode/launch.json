@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/use-frac-x-as-feat-last.ckpt",
+                "--model_path=models/limit-lattice-diffusion-mean-and-var-last.ckpt",
             ],
         },
         {
@@ -87,6 +87,24 @@
             "type": "python",
             "request": "launch",
             "program": "main_diffusion_process_results.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
+        },
+        {
+            "name": "verify vp limited mean and var",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/verify_vp_limited_mean_and_var.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
+        },
+        {
+            "name": "find avg density",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/find_avg_density_of_dataset.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
