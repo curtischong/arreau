@@ -99,7 +99,10 @@ class CrystalDataset(Dataset):
         X0 = config.X0
         L0 = config.L0  # TODO(curtis): use the noised Lt
 
-        X0_cart = X0 @ L0
+        X0_cart = torch.tensor(
+            X0 @ L0,
+            dtype=torch.get_default_dtype(),
+        )
         return Data(
             pos=X0_cart,  # we need to have a pos field so the datalolader generates the batch atribute for each batch
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),

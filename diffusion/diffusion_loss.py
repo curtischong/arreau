@@ -197,11 +197,7 @@ class DiffusionLoss(torch.nn.Module):
         return noisy_lattice, noisy_symmetric_vector, noise_vector
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
-        """
-        input x has to be cart coords.
-        """
-        cart_x_0 = batch.pos
-        # frac_x_0 = batch.X0
+        cart_x_0 = batch.pos.squeeze(0)
         h = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
