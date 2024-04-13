@@ -4,6 +4,7 @@ from pymatgen.core.periodic_table import Element
 import numpy as np
 import plotly.graph_objects as go
 from diffusion.inference.predict_bonds import predict_bonds
+from diffusion.inference.visualize_lattice import plot_edges, plot_with_parallelopied
 
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
@@ -15,45 +16,6 @@ class VisualizationSetting(Enum):
     NONE = 0
     LAST = 1
     ALL = 2
-
-
-def plot_edges(fig, edges, color):
-    for edge in edges:
-        fig.add_trace(
-            go.Scatter3d(
-                x=[edge[0][0], edge[1][0]],
-                y=[edge[0][1], edge[1][1]],
-                z=[edge[0][2], edge[1][2]],
-                mode="lines",
-                line=dict(color=color, width=5),
-                showlegend=False,  # Do not add to the legend
-            )
-        )
-
-
-def plot_with_parallelopied(fig, L):
-    v1 = L[0]
-    v2 = L[1]
-    v3 = L[2]
-    # Create the parallelepiped by combining the basis vectors
-    points = np.array([[0, 0, 0], v1, v1 + v2, v2, v3, v1 + v3, v1 + v2 + v3, v2 + v3])
-    # Create the edges of the parallelepiped as tuples of Cartesian coordinates
-    edges = [
-        (tuple(points[0]), tuple(points[1])),
-        (tuple(points[1]), tuple(points[2])),
-        (tuple(points[2]), tuple(points[3])),
-        (tuple(points[3]), tuple(points[0])),
-        (tuple(points[4]), tuple(points[5])),
-        (tuple(points[5]), tuple(points[6])),
-        (tuple(points[6]), tuple(points[7])),
-        (tuple(points[7]), tuple(points[4])),
-        (tuple(points[0]), tuple(points[4])),
-        (tuple(points[1]), tuple(points[5])),
-        (tuple(points[2]), tuple(points[6])),
-        (tuple(points[3]), tuple(points[7])),
-    ]
-    # Plot the edges using the helper function
-    plot_edges(fig, edges, "#0d5d85")
 
 
 def element_color(symbol):

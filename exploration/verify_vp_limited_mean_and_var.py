@@ -7,9 +7,8 @@ from diffusion.diffusion_helpers import (
 )
 import torch
 import os
-import plotly.graph_objects as go
 
-from diffusion.inference.visualize_crystal import plot_with_parallelopied
+from diffusion.inference.visualize_lattice import visualize_lattice
 
 OUT_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../out/vp_limited_mean_and_var"
 
@@ -35,20 +34,7 @@ def main():
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
         noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
 
-        # Create a Plotly figure
-        fig = go.Figure()
-        plot_with_parallelopied(fig, noisy_lattice.squeeze(0))
-
-        # Set the layout for the 3D plot
-        fig.update_layout(
-            title="Crystal Structure",
-            scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
-            margin=dict(l=0, r=0, b=0, t=0),
-        )
-
-        # Save the plot as a PNG file
-        fig.write_image(f"{OUT_DIR}/{i}.png")
-        print(f"Saved {i} in {OUT_DIR}")
+        visualize_lattice(noisy_lattice, f"{OUT_DIR}/{i}.png")
         print(
             f"noisy_symmetric_vector: {noisy_symmetric_vector} noisy_symmetric_matrix: {noisy_symmetric_matrix}"
         )

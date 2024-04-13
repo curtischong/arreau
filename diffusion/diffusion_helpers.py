@@ -169,9 +169,10 @@ class VP_limited_mean_and_var(nn.Module):
         eps = torch.randn_like(h0)
         variance = (
             torch.sqrt(1 - alpha_bar).view(-1, 1)
-            * self.normalizing_variance_constant(num_atoms)
+            # * self.normalizing_variance_constant(num_atoms)
             * eps
         )
+        print(self.normalizing_mean_constant(num_atoms))
         ht = mean + variance
         return ht, eps
 
