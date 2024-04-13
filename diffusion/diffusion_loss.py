@@ -116,7 +116,7 @@ class DiffusionLoss(torch.nn.Module):
 
     def phi(
         self,
-        frac_x,
+        frac_x_t,
         h_t,
         t_int,
         num_atoms,
@@ -134,13 +134,13 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
-        cart_x_t = frac_to_cart_coords(frac_x, lattice, num_atoms)
+        cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = scalar_feats
         batch.pos = cart_x_t
-        batch.vec = frac_x.unsqueeze(1)
+        batch.vec = frac_x_t.unsqueeze(1)
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
@@ -200,28 +200,29 @@ class DiffusionLoss(torch.nn.Module):
         """
         input x has to be cart coords.
         """
-        x = batch.pos
-        h = batch.x
+        frac_x_0 = batch.X0
+        h = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
-        x, h = self.normalize(x, h)
+        frac_x_0, h = self.normalize(frac_x_0, h)
 
         # Sample a timestep t.
         if t_int is None:
             t_int = torch.randint(
-                1, self.T + 1, size=(num_atoms.size(0), 1), device=x.device
+                1, self.T + 1, size=(num_atoms.size(0), 1), device=frac_x_0.device
             ).long()
         else:
             t_int = (
-                torch.ones((batch.num_atoms.size(0), 1), device=x.device).long() * t_int
+                torch.ones((batch.num_atoms.size(0), 1), device=frac_x_0.device).long()
+                * t_int
             )
         t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
-            x, t_int_atoms, lattice, num_atoms
+            frac_x_0, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         noisy_lattice, noisy_symmetric_vector, symmetric_vector_noise = (
@@ -321,7 +322,7 @@ class DiffusionLoss(torch.nn.Module):
             if (
                 visualization_setting == VisualizationSetting.ALL
                 and (timestep != self.T - 1)
-                and (timestep % 10 == 0)
+                # and (timestep % 10 == 0)
             ):
                 vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
