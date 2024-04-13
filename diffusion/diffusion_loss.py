@@ -14,7 +14,6 @@ from diffusion.diffusion_helpers import (
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
-    subtract_cog,
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
@@ -116,10 +115,10 @@ class DiffusionLoss(torch.nn.Module):
 
     def phi(
         self,
-        frac_x_t,
-        h_t,
-        t_int,
-        num_atoms,
+        frac_x_t: torch.Tensor,
+        h_t: torch.Tensor,
+        t_int: torch.Tensor,
+        num_atoms: torch.Tensor,
         lattice: torch.Tensor,
         noisy_symmetric_vector: torch.Tensor,
         model,
@@ -161,7 +160,7 @@ class DiffusionLoss(torch.nn.Module):
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
-        pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
+        # pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
 
         return (
             pred_eps_x.squeeze(1) / used_sigmas_x,
@@ -323,7 +322,7 @@ class DiffusionLoss(torch.nn.Module):
             if (
                 visualization_setting == VisualizationSetting.ALL
                 and (timestep != self.T - 1)
-                # and (timestep % 10 == 0)
+                and (timestep % 10 == 0)
             ):
                 vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
