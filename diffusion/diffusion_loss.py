@@ -194,7 +194,12 @@ class DiffusionLoss(torch.nn.Module):
 
         # given the noisy_symmetric_vector, it needs to predict the noise vector
         # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
-        return noisy_lattice, noisy_symmetric_vector, noise_vector
+        return (
+            noisy_lattice,
+            noisy_symmetric_vector,
+            noise_vector,
+            symmetric_matrix_vector,
+        )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         cart_x_0 = batch.pos.squeeze(0)
@@ -223,12 +228,15 @@ class DiffusionLoss(torch.nn.Module):
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        noisy_lattice, noisy_symmetric_vector, symmetric_vector_noise = (
-            self.diffuse_lattice_params(lattice, t_int)
-        )
+        (
+            noisy_lattice,
+            noisy_symmetric_vector,
+            symmetric_vector_noise,
+            symmetric_matrix_vector,
+        ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_symmetric_vector_noise = self.phi(
+        pred_eps_x, pred_eps_h, pred_symmetric_vector = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
@@ -248,7 +256,8 @@ class DiffusionLoss(torch.nn.Module):
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
-        error_l = F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
+        # error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
+        error_l = self.lattice_loss(pred_symmetric_vector, symmetric_matrix_vector)
 
         loss = (
             self.cost_coord_coeff * error_x
@@ -256,6 +265,13 @@ class DiffusionLoss(torch.nn.Module):
             + self.lattice_coeff * error_l
         )
         return loss.mean()
+
+    def lattice_loss(
+        self, pred_symmetric_matrix: torch.Tensor, symmetric_matrix_vector: torch.Tensor
+    ):
+        # avg_volume = 152.51649752530176
+        loss = F.mse_loss(pred_symmetric_matrix, symmetric_matrix_vector)
+        return loss
 
     @torch.no_grad()
     def sample(
