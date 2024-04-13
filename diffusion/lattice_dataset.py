@@ -10,7 +10,6 @@ from diffusion.tools.atomic_number_table import (
     get_atomic_number_table_from_zs,
     one_hot_encode_atomic_numbers,
 )
-from diffusion.tools.neighborhood import get_neighborhood
 
 
 @dataclass
@@ -91,47 +90,23 @@ class CrystalDataset(Dataset):
             f"finished loading datasets {str(config_paths)}. Found {len(self.configs)} entries"
         )
 
-    def get_cell_info(
-        self, *, Xt: np.ndarray, Lt: np.ndarray
-    ):  # config: Configuration | InferenceConfiguration, timestep):
-        positions = Xt @ Lt
-        pbc = [True, True, True]  # all true for an infinite lattice
-
-        # I think cell = L is required so when we extend the lattice in infinite directions, are are tiling the cell properly
-        edge_index, shifts, unit_shifts = get_neighborhood(
-            positions=Xt, cutoff=self.cutoff, pbc=pbc, cell=Lt
-        )
-        # alternatve if the cell and position is wrong. But this will result in weird tiling of the cells
-        # edge_index, shifts, unit_shifts = get_neighborhood(
-        #     positions=config.X @ config.L, cutoff=cutoff, pbc=pbc, cell=None
-        # )
-        return {
-            "edge_index": edge_index,
-            "positions": positions,
-            "shifts": shifts,
-            "unit_shifts": unit_shifts,
-        }
-
     def __len__(self):
         return len(self.configs)
 
     def __getitem__(self, idx: int):
         config = self.configs[idx]
         A0 = one_hot_encode_atomic_numbers(self.z_table, config.atomic_numbers)
-
         X0 = config.X0
         L0 = config.L0  # TODO(curtis): use the noised Lt
-        cell_info = self.get_cell_info(Xt=X0, Lt=L0)
 
-        #  Data(pos=loc, x=x, vec=vec, y=loc_end)
+        X0_cart = torch.tensor(
+            X0 @ L0,
+            dtype=torch.get_default_dtype(),
+        )
         return Data(
-            pos=torch.tensor(
-                cell_info["positions"],
-                dtype=torch.get_default_dtype(),
-            ),
-            x=A0,  # These are the node features (that's why it's called x, not A0)
-            # A0=A0,
+            pos=X0_cart,  # we need to have a pos field so the datalolader generates the batch atribute for each batch
             X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
+            A0=A0,
             L0=torch.tensor(L0, dtype=torch.get_default_dtype()),
             num_atoms=len(config.atomic_numbers),
         )

@@ -116,16 +116,15 @@ class DiffusionLoss(torch.nn.Module):
 
     def phi(
         self,
-        x_t,
-        h_t,
-        t_int,
-        num_atoms,
+        frac_x_t: torch.Tensor,
+        h_t: torch.Tensor,
+        t_int: torch.Tensor,
+        num_atoms: torch.Tensor,
         lattice: torch.Tensor,
         noisy_symmetric_vector: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
-        frac=False,
     ):
         t = self.type_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
@@ -134,13 +133,14 @@ class DiffusionLoss(torch.nn.Module):
             noisy_symmetric_vector, num_atoms, dim=0
         )
 
-        h_time = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
-        cart_x_t = x_t if not frac else frac_to_cart_coords(x_t, lattice, num_atoms)
+        scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
+        cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
-        batch.x = h_time
+        batch.x = scalar_feats
         batch.pos = cart_x_t
+        batch.vec = frac_x_t.unsqueeze(1)
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
@@ -197,31 +197,30 @@ class DiffusionLoss(torch.nn.Module):
         return noisy_lattice, noisy_symmetric_vector, noise_vector
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
-        """
-        input x has to be cart coords.
-        """
-        x = batch.pos
-        h = batch.x
+        cart_x_0 = batch.pos.squeeze(0)
+        h = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
-        x, h = self.normalize(x, h)
+        cart_x_0, h = self.normalize(cart_x_0, h)
 
         # Sample a timestep t.
+        # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
         if t_int is None:
             t_int = torch.randint(
-                1, self.T + 1, size=(num_atoms.size(0), 1), device=x.device
+                1, self.T + 1, size=(num_atoms.size(0), 1), device=cart_x_0.device
             ).long()
         else:
             t_int = (
-                torch.ones((batch.num_atoms.size(0), 1), device=x.device).long() * t_int
+                torch.ones((batch.num_atoms.size(0), 1), device=cart_x_0.device).long()
+                * t_int
             )
         t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
-            x, t_int_atoms, lattice, num_atoms
+            cart_x_0, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         noisy_lattice, noisy_symmetric_vector, symmetric_vector_noise = (
@@ -239,7 +238,6 @@ class DiffusionLoss(torch.nn.Module):
             model,
             batch,
             t_emb_weights,
-            frac=True,
         )
 
         # Compute the error.
@@ -308,7 +306,6 @@ class DiffusionLoss(torch.nn.Module):
                     num_atoms=num_atoms, batch=torch.tensor(0).repeat(num_atoms.sum())
                 ),
                 t_emb_weights,
-                frac=True,
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
                 symmetric_vector, pred_symmetric_vector_noise, timestep_vec
@@ -317,7 +314,8 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
+            cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
             h = self.type_diffusion.reverse(h, score_h, t)
 
             if (

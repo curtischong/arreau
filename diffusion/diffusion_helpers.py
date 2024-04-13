@@ -126,10 +126,10 @@ class VP(nn.Module):
 
 
 def frac_to_cart_coords(
-    frac_coords,
-    lattice,
-    num_atoms,
-):
+    frac_coords: torch.Tensor,
+    lattice: torch.Tensor,
+    num_atoms: torch.Tensor,
+) -> torch.Tensor:
     lattice_nodes = torch.repeat_interleave(lattice, num_atoms, dim=0)
     pos = torch.einsum("bi,bij->bj", frac_coords, lattice_nodes)  # cart coords
     return pos
