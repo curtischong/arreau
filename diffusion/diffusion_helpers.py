@@ -176,12 +176,14 @@ class VP_limited_mean_and_var(nn.Module):
         ht = mean + variance
         return ht, eps
 
+    # This formula is from algorithm 2 sampling from https://arxiv.org/pdf/2006.11239.pdf
     def reverse(self, ht, eps_h, t):
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]
         sigma = self.sigmas[t].view(-1, 1)
 
+        # This is noise we add so when we do the backwards sample, we don't collapse to one point
         z = torch.where(
             (t > 1)[:, None].expand_as(ht),
             torch.randn_like(ht),

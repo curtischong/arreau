@@ -70,6 +70,11 @@ def visualize_lattice(lattice: torch.Tensor, out_path: str):
         )
     )
 
+    # If the lattices look really tiny, you're probably looking at them from the worng angle
+    # This moves the camera to the eye level so you can check to see how the lattices really look
+    # camera = dict(eye=dict(x=2, y=2, z=0.1))
+    # fig.update_layout(scene_camera=camera)
+
     # Save the plot as a PNG file
     fig.write_image(out_path)
     print(f"Saved {out_path}")
