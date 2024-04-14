@@ -160,10 +160,8 @@ class VP_lattice(nn.Module):
         alpha_bar = self.alpha_bars[t]
         # eps = torch.randn_like(predicted_x0)
         new_ht = (
-            (torch.sqrt(alpha_bar).view(-1, 1) * predicted_x0)
-            + (
-                torch.sqrt(1 - alpha_bar).view(-1, 1) * ht
-            )  # try blending the step from prev
+            (alpha_bar.view(-1, 1) * predicted_x0)
+            + ((1 - alpha_bar.view(-1, 1)) * ht)  # try blending the step from prev
         )
         return new_ht
 
