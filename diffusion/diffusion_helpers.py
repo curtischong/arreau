@@ -156,12 +156,15 @@ class VP_lattice(nn.Module):
         )
         return ht, eps
 
-    def reverse(self, ht, predicted_x0, t):
-        alpha_bar = self.alpha_bars[t]
-        # eps = torch.randn_like(predicted_x0)
+    # since the model predicts l0, the reverse function is different from the normal VP diffusion.
+    # we are "mixing" the predicted l0 and the current lt to get lt-1
+    def reverse(self, lt, predicted_l0, t):
+        alpha_bar = self.alpha_bars[
+            t
+        ]  # we are using alpha_bar as a probability to mix the predicted l0 and the current lt
         new_ht = (
-            (alpha_bar.view(-1, 1) * predicted_x0)
-            + ((1 - alpha_bar.view(-1, 1)) * ht)  # try blending the step from prev
+            (alpha_bar.view(-1, 1) * predicted_l0)
+            + ((1 - alpha_bar.view(-1, 1)) * lt)  # try blending the step from prev
         )
         return new_ht
 
