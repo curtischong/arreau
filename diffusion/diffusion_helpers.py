@@ -38,13 +38,10 @@ class VE_pbc(nn.Module):
             torch.exp(torch.linspace(np.log(sigma_min), np.log(sigma_max), self.T + 1)),
         )
 
-    def forward(self, x0, t, lattice, num_atoms, **kwargs):
-        """
-        x0 should be wrapped cart coords.
-        """
+    def forward(self, frac_x_0, t, lattice, num_atoms, **kwargs):
         used_sigmas = self.sigmas[t].view(-1, 1)
-        eps_x = torch.randn_like(x0) * used_sigmas
-        frac_p_noisy = cart_to_frac_coords(x0 + eps_x, lattice, num_atoms)
+        eps_x = torch.randn_like(frac_x_0) * used_sigmas
+        frac_p_noisy = frac_x_0 + eps_x
         cart_p_noisy = frac_to_cart_coords(frac_p_noisy, lattice, num_atoms)
         _, wrapped_eps_x = min_distance_sqr_pbc(
             cart_p_noisy,
@@ -55,7 +52,12 @@ class VE_pbc(nn.Module):
             return_vector=True,
         )
         # wrapped_eps_x is like the noise. it's a vector tat points from the noisy coords to the clean x0 coord.
-        return frac_p_noisy, wrapped_eps_x, used_sigmas
+        # wrapped_eps_x is cartesian
+        frac_wrapped_eps_x = cart_to_frac_coords(wrapped_eps_x, lattice, num_atoms)
+        return frac_p_noisy, frac_wrapped_eps_x, used_sigmas
+
+    # TODO: make sure forward still works but is with frac coords
+    # TODO: make reverse work with frac coords. the model is now training on the frac_wrapped_eps_x, so epx_x passed into reverse() should be in frac coords
 
     def reverse(self, xt, epx_x, t, lattice, num_atoms):
         """

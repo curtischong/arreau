@@ -31,7 +31,7 @@ from torch.nn import functional as F
 
 
 pos_sigma_min = 0.001
-pos_sigma_max = 10.0
+pos_sigma_max = 1
 
 type_power = 2
 lattice_power = 2
