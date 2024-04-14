@@ -108,12 +108,14 @@ class VP(nn.Module):
         )
         return ht, eps
 
+    # This formula is from algorithm 2 sampling from https://arxiv.org/pdf/2006.11239.pdf
     def reverse(self, ht, eps_h, t):
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]
         sigma = self.sigmas[t].view(-1, 1)
 
+        # This is noise we add so when we do the backwards sample, we don't collapse to one point
         z = torch.where(
             (t > 1)[:, None].expand_as(ht),
             torch.randn_like(ht),
@@ -167,6 +169,16 @@ class VP_lattice(nn.Module):
             + ((1 - alpha_bar.view(-1, 1)) * lt)  # try blending the step from prev
         )
         return new_ht
+
+    # def normalizing_mean_constant(self, n: torch.Tensor):
+    #     avg_density_of_dataset = 0.05539856385043283
+    #     c = 1 / avg_density_of_dataset
+    #     return torch.pow(n * c, 1 / 3)
+
+    # def normalizing_variance_constant(self, n: torch.Tensor):
+    #     v = 152.51649752530176  # assuming that v is the average volume of the dataset
+    #     v = v / 6  # This is an adjustment I think will lead to more stable volumes
+    #     return torch.pow(n * v, 1 / 3)
 
 
 def frac_to_cart_coords(
