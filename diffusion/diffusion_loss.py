@@ -10,10 +10,14 @@ from diffusion.d3pm import D3PM
 
 from diffusion.diffusion_helpers import (
     VE_pbc,
+    VP,
+    VP_coords,
     VP_lattice,
     frac_to_cart_coords,
     radius_graph_pbc,
     sample_bravais_angles,
+    symmetric_matrix_to_vector,
+    vector_to_symmetric_matrix,
 )
 from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
@@ -70,8 +74,13 @@ class DiffusionLoss(torch.nn.Module):
         self.cutoff = args.radius
         self.max_neighbors = args.max_neighbors
         self.T = args.num_timesteps
-        self.pos_diffusion = VE_pbc(
-            self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+        # self.pos_diffusion = VE_pbc(
+        #     self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+        # )
+        self.pos_diffusion = VP_coords(
+            num_steps=self.T,
+            power=type_power,  # TODO: change this to lattice_power
+            clipmax=type_clipmax,
         )
 
         self.d3pm = D3PM(
@@ -222,9 +231,12 @@ class DiffusionLoss(torch.nn.Module):
         noisy_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
-        noisy_frac_x, target_frac_eps_x, used_sigmas_x = self.pos_diffusion(
+        noisy_frac_x, frac_x_noise = self.pos_diffusion(
             frac_x_0, noisy_int_atoms, lattice_0, num_atoms
         )
+        noisy_frac_x = noisy_frac_x % 1
+        frac_x_noise = frac_x_noise % 1
+
         noisy_atom_type = self.d3pm.get_xt(atom_type_0, noisy_int_atoms.squeeze())
 
         noisy_atom_type_onehot = F.one_hot(noisy_atom_type, self.num_atomic_states)
@@ -248,7 +260,7 @@ class DiffusionLoss(torch.nn.Module):
         # Compute the error.
         error_frac_x = self.compute_frac_x_error(
             pred_frac_eps_x,
-            target_frac_eps_x,
+            frac_x_noise,
             batch,
             # 0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
