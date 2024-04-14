@@ -67,11 +67,18 @@ class VE_pbc(nn.Module):
             torch.zeros_like(sigmas),
             self.sigmas[t - 1].view(-1, 1),
         )
+
+        # TODO: do the mesh thing to move it closer to x0. we need to change this one line
         cart_p_mean = xt - epx_x * (sigmas**2 - adjacent_sigmas**2)
+
         # the sign of eps_p here is related to the verification above.
-        cart_p_rand = torch.sqrt(
-            (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
-        ) * torch.randn_like(xt)
+        cart_p_rand = (
+            torch.sqrt(
+                (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
+            )
+            * torch.randn_like(xt)
+        )  # this is just noise we add so when we do the backwards sample, we don't collapse to one point
+
         cart_p_next = cart_p_mean + cart_p_rand  # before wrapping
         frac_p_next = cart_to_frac_coords(cart_p_next, lattice, num_atoms)
         return frac_p_next
