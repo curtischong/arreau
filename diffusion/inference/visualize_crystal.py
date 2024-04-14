@@ -41,6 +41,8 @@ def element_color(symbol):
         "Ar": "#FF00FF",  # Argon
         "K": "#F0E68C",  # Potassium
         "Ca": "#E6E6FA",  # Calcium
+        "Fe": "#B22222",  # Iron
+        "Au": "#FFD700",  # Gold
     }
 
     # Return the color for the given chemical symbol, or a default color if not found
