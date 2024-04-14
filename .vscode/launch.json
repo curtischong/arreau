@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/limit-lattice-diffusion-mean-and-var-last.ckpt",
+                "--model_path=models/lattice-volume-loss.ckpt",
             ],
         },
         {

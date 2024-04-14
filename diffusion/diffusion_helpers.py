@@ -108,21 +108,25 @@ class VP(nn.Module):
         )
         return ht, eps
 
-    def reverse(self, ht, eps_h, t):
-        alpha = 1 - self.betas[t]
-        alpha = alpha.clamp_min(1 - self.betas[-2])
+    def reverse(self, ht, predicted_x0, t):
         alpha_bar = self.alpha_bars[t]
         sigma = self.sigmas[t].view(-1, 1)
 
+        # Calculate the predicted clean image directly
+        # Note: No need for the noise term since we're directly predicting x0
+        pred_ht = torch.sqrt(alpha_bar).view(-1, 1) * predicted_x0
+
+        # Optional: If you want to add noise back for stochasticity in the reverse process, you can do so
+        # This step is often omitted if you're directly predicting x0 and just want the deterministic path
         z = torch.where(
             (t > 1)[:, None].expand_as(ht),
             torch.randn_like(ht),
             torch.zeros_like(ht),
         )
 
-        return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
-            ht - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1) * eps_h
-        ) + sigma * z
+        # Return the predicted clean image, optionally add back some noise for stochasticity
+        # return pred_ht + sigma * z
+        return pred_ht
 
 
 class VP_limited_mean_and_var(nn.Module):
