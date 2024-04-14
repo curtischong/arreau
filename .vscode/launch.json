@@ -108,6 +108,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "view generated crystal",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/view_generated_crystal.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }

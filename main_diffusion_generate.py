@@ -51,7 +51,7 @@ def generate_single_crystal(
     num_atoms: int, visualization_setting: VisualizationSetting
 ):
     model = get_model()
-    sample_crystal(
+    result = sample_crystal(
         model=model,
         num_atoms_per_sample=num_atoms,
         num_samples_in_batch=1,
@@ -59,6 +59,9 @@ def generate_single_crystal(
     )
     if visualization_setting != VisualizationSetting.NONE:
         generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
+
+    result.idx_start = np.array([0])
+    save_sample_results_to_hdf5(result, f"{OUT_DIR}/crystals.h5")
 
 
 def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
@@ -96,5 +99,7 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
 
 
 if __name__ == "__main__":
-    generate_single_crystal(num_atoms=5, visualization_setting=VisualizationSetting.ALL)
+    generate_single_crystal(
+        num_atoms=8, visualization_setting=VisualizationSetting.NONE
+    )
     # generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)

@@ -300,9 +300,9 @@ class DiffusionLoss(torch.nn.Module):
         h = torch.randn([num_atoms.sum(), num_atomic_states])
         constant_atoms = atomic_symbols_to_indices(
             z_table,
-            # ["C", "C", "C", "C", "C", "C", "C", "C"]
+            ["C", "C", "C", "C", "C", "C", "C", "C"],
             # ["Cl", "Cl", "Cl", "Cl", "Na", "Na", "Na", "Na"],
-            ["Na", "Na", "Na", "Na", "Cl"],
+            # ["Na", "Na", "Na", "Na", "Cl"],
         )
 
         for timestep in tqdm(reversed(range(1, self.T))):
