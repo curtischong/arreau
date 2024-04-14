@@ -125,9 +125,9 @@ class VP(nn.Module):
         ) + sigma * z
 
 
-class VP_limited_mean_and_var(nn.Module):
+class VP_lattice(nn.Module):
     """
-    limit the mean and variance of the variance preserving diffusion so the lattice is not too squashed
+    variance preserving diffusion.
     """
 
     def __init__(self, num_steps=1000, s=0.0001, power=2, clipmax=0.999):
@@ -147,52 +147,26 @@ class VP_limited_mean_and_var(nn.Module):
         self.register_buffer("betas", betas)
         self.register_buffer("sigmas", sigmas)
 
-    def normalizing_mean_constant(self, n: torch.Tensor):
-        avg_density_of_dataset = 0.05539856385043283
-        c = 1 / avg_density_of_dataset
-        return torch.pow(n * c, 1 / 3)
-
-    def normalizing_variance_constant(self, n: torch.Tensor):
-        v = 152.51649752530176  # assuming that v is the average volume of the dataset
-        v = v / 6  # This is an adjustment I think will lead to more stable volumes
-        return torch.pow(n * v, 1 / 3)
-
-    def forward(self, h0: torch.Tensor, t: torch.Tensor, num_atoms: torch.Tensor):
+    def forward(self, h0, t):
         alpha_bar = self.alpha_bars[t]
-        sqrt_alpha_bar = torch.sqrt(alpha_bar).view(-1, 1)
-        num_atoms = num_atoms.unsqueeze(1)
-
-        mean = sqrt_alpha_bar * h0 + (
-            1 - sqrt_alpha_bar
-        ) * self.normalizing_mean_constant(num_atoms)
-
         eps = torch.randn_like(h0)
-        variance = (
-            torch.sqrt(1 - alpha_bar).view(-1, 1)
-            # * self.normalizing_variance_constant(num_atoms)
-            * eps
+        ht = (
+            torch.sqrt(alpha_bar).view(-1, 1) * h0
+            + torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
         )
-        print(self.normalizing_mean_constant(num_atoms))
-        ht = mean + variance
         return ht, eps
 
-    # This formula is from algorithm 2 sampling from https://arxiv.org/pdf/2006.11239.pdf
-    def reverse(self, ht, eps_h, t):
-        alpha = 1 - self.betas[t]
-        alpha = alpha.clamp_min(1 - self.betas[-2])
-        alpha_bar = self.alpha_bars[t]
-        sigma = self.sigmas[t].view(-1, 1)
-
-        # This is noise we add so when we do the backwards sample, we don't collapse to one point
-        z = torch.where(
-            (t > 1)[:, None].expand_as(ht),
-            torch.randn_like(ht),
-            torch.zeros_like(ht),
+    # since the model predicts l0, the reverse function is different from the normal VP diffusion.
+    # we are "mixing" the predicted l0 and the current lt to get lt-1
+    def reverse(self, lt, predicted_l0, t):
+        alpha_bar = self.alpha_bars[
+            t
+        ]  # we are using alpha_bar as a probability to mix the predicted l0 and the current lt
+        new_ht = (
+            (alpha_bar.view(-1, 1) * predicted_l0)
+            + ((1 - alpha_bar.view(-1, 1)) * lt)  # try blending the step from prev
         )
-
-        return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
-            ht - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1) * eps_h
-        ) + sigma * z
+        return new_ht
 
 
 def frac_to_cart_coords(
