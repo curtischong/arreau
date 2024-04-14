@@ -72,6 +72,17 @@ def vis_crystal(
     name: str,
     show_bonds: bool,
 ):
+    fig = plot_crystal(atomic_numbers, raw_lattice, frac_x, show_bonds)
+    # Save the plot as a PNG file
+    fig.write_image(name + ".png")
+
+
+def plot_crystal(
+    atomic_numbers: np.ndarray,
+    raw_lattice: np.ndarray,
+    frac_x: np.ndarray,
+    show_bonds: bool,
+) -> go.Figure:
     lattice = Lattice(raw_lattice)
     element_symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
     pos_arr = []
@@ -119,6 +130,4 @@ def vis_crystal(
         scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
         margin=dict(l=0, r=0, b=0, t=0),
     )
-
-    # Save the plot as a PNG file
-    fig.write_image(name + ".png")
+    return fig
