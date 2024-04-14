@@ -241,7 +241,11 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
+<<<<<<< HEAD
         pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
+=======
+        pred_cart_x_0, pred_eps_h, pred_symmetric_vector = self.phi(
+>>>>>>> 55f01d6 (we are now predicting the cart_x_0 positions)
             frac_x_t,
             h_t,
             t_int_atoms,
@@ -255,8 +259,8 @@ class DiffusionLoss(torch.nn.Module):
 
         # Compute the error.
         error_x = self.compute_error(
-            pred_eps_x,
-            target_eps_x / used_sigmas_x**2,
+            pred_cart_x_0,
+            cart_x_0 / used_sigmas_x**2,
             batch,
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
@@ -316,7 +320,7 @@ class DiffusionLoss(torch.nn.Module):
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
             h = constant_atoms
-            score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
+            pred_cart_x_0, score_h, pred_symmetric_vector, pred_lattice = self.phi(
                 frac_x,
                 h,
                 t,
@@ -337,7 +341,9 @@ class DiffusionLoss(torch.nn.Module):
             lattice = rotation_matrix @ next_symmetric_matrix
 
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
-            frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(
+                cart_x, pred_cart_x_0, t, lattice, num_atoms
+            )
             h = self.type_diffusion.reverse(h, score_h, t)
             h = constant_atoms
 
