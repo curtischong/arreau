@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/pred-lattice-as-well.ckpt",
+                "--model_path=models/variance-preserving-frac-coord-diffusion.ckpt",
             ],
         },
         {

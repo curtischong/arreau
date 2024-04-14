@@ -10,12 +10,11 @@ import numpy as np
 
 from diffusion.diffusion_helpers import (
     VP,
-    VE_pbc,
+    VP_coords,
     VP_lattice,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
-    subtract_cog,
     symmetric_matrix_to_vector,
     vector_to_symmetric_matrix,
 )
@@ -73,8 +72,13 @@ class DiffusionLoss(torch.nn.Module):
         self.cutoff = args.radius
         self.max_neighbors = args.max_neighbors
         self.T = args.num_timesteps
-        self.pos_diffusion = VE_pbc(
-            self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+        # self.pos_diffusion = VE_pbc(
+        #     self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+        # )
+        self.pos_diffusion = VP_coords(
+            num_steps=self.T,
+            power=type_power,  # TODO: change this to lattice_power
+            clipmax=type_clipmax,
         )
 
         self.type_diffusion = VP(
@@ -161,14 +165,16 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = model(batch)
+        pred_eps_h, pred_frac_x_0, pred_symmetric_vector_noise, pred_lattice = model(
+            batch
+        )
 
         # normalize the predictions
-        used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
-        pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
+        # used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
+        # pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
 
         return (
-            pred_eps_x.squeeze(1) / used_sigmas_x,
+            pred_frac_x_0.squeeze(1),  # squeeze to remove the "vector output" dimension
             pred_eps_h,
             pred_symmetric_vector_noise,
             pred_lattice,
@@ -209,6 +215,7 @@ class DiffusionLoss(torch.nn.Module):
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         cart_x_0 = batch.pos.squeeze(0)
         h = batch.A0
+        frac_x_0 = batch.X0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
@@ -229,9 +236,11 @@ class DiffusionLoss(torch.nn.Module):
         t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
-        frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
-            cart_x_0, t_int_atoms, lattice, num_atoms
-        )
+        # frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
+        #     cart_x_0, t_int_atoms, lattice, num_atoms
+        # )
+        frac_x_t, frac_x_noise = self.pos_diffusion(frac_x_0, t_int_atoms)
+        frac_x_t = frac_x_t % 1
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         (
             noisy_lattice,
@@ -241,7 +250,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
+        pred_frac_x_0, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
@@ -254,12 +263,13 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         # Compute the error.
-        error_x = self.compute_error(
-            pred_eps_x,
-            target_eps_x / used_sigmas_x**2,
-            batch,
-            0.5 * used_sigmas_x**2,
-        )  # likelihood reweighting
+        # error_x = self.compute_error(
+        #     pred_eps_x,
+        #     target_eps_x / used_sigmas_x**2,
+        #     batch,
+        #     0.5 * used_sigmas_x**2,
+        # )  # likelihood reweighting
+        error_x = self.compute_error(pred_frac_x_0, frac_x_0, batch)
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector
@@ -336,8 +346,7 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
-            frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t) % 1
             h = self.type_diffusion.reverse(h, score_h, t)
             h = constant_atoms
 

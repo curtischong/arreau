@@ -127,6 +127,61 @@ class VP(nn.Module):
         ) + sigma * z
 
 
+class VP_coords(nn.Module):
+    """
+    variance preserving diffusion.
+    """
+
+    def __init__(self, num_steps=1000, s=0.0001, power=2, clipmax=0.999):
+        super().__init__()
+        t = torch.arange(0, num_steps + 1, dtype=torch.float)
+        # play with the parameters here: https://www.desmos.com/calculator/jtb6whrvej
+        # cosine schedule introduced in https://arxiv.org/abs/2102.09672
+        f_t = torch.cos((np.pi / 2) * ((t / num_steps) + s) / (1 + s)) ** power
+        alpha_bars = f_t / f_t[0]
+        betas = torch.cat(
+            [torch.zeros([1]), 1 - (alpha_bars[1:] / alpha_bars[:-1])], dim=0
+        )
+        betas = betas.clamp_max(clipmax)
+        sigmas = torch.sqrt(betas[1:] * ((1 - alpha_bars[:-1]) / (1 - alpha_bars[1:])))
+        sigmas = torch.cat([torch.zeros([1]), sigmas], dim=0)
+        self.register_buffer("alpha_bars", alpha_bars)
+        self.register_buffer("betas", betas)
+        self.register_buffer("sigmas", sigmas)
+
+    def forward(self, h0, t):
+        alpha_bar = self.alpha_bars[t]
+        eps = torch.randn_like(h0)
+        ht = (
+            torch.sqrt(alpha_bar).view(-1, 1) * h0
+            + torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
+        )
+        return ht, eps
+
+    # This formula is from algorithm 2 sampling from https://arxiv.org/pdf/2006.11239.pdf
+    def reverse(self, ht, predicted_x0, t):
+        alpha = 1 - self.betas[t]
+        alpha = alpha.clamp_min(1 - self.betas[-2])
+        alpha_bar = self.alpha_bars[t]
+        sigma = self.sigmas[t].view(-1, 1)
+
+        # predicted_noise = lt - predicted_l0
+        predicted_noise = ht - predicted_x0
+
+        # This is noise we add so when we do the backwards sample, we don't collapse to one point
+        z = torch.where(
+            (t > 1)[:, None].expand_as(ht),
+            torch.randn_like(ht),
+            torch.zeros_like(ht),
+        )
+
+        return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
+            ht
+            - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
+            * predicted_noise
+        ) + sigma * z
+
+
 class VP_lattice(nn.Module):
     """
     variance preserving diffusion.
