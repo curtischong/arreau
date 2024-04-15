@@ -67,7 +67,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         out_channels_global_scalar = (
             6  # 6 predicted noise in the noisy_symmetric_vector params
         )
-        out_channels_global_vector = 0
+        out_channels_global_vector = 3  # predicted lattice at t=0 (3)
 
         # Make the model
         self.model = PonitaFiberBundle(
