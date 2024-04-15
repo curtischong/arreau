@@ -140,11 +140,13 @@ class DiffusionLoss(torch.nn.Module):
         scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
         cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
 
+        lattice_feat = torch.repeat_interleave(lattice, num_atoms, dim=0)
+
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = scalar_feats
         batch.pos = cart_x_t
-        batch.vec = frac_x_t.unsqueeze(1)
+        batch.vec = torch.cat([frac_x_t.unsqueeze(1), lattice_feat], dim=1)
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
