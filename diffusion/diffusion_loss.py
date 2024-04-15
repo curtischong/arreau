@@ -26,7 +26,6 @@ from diffusion.inference.visualize_crystal import (
     VisualizationSetting,
     vis_crystal_during_sampling,
 )
-from torch.nn import functional as F
 
 
 pos_sigma_min = 0.001
@@ -243,14 +242,16 @@ class DiffusionLoss(torch.nn.Module):
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
         h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
-        (
-            noisy_lattice,
-            noisy_symmetric_vector,
-            _symmetric_vector_noise,
-            symmetric_matrix_vector,
-        ) = self.diffuse_lattice_params(lattice, t_int)
+        # (
+        #     noisy_lattice,
+        #     noisy_symmetric_vector,
+        #     _symmetric_vector_noise,
+        #     symmetric_matrix_vector,
+        # ) = self.diffuse_lattice_params(lattice, t_int)
 
-        noisy_lattice = constant_lattice.repeat(10, 1, 1)
+        noisy_lattice = lattice  # just do not diffuse the lattice
+        rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
+        symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
         # Compute the prediction.
         pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
@@ -259,7 +260,7 @@ class DiffusionLoss(torch.nn.Module):
             t_int_atoms,
             num_atoms,
             noisy_lattice,
-            noisy_symmetric_vector,
+            symmetric_matrix_vector,
             model,
             batch,
             t_emb_weights,
@@ -273,9 +274,9 @@ class DiffusionLoss(torch.nn.Module):
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
-        error_l = F.mse_loss(
-            pred_symmetric_vector, symmetric_matrix_vector
-        ) + F.mse_loss(pred_lattice, lattice)
+        # error_l = F.mse_loss(
+        #     pred_symmetric_vector, symmetric_matrix_vector
+        # ) + F.mse_loss(pred_lattice, lattice)
 
         loss = (
             self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
