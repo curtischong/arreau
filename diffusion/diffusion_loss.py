@@ -283,6 +283,7 @@ class DiffusionLoss(torch.nn.Module):
         vis_name: str,
         visualization_setting: VisualizationSetting,
         show_bonds: bool,
+        # if we want to test if the model can make carbon crystals, we tell it to only diffuse on carbon atoms
         constant_atoms: Optional[torch.Tensor] = None,
     ) -> SampleResult:
         num_atomic_states = len(z_table)
