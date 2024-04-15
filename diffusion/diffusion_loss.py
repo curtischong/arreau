@@ -241,11 +241,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-<<<<<<< HEAD
-        pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
-=======
-        pred_cart_x_0, pred_eps_h, pred_symmetric_vector = self.phi(
->>>>>>> 55f01d6 (we are now predicting the cart_x_0 positions)
+        pred_cart_x_0, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,

@@ -62,32 +62,24 @@ class VE_pbc(nn.Module):
         xt should be wrapped cart coords.
         """
         sigmas = self.sigmas[t].view(-1, 1)
-        largest_sigma = self.sigmas[-1].view(-1, 1)
-        # adjacent_sigmas = torch.where(
-        #     (t == 0).view(-1, 1),
-        #     torch.zeros_like(sigmas),
-        #     self.sigmas[t - 1].view(-1, 1),
-        # )
-        random_amount = sigmas / largest_sigma
+        adjacent_sigmas = torch.where(
+            (t == 0).view(-1, 1),
+            torch.zeros_like(sigmas),
+            self.sigmas[t - 1].view(-1, 1),
+        )
 
-        new_xt = pred_x_0 * (1 - random_amount) + xt * random_amount
-        frac_p_next = cart_to_frac_coords(new_xt, lattice, num_atoms)
+        epx_x = (
+            xt - pred_x_0
+        )  # calculate hte noise from the prediciton of the original x0
+
+        cart_p_mean = xt - epx_x * (sigmas**2 - adjacent_sigmas**2)
+        # the sign of eps_p here is related to the verification above.
+        cart_p_rand = torch.sqrt(
+            (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
+        ) * torch.randn_like(xt)
+        cart_p_next = cart_p_mean + cart_p_rand  # before wrapping
+        frac_p_next = cart_to_frac_coords(cart_p_next, lattice, num_atoms)
         return frac_p_next
-
-        # TODO: do the mesh thing to move it closer to x0. we need to change this one line
-        # cart_p_mean = xt - pred_x_0 * (sigmas**2 - adjacent_sigmas**2)
-
-        # # the sign of eps_p here is related to the verification above.
-        # cart_p_rand = (
-        #     torch.sqrt(
-        #         (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
-        #     )
-        #     * torch.randn_like(xt)
-        # )  # this is just noise we add so when we do the backwards sample, we don't collapse to one point
-
-        # cart_p_next = cart_p_mean + cart_p_rand  # before wrapping
-        # frac_p_next = cart_to_frac_coords(cart_p_next, lattice, num_atoms)
-        # return frac_p_next
 
 
 class VP(nn.Module):
