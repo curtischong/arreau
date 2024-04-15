@@ -109,7 +109,8 @@ class VP(nn.Module):
         return ht, eps
 
     # This formula is from algorithm 2 sampling from https://arxiv.org/pdf/2006.11239.pdf
-    def reverse(self, ht, eps_h, t):
+    def reverse(self, ht, h0, t):
+        eps_h = ht - h0  # this is the predicted noise since we're predicting h0
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]

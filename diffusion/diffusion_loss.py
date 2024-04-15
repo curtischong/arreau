@@ -160,15 +160,21 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = model(batch)
+        pred_node_constants, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = (
+            model(batch)
+        )
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
 
+        num_atomic_types = pred_node_constants.shape[1] // 2
+        pred_eps_h = pred_node_constants[:, :num_atomic_types]
+        pred_h_0 = pred_node_constants[:, num_atomic_types:]
         return (
             pred_eps_x.squeeze(1) / used_sigmas_x,
             pred_eps_h,
+            pred_h_0,
             pred_symmetric_vector_noise,
             pred_lattice,
         )
@@ -240,16 +246,18 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
-            frac_x_t,
-            h_t,
-            t_int_atoms,
-            num_atoms,
-            noisy_lattice,
-            noisy_symmetric_vector,
-            model,
-            batch,
-            t_emb_weights,
+        pred_eps_x, pred_eps_h, pred_h_0, pred_symmetric_vector, pred_lattice = (
+            self.phi(
+                frac_x_t,
+                h_t,
+                t_int_atoms,
+                num_atoms,
+                noisy_lattice,
+                noisy_symmetric_vector,
+                model,
+                batch,
+                t_emb_weights,
+            )
         )
 
         # Compute the error.
@@ -259,7 +267,9 @@ class DiffusionLoss(torch.nn.Module):
             batch,
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
-        error_h = self.compute_error(pred_eps_h, eps_h, batch)
+        error_h = self.compute_error(pred_eps_h, eps_h, batch) + self.compute_error(
+            pred_h_0, h, batch
+        )
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector
         ) + F.mse_loss(pred_lattice, lattice)
