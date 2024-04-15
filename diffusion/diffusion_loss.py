@@ -161,9 +161,7 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_symmetric_vector_noise, _pred_eps_global_vec = (
-            model(batch)
-        )
+        pred_eps_h, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = model(batch)
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
@@ -173,6 +171,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_eps_x.squeeze(1) / used_sigmas_x,
             pred_eps_h,
             pred_symmetric_vector_noise,
+            pred_lattice,
         )
 
     def normalize(self, x, h):
@@ -242,7 +241,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_symmetric_vector = self.phi(
+        pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
@@ -262,7 +261,9 @@ class DiffusionLoss(torch.nn.Module):
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
         error_h = self.compute_error(pred_eps_h, eps_h, batch)
-        error_l = F.mse_loss(pred_symmetric_vector, symmetric_matrix_vector)
+        error_l = F.mse_loss(
+            pred_symmetric_vector, symmetric_matrix_vector
+        ) + F.mse_loss(pred_lattice, lattice)
 
         loss = (
             self.cost_coord_coeff * error_x
@@ -315,7 +316,7 @@ class DiffusionLoss(torch.nn.Module):
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
             h = constant_atoms
-            score_x, score_h, pred_symmetric_vector = self.phi(
+            score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
                 frac_x,
                 h,
                 t,
@@ -329,7 +330,7 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
-                symmetric_vector, pred_symmetric_vector, timestep_vec
+                symmetric_vector, pred_symmetric_vector, pred_lattice, timestep_vec
             )
 
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
