@@ -323,7 +323,7 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
+            score_x, score_h, pred_h_0, pred_symmetric_vector, pred_lattice = self.phi(
                 frac_x,
                 h,
                 t,
@@ -345,7 +345,7 @@ class DiffusionLoss(torch.nn.Module):
 
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
-            h = self.type_diffusion.reverse(h, score_h, t)
+            h = self.type_diffusion.reverse(h, score_h, pred_h_0, t)
             if constant_atoms is not None:
                 h = constant_atoms
 
