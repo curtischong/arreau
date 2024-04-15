@@ -161,14 +161,25 @@ class VP_lattice(nn.Module):
     # since the model predicts l0, the reverse function is different from the normal VP diffusion.
     # we are "mixing" the predicted l0 and the current lt to get lt-1
     def reverse(self, lt, predicted_l0, t):
-        alpha_bar = self.alpha_bars[
-            t
-        ]  # we are using alpha_bar as a probability to mix the predicted l0 and the current lt
-        new_ht = (
-            (alpha_bar.view(-1, 1) * predicted_l0)
-            + ((1 - alpha_bar.view(-1, 1)) * lt)  # try blending the step from prev
+        alpha = 1 - self.betas[t]
+        alpha = alpha.clamp_min(1 - self.betas[-2])
+        alpha_bar = self.alpha_bars[t]
+        sigma = self.sigmas[t].view(-1, 1)
+
+        predicted_noise = lt - predicted_l0
+
+        # This is noise we add so when we do the backwards sample, we don't collapse to one point
+        z = torch.where(
+            (t > 1)[:, None].expand_as(lt),
+            torch.randn_like(lt),
+            torch.zeros_like(lt),
         )
-        return new_ht
+
+        return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
+            lt
+            - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
+            * predicted_noise
+        ) + sigma * z
 
     # def normalizing_mean_constant(self, n: torch.Tensor):
     #     avg_density_of_dataset = 0.05539856385043283
