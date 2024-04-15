@@ -166,7 +166,13 @@ class VP_lattice(nn.Module):
         alpha_bar = self.alpha_bars[t]
         sigma = self.sigmas[t].view(-1, 1)
 
-        predicted_noise = lt - predicted_l0
+        _, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice)
+        pred_lattice_symmetric_vector = symmetric_matrix_to_vector(
+            pred_lattice_symmetric_matrix
+        )
+
+        # predicted_noise = lt - predicted_l0
+        predicted_noise = lt - ((pred_lattice_symmetric_vector + predicted_l0) / 2)
 
         # This is noise we add so when we do the backwards sample, we don't collapse to one point
         z = torch.where(
