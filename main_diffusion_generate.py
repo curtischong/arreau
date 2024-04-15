@@ -2,7 +2,6 @@ import argparse
 import torch
 from diffusion.diffusion_loss import SampleResult
 from diffusion.inference.create_gif import generate_gif
-import os
 from diffusion.inference.process_generated_crystals import save_sample_results_to_hdf5
 from diffusion.inference.visualize_crystal import VisualizationSetting
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
@@ -29,33 +28,15 @@ def get_model() -> PONITA_DIFFUSION:
     return PONITA_DIFFUSION.load_from_checkpoint(model_path, strict=False)
 
 
-def sample_crystal(
-    model: PONITA_DIFFUSION,
-    num_atoms_per_sample: int,
-    num_samples_in_batch: int,
-    visualization_setting: VisualizationSetting,
-) -> SampleResult:
-    os.makedirs(DIFFUSION_DIR, exist_ok=True)
-    vis_name = f"{DIFFUSION_DIR}/step"
-
-    return model.sample(
-        num_atoms_per_sample=num_atoms_per_sample,
-        vis_name=vis_name,
-        num_samples_in_batch=num_samples_in_batch,
-        visualization_setting=visualization_setting,
-        show_bonds=SHOW_BONDS,
-    )
-
-
 def generate_single_crystal(
     num_atoms: int, visualization_setting: VisualizationSetting
 ):
     model = get_model()
-    result = sample_crystal(
-        model=model,
+    result = model.sample(
         num_atoms_per_sample=num_atoms,
         num_samples_in_batch=1,
         visualization_setting=visualization_setting,
+        show_bonds=SHOW_BONDS,
     )
     if visualization_setting != VisualizationSetting.NONE:
         generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
@@ -82,11 +63,11 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
     crystals.num_atoms = np.full(num_crystals, num_atoms_per_sample)
 
     for i in range(0, num_crystals, num_crystals_per_batch):
-        generated_crystals = sample_crystal(
-            model=model,
+        generated_crystals = model.sample(
             num_atoms_per_sample=num_atoms_per_sample,
             num_samples_in_batch=num_crystals_per_batch,
             visualization_setting=VisualizationSetting.NONE,
+            show_bonds=SHOW_BONDS,
         )
         num_atoms_in_batch = num_atoms_per_sample * num_crystals_per_batch
         crystals.frac_x[i : i + num_atoms_in_batch] = generated_crystals.frac_x
