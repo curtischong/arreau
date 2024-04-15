@@ -241,7 +241,9 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
-        h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
+        # h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
+        h_t = h
+
         # (
         #     noisy_lattice,
         #     noisy_symmetric_vector,
@@ -273,13 +275,14 @@ class DiffusionLoss(torch.nn.Module):
             batch,
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
-        error_h = self.compute_error(pred_eps_h, eps_h, batch)
+        # error_h = self.compute_error(pred_eps_h, eps_h, batch)
         # error_l = F.mse_loss(
         #     pred_symmetric_vector, symmetric_matrix_vector
         # ) + F.mse_loss(pred_lattice, lattice)
 
         loss = (
-            self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
+            self.cost_coord_coeff * error_x
+            # + self.cost_type_coeff * error_h
             # + self.lattice_coeff * error_l
         )
         return loss.mean()
