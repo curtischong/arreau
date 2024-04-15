@@ -37,6 +37,17 @@ lattice_power = 2
 type_clipmax = 0.999
 lattice_clipmax = 0.999
 
+constant_lattice = torch.tensor(
+    [
+        [
+            [5.28526086, 0.0, 0.0],
+            [2.64263043, 4.57717017, 0.0],
+            [2.64263043, 1.52572339, 4.31539742],
+        ]
+    ],
+    dtype=torch.float64,
+)
+
 
 @dataclass
 class SampleResult:
@@ -239,6 +250,8 @@ class DiffusionLoss(torch.nn.Module):
             symmetric_matrix_vector,
         ) = self.diffuse_lattice_params(lattice, t_int)
 
+        noisy_lattice = constant_lattice.repeat(10, 1, 1)
+
         # Compute the prediction.
         pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
@@ -265,9 +278,8 @@ class DiffusionLoss(torch.nn.Module):
         ) + F.mse_loss(pred_lattice, lattice)
 
         loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
+            self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
+            # + self.lattice_coeff * error_l
         )
         return loss.mean()
 
@@ -306,6 +318,8 @@ class DiffusionLoss(torch.nn.Module):
         else:
             h = torch.randn([num_atoms.sum(), num_atomic_states])
 
+        lattice = constant_lattice
+
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
@@ -332,6 +346,7 @@ class DiffusionLoss(torch.nn.Module):
 
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
+            lattice = constant_lattice
 
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
