@@ -2,6 +2,7 @@ from enum import Enum
 from pymatgen.core import Structure, Lattice
 from pymatgen.core.periodic_table import Element
 import numpy as np
+
 import plotly.graph_objects as go
 from diffusion.inference.predict_bonds import predict_bonds
 from diffusion.inference.visualize_lattice import plot_edges, plot_with_parallelopied
@@ -92,9 +93,7 @@ def plot_crystal(
     # TODO: find a workaround. this is so hacky
     try:
         # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
-        structure = Structure(
-            lattice, element_symbols, pos_arr, coords_are_cartesian=False
-        )
+        return Structure(lattice, element_symbols, pos_arr, coords_are_cartesian=False)
     except Exception as e:
         print("Error in visualizing crystal", e)
         return

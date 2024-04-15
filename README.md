@@ -69,3 +69,5 @@ You can download the mace-mp-0 model
 
 Download mace-mp-0 [here](https://github.com/ACEsuit/mace-mp/releases/download/mace_mp_0/2024-01-07-mace-128-L2_epoch-199.model)
 - View all releases [here](https://github.com/ACEsuit/mace-mp/releases/tag/mace_mp_0)
+
+install jupyter notebook: python -m ipykernel install --user --name=venv

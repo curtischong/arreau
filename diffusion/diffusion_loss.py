@@ -355,9 +355,7 @@ class DiffusionLoss(torch.nn.Module):
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
                 z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
-             vis_crystal_during_sampling(
-                z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
-            ))
+            )
         h_best_idx = torch.argmax(h, dim=1).numpy()
         atomic_numbers = np.vectorize(z_table.index_to_z)(h_best_idx)
         return SampleResult(
