@@ -20,7 +20,7 @@ from ponita.transforms.random_rotate import RandomRotate, RotateDef
 
 fourier_scale = 16
 t_emb_dim = 64
-OUT_DIR = pathlib.Path(__file__).parent.resolve() + "../out"
+OUT_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../out"
 DIFFUSION_DIR = f"{OUT_DIR}/diffusion"
 
 
@@ -221,6 +221,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
                 z_table,
                 use_constant_atomic_symbols,
             )
+        else:
+            constant_atoms = None
 
         os.makedirs(DIFFUSION_DIR, exist_ok=True)
         vis_name = f"{DIFFUSION_DIR}/step"

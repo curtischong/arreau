@@ -1,4 +1,5 @@
 import argparse
+from typing import Optional
 import torch
 from diffusion.diffusion_loss import SampleResult
 from diffusion.inference.create_gif import generate_gif
@@ -29,7 +30,9 @@ def get_model() -> PONITA_DIFFUSION:
 
 
 def generate_single_crystal(
-    num_atoms: int, visualization_setting: VisualizationSetting
+    num_atoms: int,
+    visualization_setting: VisualizationSetting,
+    use_constant_atomic_symbols: Optional[list[str]],
 ):
     model = get_model()
     result = model.sample(
@@ -37,6 +40,7 @@ def generate_single_crystal(
         num_samples_in_batch=1,
         visualization_setting=visualization_setting,
         show_bonds=SHOW_BONDS,
+        use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
     if visualization_setting != VisualizationSetting.NONE:
         generate_gif(src_img_dir=DIFFUSION_DIR, output_file=f"{OUT_DIR}/crystal.gif")
@@ -45,7 +49,11 @@ def generate_single_crystal(
     save_sample_results_to_hdf5(result, f"{OUT_DIR}/crystals.h5")
 
 
-def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
+def generate_n_crystals(
+    num_crystals: int,
+    num_atoms_per_sample: int,
+    use_constant_atomic_symbols: Optional[list[str]],
+):
     num_crystals_per_batch = 2
     assert num_crystals_per_batch > 0
     assert (
@@ -68,6 +76,7 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
             num_samples_in_batch=num_crystals_per_batch,
             visualization_setting=VisualizationSetting.NONE,
             show_bonds=SHOW_BONDS,
+            use_constant_atomic_symbols=use_constant_atomic_symbols,
         )
         num_atoms_in_batch = num_atoms_per_sample * num_crystals_per_batch
         crystals.frac_x[i : i + num_atoms_in_batch] = generated_crystals.frac_x
@@ -80,5 +89,15 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
 
 
 if __name__ == "__main__":
-    generate_single_crystal(num_atoms=8, visualization_setting=VisualizationSetting.ALL)
+    num_atoms = 8
+    use_constant_atomic_symbols = ["Au", "Au", "Au", "Au"]
+
+    if use_constant_atomic_symbols is not None:
+        num_atoms = len(use_constant_atomic_symbols)
+
+    generate_single_crystal(
+        num_atoms=num_atoms,
+        visualization_setting=VisualizationSetting.LAST,
+        use_constant_atomic_symbols=use_constant_atomic_symbols,
+    )
     # generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)
