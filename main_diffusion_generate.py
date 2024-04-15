@@ -100,6 +100,6 @@ def generate_n_crystals(num_crystals: int, num_atoms_per_sample: int):
 
 if __name__ == "__main__":
     generate_single_crystal(
-        num_atoms=12, visualization_setting=VisualizationSetting.ALL
+        num_atoms=40, visualization_setting=VisualizationSetting.ALL
     )
     # generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)
