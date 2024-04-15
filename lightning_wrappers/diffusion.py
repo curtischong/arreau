@@ -1,3 +1,6 @@
+import os
+import pathlib
+from typing import Optional
 import torch
 import pytorch_lightning as pl
 from diffusion.diffusion_helpers import GaussianFourierProjection
@@ -5,7 +8,10 @@ from torch_geometric.data import Batch
 
 from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric, SampleResult
 from diffusion.inference.visualize_crystal import VisualizationSetting
-from diffusion.tools.atomic_number_table import AtomicNumberTable
+from diffusion.tools.atomic_number_table import (
+    AtomicNumberTable,
+    atomic_symbols_to_indices,
+)
 
 from .scheduler import CosineWarmupScheduler
 from ponita.models.ponita import PonitaFiberBundle
@@ -14,6 +20,8 @@ from ponita.transforms.random_rotate import RandomRotate, RotateDef
 
 fourier_scale = 16
 t_emb_dim = 64
+OUT_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../out"
+DIFFUSION_DIR = f"{OUT_DIR}/diffusion"
 
 
 class PONITA_DIFFUSION(pl.LightningModule):
@@ -202,11 +210,23 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self,
         num_atoms_per_sample: int,
         num_samples_in_batch: int,
-        vis_name: str,
         visualization_setting: VisualizationSetting,
         show_bonds: bool,
+        use_constant_atomic_symbols: Optional[str] = None,
     ) -> SampleResult:
         z_table = AtomicNumberTable(self.z_table_zs.tolist())
+
+        if use_constant_atomic_symbols is not None:
+            constant_atoms = atomic_symbols_to_indices(
+                z_table,
+                use_constant_atomic_symbols,
+            )
+        else:
+            constant_atoms = None
+
+        os.makedirs(DIFFUSION_DIR, exist_ok=True)
+        vis_name = f"{DIFFUSION_DIR}/step"
+
         return self.diffusion_loss.sample(
             model=self,
             z_table=z_table,
@@ -216,4 +236,5 @@ class PONITA_DIFFUSION(pl.LightningModule):
             vis_name=vis_name,
             visualization_setting=visualization_setting,
             show_bonds=show_bonds,
+            constant_atoms=constant_atoms,
         )
