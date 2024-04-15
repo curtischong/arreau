@@ -160,7 +160,7 @@ class VP_lattice(nn.Module):
 
     # since the model predicts l0, the reverse function is different from the normal VP diffusion.
     # we are "mixing" the predicted l0 and the current lt to get lt-1
-    def reverse(self, lt, predicted_l0, t):
+    def reverse(self, lt, predicted_l0, pred_lattice, t):
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]

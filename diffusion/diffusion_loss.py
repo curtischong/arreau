@@ -316,7 +316,7 @@ class DiffusionLoss(torch.nn.Module):
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
             h = constant_atoms
-            score_x, score_h, pred_symmetric_vector = self.phi(
+            score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
                 frac_x,
                 h,
                 t,
@@ -330,7 +330,7 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
-                symmetric_vector, pred_symmetric_vector, timestep_vec
+                symmetric_vector, pred_symmetric_vector, pred_lattice, timestep_vec
             )
 
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
