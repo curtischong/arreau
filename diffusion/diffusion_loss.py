@@ -67,7 +67,7 @@ class DiffusionLossMetric(torchmetrics.Metric):
 
 
 class DiffusionLoss(torch.nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, num_atomic_states: int):
         super().__init__()
         self.cutoff = args.radius
         self.max_neighbors = args.max_neighbors
@@ -81,7 +81,9 @@ class DiffusionLoss(torch.nn.Module):
         #     power=type_power,
         #     clipmax=type_clipmax,
         # )
-        self.d3pm = D3PM(x0_model=None, n_T=None, num_classses=None)
+        self.d3pm = D3PM(
+            x0_model=None, n_T=args.num_timesteps, num_classes=num_atomic_states
+        )
 
         self.lattice_diffusion = VP_lattice(
             num_steps=self.T,
