@@ -239,6 +239,8 @@ class DiffusionLoss(torch.nn.Module):
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
         h_t = self.d3pm.get_xt(h, t_int_atoms.squeeze())
+
+        h_t_onehot = F.one_hot(h_t, self.num_atomic_states).float()
         # h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         (
             noisy_lattice,
@@ -250,7 +252,7 @@ class DiffusionLoss(torch.nn.Module):
         # Compute the prediction.
         pred_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
-            h,  # this is so weird. we pass in h_0 and get the model to predict the logits for h_0
+            h_t_onehot,
             t_int_atoms,
             num_atoms,
             noisy_lattice,
@@ -268,8 +270,6 @@ class DiffusionLoss(torch.nn.Module):
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
         # error_h = self.compute_error(pred_eps_h, eps_h, batch)
-
-        h_t_onehot = F.one_hot(h_t, self.num_atomic_states).float()
 
         error_h = self.d3pm.calculate_loss(
             h, predicted_h0_logits, h_t_onehot, t_int_atoms.squeeze()
