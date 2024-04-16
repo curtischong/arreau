@@ -121,6 +121,30 @@ class D3PM(nn.Module):
 
         return predicted_x0_logits
 
+    def get_xt(self, x_0: torch.Tensor, t: torch.Tensor):
+        noise = torch.rand((*x_0.shape, self.num_classses), device=x_0.device)
+        x_t = self.q_sample(x_0, t, noise)
+        return x_t
+
+    def calculate_loss(
+        self,
+        x_0: torch.Tensor,
+        predicted_x0_logits: torch.Tensor,
+        x_t: torch.Tensor,
+        t: torch.Tensor,
+    ):
+        true_q_posterior_logits = self.q_posterior_logits(x_0, x_t, t)
+        pred_q_posterior_logits = self.q_posterior_logits(predicted_x0_logits, x_t, t)
+
+        vb_loss = self.vb(true_q_posterior_logits, pred_q_posterior_logits)
+
+        predicted_x0_logits = predicted_x0_logits.flatten(start_dim=0, end_dim=-2)
+        x_0 = x_0.flatten(start_dim=0, end_dim=-1)
+
+        ce_loss = torch.nn.CrossEntropyLoss()(predicted_x0_logits, x_0)
+
+        return vb_loss * self.hybrid_loss_coeff + ce_loss
+
     def forward(self, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
         """
         Makes forward diffusion x_t from x_0, and tries to guess x_0 value from x_t using x0_model.

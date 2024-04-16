@@ -7,9 +7,9 @@ from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
 import numpy as np
+from diffusion.d3pm import D3PM
 
 from diffusion.diffusion_helpers import (
-    VP,
     VE_pbc,
     VP_lattice,
     frac_to_cart_coords,
@@ -76,11 +76,12 @@ class DiffusionLoss(torch.nn.Module):
             self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
         )
 
-        self.type_diffusion = VP(
-            num_steps=self.T,
-            power=type_power,
-            clipmax=type_clipmax,
-        )
+        # self.type_diffusion = VP(
+        #     num_steps=self.T,
+        #     power=type_power,
+        #     clipmax=type_clipmax,
+        # )
+        self.d3pm = D3PM(x0_model=None, n_T=None, num_classses=None)
 
         self.lattice_diffusion = VP_lattice(
             num_steps=self.T,
@@ -160,7 +161,9 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = model(batch)
+        predicted_h0_logits, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = (
+            model(batch)
+        )
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
@@ -168,7 +171,7 @@ class DiffusionLoss(torch.nn.Module):
 
         return (
             pred_eps_x.squeeze(1) / used_sigmas_x,
-            pred_eps_h,
+            predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice,
         )
@@ -231,7 +234,8 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
-        h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
+        h_t = self.d3pm.get_xt(h, t_int_atoms)
+        # h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         (
             noisy_lattice,
             noisy_symmetric_vector,
@@ -240,7 +244,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
+        pred_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
             h_t,
             t_int_atoms,
@@ -259,7 +263,8 @@ class DiffusionLoss(torch.nn.Module):
             batch,
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
-        error_h = self.compute_error(pred_eps_h, eps_h, batch)
+        # error_h = self.compute_error(pred_eps_h, eps_h, batch)
+        error_h = self.d3pm.calculate_loss(h, predicted_h0_logits, h_t, t_int_atoms)
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector
         ) + F.mse_loss(pred_lattice, lattice)
