@@ -180,10 +180,9 @@ class DiffusionLoss(torch.nn.Module):
             pred_lattice,
         )
 
-    def normalize(self, x, h):
+    def normalize(self, x):
         x = x / self.norm_x
-        h = h / self.norm_h
-        return x, h
+        return x
 
     def unnormalize(self, x, h):
         x = x * self.norm_x
@@ -219,7 +218,7 @@ class DiffusionLoss(torch.nn.Module):
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
-        cart_x_0, h = self.normalize(cart_x_0, h)
+        cart_x_0 = self.normalize(cart_x_0)
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
@@ -272,7 +271,7 @@ class DiffusionLoss(torch.nn.Module):
         # error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         error_h = self.d3pm.calculate_loss(
-            h, predicted_h0_logits, h_t_onehot, t_int_atoms.squeeze()
+            h, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector

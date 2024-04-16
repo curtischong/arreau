@@ -62,8 +62,8 @@ class D3PM(nn.Module):
         # if x.dim() > 1:
         #     x = x.argmax(dim=-1)
 
-        # return a[t - 1, x, :]
-        return torch.matmul(a[t - 1], x.unsqueeze(-1)).squeeze(-1)
+        return a[t - 1, x, :]
+        # return torch.matmul(a[t - 1], x.unsqueeze(-1)).squeeze(-1)
 
     def q_posterior_logits(self, x_0, x_t, t):
         # if t == 1, this means we return the L_0 loss, so directly try to x_0 logits.
@@ -78,8 +78,8 @@ class D3PM(nn.Module):
         else:
             x_0_logits = x_0.clone()
 
-        # assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
-        assert x_0_logits.shape == x_t.shape, print(
+        assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
+            # assert x_0_logits.shape == x_t.shape, print(
             f"x_0_logits.shape: {x_0_logits.shape}, x_t.shape: {x_t.shape}"
         )
 
@@ -147,7 +147,7 @@ class D3PM(nn.Module):
 
         vb_loss = self.vb(true_q_posterior_logits, pred_q_posterior_logits)
 
-        predicted_x0_logits = predicted_x0_logits.flatten(start_dim=0, end_dim=-1)
+        predicted_x0_logits = predicted_x0_logits.flatten(start_dim=0, end_dim=-2)
         x_0 = x_0.flatten(start_dim=0, end_dim=-1)
 
         ce_loss = torch.nn.CrossEntropyLoss()(predicted_x0_logits, x_0)
