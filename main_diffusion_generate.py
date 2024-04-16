@@ -54,7 +54,7 @@ def generate_n_crystals(
     num_atoms_per_sample: int,
     use_constant_atomic_symbols: Optional[list[str]],
 ):
-    num_crystals_per_batch = 8
+    num_crystals_per_batch = 2
     assert num_crystals_per_batch > 0
     assert num_crystals_per_batch <= num_crystals
     assert (
@@ -102,13 +102,13 @@ if __name__ == "__main__":
     if use_constant_atomic_symbols is not None:
         num_atoms = len(use_constant_atomic_symbols)
 
-    # generate_single_crystal(
-    #     num_atoms=num_atoms,
-    #     visualization_setting=VisualizationSetting.NONE,
-    #     use_constant_atomic_symbols=use_constant_atomic_symbols,
-    # )
-    generate_n_crystals(
-        num_crystals=32,
-        num_atoms_per_sample=6,
+    generate_single_crystal(
+        num_atoms=num_atoms,
+        visualization_setting=VisualizationSetting.ALL,
         use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
+    # generate_n_crystals(
+    #     num_crystals=2,
+    #     num_atoms_per_sample=20,
+    #     use_constant_atomic_symbols=use_constant_atomic_symbols,
+    # )
