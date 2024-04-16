@@ -9,7 +9,7 @@ from diffusion.inference.visualize_lattice import plot_edges, plot_with_parallel
 
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
-    one_hot_to_atomic_numbers,
+    atomic_number_indexes_to_atomic_numbers,
 )
 
 
@@ -62,7 +62,7 @@ def vis_crystal_during_sampling(
     show_bonds: bool,
 ):
     lattice = lattice.squeeze(0)
-    atomic_numbers = one_hot_to_atomic_numbers(z_table, A)
+    atomic_numbers = atomic_number_indexes_to_atomic_numbers(z_table, A)
     return visualize_and_save_crystal(atomic_numbers, lattice, frac_x, name, show_bonds)
 
 

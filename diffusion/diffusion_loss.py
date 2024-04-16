@@ -7,9 +7,9 @@ from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
 import numpy as np
+from diffusion.d3pm import D3PM
 
 from diffusion.diffusion_helpers import (
-    VP,
     VE_pbc,
     VP_lattice,
     frac_to_cart_coords,
@@ -21,6 +21,7 @@ from diffusion.diffusion_helpers import (
 )
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
+    atomic_number_indexes_to_atomic_numbers,
 )
 from diffusion.inference.visualize_crystal import (
     VisualizationSetting,
@@ -67,7 +68,7 @@ class DiffusionLossMetric(torchmetrics.Metric):
 
 
 class DiffusionLoss(torch.nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, num_atomic_states: int):
         super().__init__()
         self.cutoff = args.radius
         self.max_neighbors = args.max_neighbors
@@ -76,10 +77,8 @@ class DiffusionLoss(torch.nn.Module):
             self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
         )
 
-        self.type_diffusion = VP(
-            num_steps=self.T,
-            power=type_power,
-            clipmax=type_clipmax,
+        self.d3pm = D3PM(
+            x0_model=None, n_T=args.num_timesteps, num_classes=num_atomic_states
         )
 
         self.lattice_diffusion = VP_lattice(
@@ -87,6 +86,7 @@ class DiffusionLoss(torch.nn.Module):
             power=lattice_power,
             clipmax=lattice_clipmax,
         )
+        self.num_atomic_states = num_atomic_states
 
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
@@ -129,7 +129,7 @@ class DiffusionLoss(torch.nn.Module):
         batch: Batch,
         t_emb_weights,
     ):
-        t = self.type_diffusion.betas[t_int].view(-1, 1)
+        t = self.lattice_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
 
         noisy_symmetric_vector = torch.repeat_interleave(
@@ -160,7 +160,9 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        pred_eps_h, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = model(batch)
+        predicted_h0_logits, pred_eps_x, pred_symmetric_vector_noise, pred_lattice = (
+            model(batch)
+        )
 
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
@@ -168,20 +170,18 @@ class DiffusionLoss(torch.nn.Module):
 
         return (
             pred_eps_x.squeeze(1) / used_sigmas_x,
-            pred_eps_h,
+            predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice,
         )
 
-    def normalize(self, x, h):
+    def normalize(self, x):
         x = x / self.norm_x
-        h = h / self.norm_h
-        return x, h
+        return x
 
-    def unnormalize(self, x, h):
+    def unnormalize(self, x):
         x = x * self.norm_x
-        h = h * self.norm_h
-        return x, h
+        return x
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
@@ -207,12 +207,12 @@ class DiffusionLoss(torch.nn.Module):
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         cart_x_0 = batch.pos.squeeze(0)
-        h = batch.A0
+        h_0 = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
-        cart_x_0, h = self.normalize(cart_x_0, h)
+        cart_x_0 = self.normalize(cart_x_0)
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
@@ -231,7 +231,9 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
-        h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
+        h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
+
+        h_t_onehot = F.one_hot(h_t, self.num_atomic_states).float()
         (
             noisy_lattice,
             noisy_symmetric_vector,
@@ -240,9 +242,9 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, pred_eps_h, pred_symmetric_vector, pred_lattice = self.phi(
+        pred_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
-            h_t,
+            h_t_onehot,
             t_int_atoms,
             num_atoms,
             noisy_lattice,
@@ -259,7 +261,10 @@ class DiffusionLoss(torch.nn.Module):
             batch,
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
-        error_h = self.compute_error(pred_eps_h, eps_h, batch)
+
+        error_h = self.d3pm.calculate_loss(
+            h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
+        )
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector
         ) + F.mse_loss(pred_lattice, lattice)
@@ -304,7 +309,7 @@ class DiffusionLoss(torch.nn.Module):
         if constant_atoms is not None:
             h = constant_atoms
         else:
-            h = torch.randn([num_atoms.sum(), num_atomic_states])
+            h = torch.argmax(torch.randn([num_atoms.sum(), num_atomic_states]), dim=-1)
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
@@ -315,7 +320,7 @@ class DiffusionLoss(torch.nn.Module):
 
             score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
                 frac_x,
-                h,
+                F.one_hot(h, num_atomic_states).float(),
                 t,
                 num_atoms,
                 lattice,
@@ -335,7 +340,7 @@ class DiffusionLoss(torch.nn.Module):
 
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
-            h = self.type_diffusion.reverse(h, score_h, t)
+            h = self.d3pm.reverse(h, score_h, t)
             if constant_atoms is not None:
                 h = constant_atoms
 
@@ -348,16 +353,15 @@ class DiffusionLoss(torch.nn.Module):
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
 
-        frac_x, h = self.unnormalize(
-            frac_x, h
+        frac_x = self.unnormalize(
+            frac_x
         )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
                 z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
             )
-        h_best_idx = torch.argmax(h, dim=1).numpy()
-        atomic_numbers = np.vectorize(z_table.index_to_z)(h_best_idx)
+        atomic_numbers = atomic_number_indexes_to_atomic_numbers(z_table, h)
         return SampleResult(
             num_atoms=num_atoms.numpy(),
             frac_x=frac_x.numpy(),
