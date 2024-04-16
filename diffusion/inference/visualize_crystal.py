@@ -93,10 +93,11 @@ def plot_crystal(
     # TODO: find a workaround. this is so hacky
     try:
         # https://pymatgen.org/pymatgen.core.html#pymatgen.core.IStructure
-        return Structure(lattice, element_symbols, pos_arr, coords_are_cartesian=False)
+        structure = Structure(
+            lattice, element_symbols, pos_arr, coords_are_cartesian=False
+        )
     except Exception as e:
         print("Error in visualizing crystal", e)
-        return
 
     # Create a Plotly figure
     fig = go.Figure()
