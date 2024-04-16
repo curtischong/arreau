@@ -202,7 +202,6 @@ class DiffusionLoss(torch.nn.Module):
             noisy_lattice,
             noisy_symmetric_vector,
             noise_vector,
-            symmetric_matrix_vector,
         )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
@@ -237,12 +236,16 @@ class DiffusionLoss(torch.nn.Module):
         (
             noisy_lattice,
             noisy_symmetric_vector,
-            _symmetric_vector_noise,
-            symmetric_matrix_vector,
+            symmetric_vector_noise,
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice = self.phi(
+        (
+            pred_eps_x,
+            predicted_h0_logits,
+            pred_lattice_symmetric_vector_noise,
+            pred_lattice,
+        ) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
@@ -266,7 +269,7 @@ class DiffusionLoss(torch.nn.Module):
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         error_l = F.mse_loss(
-            pred_symmetric_vector, symmetric_matrix_vector
+            pred_lattice_symmetric_vector_noise, symmetric_vector_noise
         ) + F.mse_loss(pred_lattice, lattice)
 
         loss = (
@@ -318,21 +321,24 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
-                frac_x,
-                F.one_hot(h, num_atomic_states).float(),
-                t,
-                num_atoms,
-                lattice,
-                symmetric_vector,
-                model,
-                Batch(
-                    num_atoms=num_atoms, batch=torch.tensor(0).repeat(num_atoms.sum())
-                ),
-                t_emb_weights,
+            score_x, score_h, pred_lattice_symmetric_vector_noise, pred_lattice = (
+                self.phi(
+                    frac_x,
+                    F.one_hot(h, num_atomic_states).float(),
+                    t,
+                    num_atoms,
+                    lattice,
+                    symmetric_vector,
+                    model,
+                    Batch(
+                        num_atoms=num_atoms,
+                        batch=torch.tensor(0).repeat(num_atoms.sum()),
+                    ),
+                    t_emb_weights,
+                )
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
-                symmetric_vector, pred_symmetric_vector, pred_lattice, timestep_vec
+                symmetric_vector, pred_lattice_symmetric_vector_noise, timestep_vec
             )
 
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
