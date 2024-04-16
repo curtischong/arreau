@@ -80,7 +80,6 @@ class D3PM(nn.Module):
             x_0_logits = x_0.clone()
 
         assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
-            # assert x_0_logits.shape == x_t.shape, print(
             f"x_0_logits.shape: {x_0_logits.shape}, x_t.shape: {x_t.shape}"
         )
 
@@ -119,7 +118,6 @@ class D3PM(nn.Module):
         # we HAVE to argmax here (then one_hot it before calculating the loss)
         # because the one-hotted data need to be probabilities. I guess we can softmax this isntead of argmaxing
         return torch.argmax(logits + gumbel_noise, dim=-1)
-        # return logits + gumbel_noise
 
     def model_predict(self, x_0, t, cond):
         # this part exists because in general, manipulation of logits from model's logit
@@ -131,11 +129,13 @@ class D3PM(nn.Module):
 
         return predicted_x0_logits
 
+    # this function is based on the first half of the forward function
     def get_xt(self, x_0: torch.Tensor, t: torch.Tensor):
         noise = torch.rand((x_0.shape[0], self.num_classses), device=x_0.device)
         x_t = self.q_sample(x_0, t, noise)
         return x_t
 
+    # this function is based on the second half of the forward function
     def calculate_loss(
         self,
         x_0: torch.Tensor,
