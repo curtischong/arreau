@@ -96,6 +96,7 @@ class CrystalDataset(Dataset):
     def __getitem__(self, idx: int):
         config = self.configs[idx]
         A0 = one_hot_encode_atomic_numbers(self.z_table, config.atomic_numbers)
+        # A0 = atomic_numbers_to_indices(config.atomic_numbers, self.z_table)
         X0 = config.X0
         L0 = config.L0
 

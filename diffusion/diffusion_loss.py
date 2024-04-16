@@ -90,6 +90,7 @@ class DiffusionLoss(torch.nn.Module):
             power=lattice_power,
             clipmax=lattice_clipmax,
         )
+        self.num_atomic_states = num_atomic_states
 
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
@@ -132,14 +133,15 @@ class DiffusionLoss(torch.nn.Module):
         batch: Batch,
         t_emb_weights,
     ):
-        t = self.type_diffusion.betas[t_int].view(-1, 1)
+        t = self.lattice_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
 
         noisy_symmetric_vector = torch.repeat_interleave(
             noisy_symmetric_vector, num_atoms, dim=0
         )
+        h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
 
-        scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
+        scalar_feats = torch.cat([h_t_onehot, t_emb, noisy_symmetric_vector], dim=1)
         cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
 
         lattice_feat = torch.repeat_interleave(lattice, num_atoms, dim=0)
@@ -236,7 +238,7 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
-        h_t = self.d3pm.get_xt(h, t_int_atoms)
+        h_t = self.d3pm.get_xt(h, t_int_atoms.squeeze())
         # h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         (
             noisy_lattice,

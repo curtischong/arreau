@@ -56,10 +56,10 @@ class D3PM(nn.Module):
 
     def _at(self, a, t, x):
         # t is 1-d, x is integer value of 0 to num_classes - 1
-        bs = t.shape[0]
-        t = t.reshape((bs, *[1] * (x.dim() - 1)))
+        # bs = t.shape[0]
+        # t = t.reshape((bs, *[1] * (x.dim() - 1))).squeeze()
         # out[i, j, k, l, m] = a[t[i, j, k, l], x[i, j, k, l], m]
-        return a[t - 1, x, :]
+        return a[t - 1, x.argmax(dim=-1), :]
 
     def q_posterior_logits(self, x_0, x_t, t):
         # if t == 1, this means we return the L_0 loss, so directly try to x_0 logits.
@@ -122,7 +122,7 @@ class D3PM(nn.Module):
         return predicted_x0_logits
 
     def get_xt(self, x_0: torch.Tensor, t: torch.Tensor):
-        noise = torch.rand((*x_0.shape, self.num_classses), device=x_0.device)
+        noise = torch.rand((x_0.shape[0], self.num_classses), device=x_0.device)
         x_t = self.q_sample(x_0, t, noise)
         return x_t
 
