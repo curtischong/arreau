@@ -188,6 +188,25 @@ class D3PM(nn.Module):
             "ce_loss": ce_loss.detach().item(),
         }
 
+    def reverse(
+        self,
+        x_t: torch.Tensor,
+        predicted_x0_logits: torch.Tensor,
+        t: torch.Tensor,
+    ):
+        pred_q_posterior_logits = self.q_posterior_logits(predicted_x0_logits, x_t, t)
+
+        noise = torch.rand((*x_t.shape, self.num_classses))
+        noise = torch.clip(noise, self.eps, 1.0)
+
+        not_first_step = (t != 1).float().reshape((x_t.shape[0], *[1] * (x_t.dim())))
+        not_first_step = 0.2 + not_first_step * 0.8
+        gumbel_noise = -torch.log(-torch.log(noise))
+        sample = torch.argmax(
+            pred_q_posterior_logits + gumbel_noise * not_first_step, dim=-1
+        )
+        return sample
+
     def p_sample(self, x, t, cond, noise):
         predicted_x0_logits = self.model_predict(x, t, cond)
         pred_q_posterior_logits = self.q_posterior_logits(predicted_x0_logits, x, t)

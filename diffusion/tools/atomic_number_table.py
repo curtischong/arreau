@@ -41,12 +41,19 @@ def atomic_numbers_to_indices(
     return torch.tensor(atomic_number_indices, dtype=torch.long)
 
 
+def atomic_number_indexes_to_atomic_numbers(
+    z_table: AtomicNumberTable,
+    atomic_number_indexes: np.ndarray,
+) -> np.ndarray:
+    to_atomic_num = np.vectorize(z_table.index_to_z)
+    return to_atomic_num(atomic_number_indexes)
+
+
 def one_hot_to_atomic_numbers(
     z_table: AtomicNumberTable, one_hot: torch.Tensor
 ) -> np.ndarray:
-    atomic_numbers = one_hot.argmax(dim=1).numpy()
-    to_atomic_num = np.vectorize(z_table.index_to_z)
-    return to_atomic_num(atomic_numbers)
+    atomic_number_indexes = one_hot.argmax(dim=1).numpy()
+    return atomic_number_indexes_to_atomic_numbers(z_table, atomic_number_indexes)
 
 
 def to_one_hot(indices: torch.Tensor, num_classes: int) -> torch.Tensor:

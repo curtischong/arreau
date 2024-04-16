@@ -21,6 +21,7 @@ from diffusion.diffusion_helpers import (
 )
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
+    atomic_number_indexes_to_atomic_numbers,
 )
 from diffusion.inference.visualize_crystal import (
     VisualizationSetting,
@@ -178,10 +179,9 @@ class DiffusionLoss(torch.nn.Module):
         x = x / self.norm_x
         return x
 
-    def unnormalize(self, x, h):
+    def unnormalize(self, x):
         x = x * self.norm_x
-        h = h * self.norm_h
-        return x, h
+        return x
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
@@ -207,7 +207,7 @@ class DiffusionLoss(torch.nn.Module):
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         cart_x_0 = batch.pos.squeeze(0)
-        h = batch.A0
+        h_0 = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
@@ -231,7 +231,7 @@ class DiffusionLoss(torch.nn.Module):
         frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
             cart_x_0, t_int_atoms, lattice, num_atoms
         )
-        h_t = self.d3pm.get_xt(h, t_int_atoms.squeeze())
+        h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
 
         h_t_onehot = F.one_hot(h_t, self.num_atomic_states).float()
         (
@@ -263,7 +263,7 @@ class DiffusionLoss(torch.nn.Module):
         )  # likelihood reweighting
 
         error_h = self.d3pm.calculate_loss(
-            h, predicted_h0_logits, h_t, t_int_atoms.squeeze()
+            h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector
@@ -309,7 +309,7 @@ class DiffusionLoss(torch.nn.Module):
         if constant_atoms is not None:
             h = constant_atoms
         else:
-            h = torch.randn([num_atoms.sum(), num_atomic_states])
+            h = torch.argmax(torch.randn([num_atoms.sum(), num_atomic_states]), dim=-1)
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
@@ -320,7 +320,7 @@ class DiffusionLoss(torch.nn.Module):
 
             score_x, score_h, pred_symmetric_vector, pred_lattice = self.phi(
                 frac_x,
-                h,
+                F.one_hot(h, num_atomic_states).float(),
                 t,
                 num_atoms,
                 lattice,
@@ -340,7 +340,7 @@ class DiffusionLoss(torch.nn.Module):
 
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
-            h = self.type_diffusion.reverse(h, score_h, t)
+            h = self.d3pm.reverse(h, score_h, t)
             if constant_atoms is not None:
                 h = constant_atoms
 
@@ -353,16 +353,15 @@ class DiffusionLoss(torch.nn.Module):
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
 
-        frac_x, h = self.unnormalize(
-            frac_x, h
+        frac_x = self.unnormalize(
+            frac_x
         )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
                 z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
             )
-        h_best_idx = torch.argmax(h, dim=1).numpy()
-        atomic_numbers = np.vectorize(z_table.index_to_z)(h_best_idx)
+        atomic_numbers = atomic_number_indexes_to_atomic_numbers(z_table, h)
         return SampleResult(
             num_atoms=num_atoms.numpy(),
             frac_x=frac_x.numpy(),
