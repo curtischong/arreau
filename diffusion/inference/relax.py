@@ -1,7 +1,7 @@
 import pathlib
 
 from mace.calculators import MACECalculator
-from diffusion.inference.visualize_crystal import vis_crystal
+from diffusion.inference.visualize_crystal import visualize_and_save_crystal
 from diffusion.lattice_dataset import load_dataset
 from ase import Atoms
 from pymatgen.core.periodic_table import Element
@@ -36,7 +36,7 @@ def relax(L0: np.ndarray, frac_x: np.ndarray, atomic_numbers: np.ndarray, out_di
         dyn.run(fmax=0.05, steps=5)
 
         positions = system.get_positions()
-        vis_crystal(
+        visualize_and_save_crystal(
             atomic_numbers, L0, frac_x, f"{out_dir}/relax_{i}", show_bonds=False
         )
 

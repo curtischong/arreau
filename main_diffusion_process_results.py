@@ -8,7 +8,7 @@ from diffusion.inference.process_generated_crystals import (
 import os
 
 from diffusion.inference.relax import relax
-from diffusion.inference.visualize_crystal import vis_crystal
+from diffusion.inference.visualize_crystal import visualize_and_save_crystal
 
 # TODO: put this in a config file?
 OUT_DIR = "out"
@@ -24,7 +24,7 @@ def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
 def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
     lattice, frac_x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
     name = f"{OUT_DIR}/crystal_{sample_idx}"
-    vis_crystal(atomic_numbers, lattice, frac_x, name, show_bonds=False)
+    visualize_and_save_crystal(atomic_numbers, lattice, frac_x, name, show_bonds=False)
 
 
 if __name__ == "__main__":

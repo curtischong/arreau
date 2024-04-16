@@ -117,6 +117,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "view alexandria dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/view_alexandria_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }

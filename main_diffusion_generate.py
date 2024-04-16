@@ -90,14 +90,14 @@ def generate_n_crystals(
 
 if __name__ == "__main__":
     num_atoms = 8
-    use_constant_atomic_symbols = ["Au", "Au", "Au", "Au"]
+    use_constant_atomic_symbols = ["Ac", "Ac", "Ir", "Ag"]
 
     if use_constant_atomic_symbols is not None:
         num_atoms = len(use_constant_atomic_symbols)
 
     generate_single_crystal(
         num_atoms=num_atoms,
-        visualization_setting=VisualizationSetting.LAST,
+        visualization_setting=VisualizationSetting.NONE,
         use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
     # generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)
