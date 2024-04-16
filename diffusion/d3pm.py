@@ -78,7 +78,7 @@ class D3PM(nn.Module):
         else:
             x_0_logits = x_0.clone()
 
-        assert x_0_logits.shape == x_t.shape, print(
+        assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
             f"x_0_logits.shape: {x_0_logits.shape}, x_t.shape: {x_t.shape}"
         )
 
@@ -113,8 +113,8 @@ class D3PM(nn.Module):
         logits = torch.log(self._at(self.q_mats, t, x_0) + self.eps)
         noise = torch.clip(noise, self.eps, 1.0)
         gumbel_noise = -torch.log(-torch.log(noise))
-        # return torch.argmax(logits + gumbel_noise, dim=-1)
-        return logits + gumbel_noise
+        return torch.argmax(logits + gumbel_noise, dim=-1)
+        # return logits + gumbel_noise
 
     def model_predict(self, x_0, t, cond):
         # this part exists because in general, manipulation of logits from model's logit

@@ -250,7 +250,7 @@ class DiffusionLoss(torch.nn.Module):
         # Compute the prediction.
         pred_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice = self.phi(
             frac_x_t,
-            h_t,
+            h,  # this is so weird. we pass in h_0 and get the model to predict the logits for h_0
             t_int_atoms,
             num_atoms,
             noisy_lattice,
