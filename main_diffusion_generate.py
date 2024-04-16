@@ -54,8 +54,9 @@ def generate_n_crystals(
     num_atoms_per_sample: int,
     use_constant_atomic_symbols: Optional[list[str]],
 ):
-    num_crystals_per_batch = 2
+    num_crystals_per_batch = 8
     assert num_crystals_per_batch > 0
+    assert num_crystals_per_batch <= num_crystals
     assert (
         num_crystals % num_crystals_per_batch == 0
     ), f"num_crystals ({num_crystals}) must be divisible by num_crystals_per_batch ({num_crystals_per_batch})"
@@ -78,26 +79,36 @@ def generate_n_crystals(
             show_bonds=SHOW_BONDS,
             use_constant_atomic_symbols=use_constant_atomic_symbols,
         )
-        num_atoms_in_batch = num_atoms_per_sample * num_crystals_per_batch
-        crystals.frac_x[i : i + num_atoms_in_batch] = generated_crystals.frac_x
-        crystals.atomic_numbers[i : i + num_atoms_in_batch] = (
+        batch_start = i * num_atoms_per_sample
+        batch_end = (i + num_crystals_per_batch) * num_atoms_per_sample
+        crystals.frac_x[batch_start:batch_end] = generated_crystals.frac_x
+        crystals.atomic_numbers[batch_start:batch_end] = (
             generated_crystals.atomic_numbers
         )
-        crystals.lattice[i : i + num_crystals_per_batch] = generated_crystals.lattice
+        crystals_batch_start = i
+        crystals_batch_end = i + num_crystals_per_batch
+        crystals.lattice[crystals_batch_start:crystals_batch_end] = (
+            generated_crystals.lattice
+        )
 
     save_sample_results_to_hdf5(crystals, f"{OUT_DIR}/crystals.h5")
 
 
 if __name__ == "__main__":
     num_atoms = 8
-    use_constant_atomic_symbols = ["Ac", "Ac", "Ir", "Ag"]
+    # use_constant_atomic_symbols = ["Ac", "Ac", "Ir", "Ag"]
+    use_constant_atomic_symbols = None
 
     if use_constant_atomic_symbols is not None:
         num_atoms = len(use_constant_atomic_symbols)
 
-    generate_single_crystal(
-        num_atoms=num_atoms,
-        visualization_setting=VisualizationSetting.NONE,
+    # generate_single_crystal(
+    #     num_atoms=num_atoms,
+    #     visualization_setting=VisualizationSetting.NONE,
+    #     use_constant_atomic_symbols=use_constant_atomic_symbols,
+    # )
+    generate_n_crystals(
+        num_crystals=32,
+        num_atoms_per_sample=6,
         use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
-    # generate_n_crystals(num_crystals=4, num_atoms_per_sample=15)
