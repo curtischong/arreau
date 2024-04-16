@@ -76,11 +76,6 @@ class DiffusionLoss(torch.nn.Module):
             self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
         )
 
-        # self.type_diffusion = VP(
-        #     num_steps=self.T,
-        #     power=type_power,
-        #     clipmax=type_clipmax,
-        # )
         self.d3pm = D3PM(
             x0_model=None, n_T=args.num_timesteps, num_classes=num_atomic_states
         )
@@ -139,7 +134,6 @@ class DiffusionLoss(torch.nn.Module):
         noisy_symmetric_vector = torch.repeat_interleave(
             noisy_symmetric_vector, num_atoms, dim=0
         )
-        # h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
 
         scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
         cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
@@ -240,7 +234,6 @@ class DiffusionLoss(torch.nn.Module):
         h_t = self.d3pm.get_xt(h, t_int_atoms.squeeze())
 
         h_t_onehot = F.one_hot(h_t, self.num_atomic_states).float()
-        # h_t, eps_h = self.type_diffusion(h, t_int_atoms)  # eps is the noise
         (
             noisy_lattice,
             noisy_symmetric_vector,
@@ -268,7 +261,6 @@ class DiffusionLoss(torch.nn.Module):
             batch,
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
-        # error_h = self.compute_error(pred_eps_h, eps_h, batch)
 
         error_h = self.d3pm.calculate_loss(
             h, predicted_h0_logits, h_t, t_int_atoms.squeeze()
