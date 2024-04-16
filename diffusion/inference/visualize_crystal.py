@@ -63,10 +63,10 @@ def vis_crystal_during_sampling(
 ):
     lattice = lattice.squeeze(0)
     atomic_numbers = one_hot_to_atomic_numbers(z_table, A)
-    return vis_crystal(atomic_numbers, lattice, frac_x, name, show_bonds)
+    return visualize_and_save_crystal(atomic_numbers, lattice, frac_x, name, show_bonds)
 
 
-def vis_crystal(
+def visualize_and_save_crystal(
     atomic_numbers: np.ndarray,
     raw_lattice: np.ndarray,
     frac_x: np.ndarray,

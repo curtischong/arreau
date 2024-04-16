@@ -1,6 +1,6 @@
 import pathlib
 from diffusion.inference.visualize_crystal import (
-    vis_crystal,
+    visualize_and_save_crystal,
 )
 import torch
 from diffusion.lattice_dataset import CrystalDataset
@@ -29,7 +29,7 @@ def main():
         atomic_num = torch.argmax(ith_sample.A0, dim=1)
         lattice = ith_sample.L0.numpy()
         frac_x = ith_sample.X0.numpy()
-        vis_crystal(
+        visualize_and_save_crystal(
             atomic_num,
             lattice,
             frac_x,
