@@ -114,6 +114,9 @@ class D3PM(nn.Module):
         logits = torch.log(self._at(self.q_mats, t, x_0) + self.eps)
         noise = torch.clip(noise, self.eps, 1.0)
         gumbel_noise = -torch.log(-torch.log(noise))
+
+        # we HAVE to argmax here (then one_hot it before calculating the loss)
+        # because the one-hotted data need to be probabilities. I guess we can softmax this isntead of argmaxing
         return torch.argmax(logits + gumbel_noise, dim=-1)
         # return logits + gumbel_noise
 
