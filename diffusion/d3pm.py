@@ -1,5 +1,6 @@
 # the code is from: https://github.com/cloneofsimo/d3pm/blob/main/d3pm_runner.py
 # I double-checked some of the functions with the original d3pm implementation: https://github.com/google-research/google-research/blob/master/d3pm/images/diffusion_categorical.py
+# This is a really good blog explaining the math for d3pms: https://beckham.nz/2022/07/11/d3pms.html
 import torch
 import torch.nn as nn
 
@@ -60,11 +61,7 @@ class D3PM(nn.Module):
         # bs = t.shape[0]
         # t = t.reshape((bs, *[1] * (x.dim() - 1))).squeeze()
         # out[i, j, k, l, m] = a[t[i, j, k, l], x[i, j, k, l], m]
-        # if x.dim() > 1:
-        #     x = x.argmax(dim=-1)
-
         return a[t - 1, x, :]
-        # return torch.matmul(a[t - 1], x.unsqueeze(-1)).squeeze(-1)
 
     def q_posterior_logits(self, x_0, x_t, t):
         # if t == 1, this means we return the L_0 loss, so directly try to x_0 logits.
