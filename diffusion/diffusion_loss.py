@@ -139,9 +139,9 @@ class DiffusionLoss(torch.nn.Module):
         noisy_symmetric_vector = torch.repeat_interleave(
             noisy_symmetric_vector, num_atoms, dim=0
         )
-        h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
+        # h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
 
-        scalar_feats = torch.cat([h_t_onehot, t_emb, noisy_symmetric_vector], dim=1)
+        scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
         cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
 
         lattice_feat = torch.repeat_interleave(lattice, num_atoms, dim=0)

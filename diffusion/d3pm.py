@@ -59,10 +59,11 @@ class D3PM(nn.Module):
         # bs = t.shape[0]
         # t = t.reshape((bs, *[1] * (x.dim() - 1))).squeeze()
         # out[i, j, k, l, m] = a[t[i, j, k, l], x[i, j, k, l], m]
-        if x.dim() > 1:
-            x = x.argmax(dim=-1)
+        # if x.dim() > 1:
+        #     x = x.argmax(dim=-1)
 
-        return a[t - 1, x, :]
+        # return a[t - 1, x, :]
+        return torch.matmul(a[t - 1], x.unsqueeze(-1)).squeeze(-1)
 
     def q_posterior_logits(self, x_0, x_t, t):
         # if t == 1, this means we return the L_0 loss, so directly try to x_0 logits.
@@ -77,7 +78,7 @@ class D3PM(nn.Module):
         else:
             x_0_logits = x_0.clone()
 
-        assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
+        assert x_0_logits.shape == x_t.shape, print(
             f"x_0_logits.shape: {x_0_logits.shape}, x_t.shape: {x_t.shape}"
         )
 
@@ -112,7 +113,8 @@ class D3PM(nn.Module):
         logits = torch.log(self._at(self.q_mats, t, x_0) + self.eps)
         noise = torch.clip(noise, self.eps, 1.0)
         gumbel_noise = -torch.log(-torch.log(noise))
-        return torch.argmax(logits + gumbel_noise, dim=-1)
+        # return torch.argmax(logits + gumbel_noise, dim=-1)
+        return logits + gumbel_noise
 
     def model_predict(self, x_0, t, cond):
         # this part exists because in general, manipulation of logits from model's logit
