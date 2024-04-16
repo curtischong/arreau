@@ -268,7 +268,9 @@ class DiffusionLoss(torch.nn.Module):
             0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
         # error_h = self.compute_error(pred_eps_h, eps_h, batch)
-        error_h = self.d3pm.calculate_loss(h, predicted_h0_logits, h_t, t_int_atoms)
+        error_h = self.d3pm.calculate_loss(
+            h, predicted_h0_logits, h_t, t_int_atoms.squeeze()
+        )
         error_l = F.mse_loss(
             pred_symmetric_vector, symmetric_matrix_vector
         ) + F.mse_loss(pred_lattice, lattice)
