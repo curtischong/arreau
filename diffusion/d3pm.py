@@ -78,7 +78,8 @@ class D3PM(nn.Module):
         else:
             x_0_logits = x_0.clone()
 
-        assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
+        # assert x_0_logits.shape == x_t.shape + (self.num_classses,), print(
+        assert x_0_logits.shape == x_t.shape, print(
             f"x_0_logits.shape: {x_0_logits.shape}, x_t.shape: {x_t.shape}"
         )
 
