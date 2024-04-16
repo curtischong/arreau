@@ -1,4 +1,5 @@
-# https://github.com/cloneofsimo/d3pm/blob/main/d3pm_runner.py
+# the code is from: https://github.com/cloneofsimo/d3pm/blob/main/d3pm_runner.py
+# I double-checked some of the functions with the original d3pm implementation: https://github.com/google-research/google-research/blob/master/d3pm/images/diffusion_categorical.py
 import torch
 import torch.nn as nn
 
