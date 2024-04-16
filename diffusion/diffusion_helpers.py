@@ -160,7 +160,7 @@ class VP_lattice(nn.Module):
 
     # since the model predicts l0, the reverse function is different from the normal VP diffusion.
     # we are "mixing" the predicted l0 and the current lt to get lt-1
-    def reverse(self, lt, pred_lattice_symmetric_vector_noise, t):
+    def reverse(self, symmetric_vector, pred_lattice_symmetric_vector_noise, t):
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]
@@ -176,13 +176,13 @@ class VP_lattice(nn.Module):
 
         # This is noise we add so when we do the backwards sample, we don't collapse to one point
         z = torch.where(
-            (t > 1)[:, None].expand_as(lt),
-            torch.randn_like(lt),
-            torch.zeros_like(lt),
+            (t > 1)[:, None].expand_as(symmetric_vector),
+            torch.randn_like(symmetric_vector),
+            torch.zeros_like(symmetric_vector),
         )
 
         return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
-            lt
+            symmetric_vector
             - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
             * pred_lattice_symmetric_vector_noise
         ) + sigma * z
