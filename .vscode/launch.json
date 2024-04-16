@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/use-proper-d3pm-loss.ckpt",
+                "--model_path=models/learn-lattice-noise-again.ckpt",
             ],
         },
         {
