@@ -566,3 +566,16 @@ def vector_to_symmetric_matrix(vector: torch.Tensor):
     matrix[:, 1, 2] = matrix[:, 2, 1] = vector[:, 4]
     matrix[:, 2, 2] = vector[:, 5]
     return matrix
+
+
+def vector_length_mse_loss(
+    input_matrices: torch.Tensor, target_matrices: torch.Tensor
+) -> torch.Tensor:
+    # Calculate the lengths of the vectors in each matrix
+    input_lengths = torch.norm(input_matrices, dim=2)  # Shape: (batch_size, 3)
+    target_lengths = torch.norm(target_matrices, dim=2)  # Shape: (batch_size, 3)
+
+    # Calculate the MSE loss between the vector lengths
+    loss = nn.MSELoss(input_lengths, target_lengths)
+
+    return loss
