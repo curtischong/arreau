@@ -17,7 +17,7 @@ def plot_edges(fig, edges, color):
         )
 
 
-def plot_with_parallelopied(fig, L):
+def plot_with_parallelopied(fig, L, color="#0d5d85"):
     v1 = L[0]
     v2 = L[1]
     v3 = L[2]
@@ -40,7 +40,7 @@ def plot_with_parallelopied(fig, L):
         (tuple(points[3]), tuple(points[7])),
     ]
     # Plot the edges using the helper function
-    plot_edges(fig, edges, "#0d5d85")
+    plot_edges(fig, edges, color)
 
     return points
 
@@ -74,6 +74,45 @@ def visualize_lattice(lattice: torch.Tensor, out_path: str):
     # This moves the camera to the eye level so you can check to see how the lattices really look
     # camera = dict(eye=dict(x=2, y=2, z=0.1))
     # fig.update_layout(scene_camera=camera)
+
+    # Save the plot as a PNG file
+    fig.write_image(out_path)
+    print(f"Saved {out_path}")
+
+
+def visualize_multiple_lattices(lattices: list[torch.Tensor], out_path: str):
+    # Create a Plotly figure
+    fig = go.Figure()
+    points = []
+    for i, lattice in enumerate(lattices):
+        if i == 0:
+            color = "#0d5d85"
+        else:
+            color = "#ffffff"
+        points.extend(
+            plot_with_parallelopied(fig, lattice.squeeze(0), color=color).tolist()
+        )
+    points = np.array(points)
+    smallest = np.min(points, axis=0)
+    largest = np.max(points, axis=0)
+
+    # Set the layout for the 3D plot
+    fig.update_layout(
+        title="Crystal Structure",
+        scene=dict(
+            xaxis_title="X",
+            yaxis_title="Y",
+            zaxis_title="Z",
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+    )
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(range=[smallest[0], largest[0]]),
+            yaxis=dict(range=[smallest[1], largest[1]]),
+            zaxis=dict(range=[smallest[2], largest[2]]),
+        )
+    )
 
     # Save the plot as a PNG file
     fig.write_image(out_path)
