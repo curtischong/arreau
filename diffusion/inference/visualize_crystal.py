@@ -17,6 +17,7 @@ class VisualizationSetting(Enum):
     NONE = 0
     LAST = 1
     ALL = 2
+    ALL_DETAILED = 3
 
 
 def element_color(symbol):

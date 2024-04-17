@@ -366,10 +366,12 @@ class DiffusionLoss(torch.nn.Module):
             if constant_atoms is not None:
                 h = constant_atoms
 
-            if (
-                visualization_setting == VisualizationSetting.ALL
-                and (timestep != self.T - 1)
-                and (timestep % 10 == 0)
+            if (timestep != self.T - 1) and (
+                (
+                    visualization_setting == VisualizationSetting.ALL
+                    and (timestep % 10 == 0)
+                )
+                or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
                 vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
