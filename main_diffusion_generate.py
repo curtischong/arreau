@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     generate_single_crystal(
         num_atoms=num_atoms,
-        visualization_setting=VisualizationSetting.ALL,
+        visualization_setting=VisualizationSetting.ALL_DETAILED,
         use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
     # generate_n_crystals(
