@@ -165,6 +165,10 @@ class DiffusionLoss(torch.nn.Module):
             model(batch)
         )
 
+        # pred_symmetric_vector_noise = collapse_node_outputs_to_graph_outputs(
+        #     pred_symmetric_vector_noise, num_atoms
+        # )
+
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
