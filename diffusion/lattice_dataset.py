@@ -95,7 +95,7 @@ class CrystalDataset(Dataset):
 
     def __getitem__(self, idx: int):
         config = self.configs[idx]
-        A0 = atomic_numbers_to_indices(config.atomic_numbers, self.z_table)
+        A0 = atomic_numbers_to_indices(self.z_table, config.atomic_numbers)
         X0 = config.X0
         L0 = config.L0
 
