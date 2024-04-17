@@ -161,19 +161,19 @@ class VP_lattice(nn.Module):
 
     # since the model predicts l0, the reverse function is different from the normal VP diffusion.
     # we are "mixing" the predicted l0 and the current lt to get lt-1
-    def reverse(self, lt, predicted_l0, pred_lattice, t):
+    def reverse(self, lt, predicted_symmetric_vector_noise, t):
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]
         sigma = self.sigmas[t].view(-1, 1)
 
-        _, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice)
-        pred_lattice_symmetric_vector = symmetric_matrix_to_vector(
-            pred_lattice_symmetric_matrix
-        )
+        # _, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice)
+        # pred_lattice_symmetric_vector = symmetric_matrix_to_vector(
+        #     pred_lattice_symmetric_matrix
+        # )
 
         # predicted_noise = lt - predicted_l0
-        predicted_noise = lt - ((pred_lattice_symmetric_vector + predicted_l0) / 2)
+        # predicted_noise = lt - ((pred_lattice_symmetric_vector + predicted_l0) / 2)
 
         # This is noise we add so when we do the backwards sample, we don't collapse to one point
         z = torch.where(
@@ -185,7 +185,7 @@ class VP_lattice(nn.Module):
         return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
             lt
             - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
-            * predicted_noise
+            * predicted_symmetric_vector_noise
         ) + sigma * z
 
     # def normalizing_mean_constant(self, n: torch.Tensor):
