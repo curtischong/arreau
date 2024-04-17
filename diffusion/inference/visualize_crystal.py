@@ -121,7 +121,16 @@ def plot_crystal(
                 name=atom_type,
             )
         )
-    plot_with_parallelopied(fig, raw_lattice)
+    points = plot_with_parallelopied(fig, raw_lattice)
+    smallest = np.min(points, axis=0)
+    largest = np.max(points, axis=0)
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(range=[smallest[0], largest[0]]),
+            yaxis=dict(range=[smallest[1], largest[1]]),
+            zaxis=dict(range=[smallest[2], largest[2]]),
+        )
+    )
     if show_bonds:
         plot_bonds(fig, structure)
 
