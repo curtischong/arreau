@@ -178,7 +178,7 @@ class DiffusionLoss(torch.nn.Module):
             noisy_symmetric_vector - pred_lattice_symmetric_vector
         )
 
-        # blend the two predictions for the lattice, so when we do inference, we just rely on this only value
+        # blend the two predictions for the lattice, so when we do inference, we just rely on this one prediction
         pred_symmetric_vector_noise = (
             pred_symmetric_vector_noise + pred_lattice_symmetric_noise
         ) / 2
@@ -282,7 +282,7 @@ class DiffusionLoss(torch.nn.Module):
         )
         error_l = (
             F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
-            # + F.mse_loss(pred_lattice, lattice) # I don't think this matters, since we have a loss for predicted symmetric vector
+            # + F.mse_loss(pred_lattice, lattice) # I don't think this matters, since we have a loss for predicted symmetric vector noise
             + vector_length_mse_loss(
                 pred_lattice, lattice
             )  # Without this loss, the model will explode the lattice's length
