@@ -5,7 +5,6 @@ import itertools
 from torch_scatter import scatter
 import copy
 from torch.nn import functional as F
-from torch_scatter import scatter_mean
 
 SUPERCELLS = torch.DoubleTensor(list(itertools.product((-1, 0, 1), repeat=3)))
 EPSILON = 1e-8
@@ -581,18 +580,3 @@ def vector_length_mse_loss(
     loss = F.mse_loss(input_lengths, target_lengths)
 
     return loss
-
-
-# https://pytorch-scatter.readthedocs.io/en/1.4.0/functions/mean.html
-def collapse_node_outputs_to_graph_outputs(
-    noisy_symmetric_vector: torch.Tensor, num_atoms: torch.Tensor
-) -> torch.Tensor:
-    m = num_atoms.size(0)
-
-    # Create an index tensor to map the repeated elements back to their original positions
-    index = torch.arange(m).repeat_interleave(num_atoms)
-
-    # Use scatter_mean to compute the mean of the repeated elements
-    collapsed_vector = scatter_mean(noisy_symmetric_vector, index)
-
-    return collapsed_vector
