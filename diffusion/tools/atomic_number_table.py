@@ -34,7 +34,8 @@ def get_atomic_number_table_from_zs(zs: set[int]) -> AtomicNumberTable:
 
 
 def atomic_numbers_to_indices(
-    atomic_numbers: np.ndarray, z_table: AtomicNumberTable
+    z_table: AtomicNumberTable,
+    atomic_numbers: np.ndarray,
 ) -> torch.Tensor:
     to_index_fn = np.vectorize(z_table.z_to_index)
     atomic_number_indices = to_index_fn(atomic_numbers)
@@ -76,7 +77,7 @@ def to_one_hot(indices: torch.Tensor, num_classes: int) -> torch.Tensor:
 def one_hot_encode_atomic_numbers(
     z_table: AtomicNumberTable, atomic_numbers: np.ndarray
 ) -> np.ndarray:
-    atomic_number_indices = atomic_numbers_to_indices(atomic_numbers, z_table=z_table)
+    atomic_number_indices = atomic_numbers_to_indices(z_table, atomic_numbers)
     return to_one_hot(atomic_number_indices.unsqueeze(-1), num_classes=len(z_table))
 
 
@@ -85,4 +86,4 @@ def atomic_symbols_to_indices(
     atomic_symbols: list[str],
 ) -> np.ndarray:
     atomic_numbers = [Element(symbol).number for symbol in atomic_symbols]
-    return one_hot_encode_atomic_numbers(z_table, atomic_numbers)
+    return atomic_numbers_to_indices(z_table, atomic_numbers)
