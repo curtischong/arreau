@@ -162,7 +162,7 @@ class PonitaPointCloud(nn.Module):
 
         # Input output settings
         self.output_dim, self.output_dim_vec = output_dim, output_dim_vec
-        self.global_pooling = (task_level=='graph')
+        self.global_pooling = (task_level=='graph') # TODO: remove this. it's not necessary. we will always do some global pooling, some not
 
         # For constructing the position-orientation graph and its invariants
         self.lift_graph = lift_graph
