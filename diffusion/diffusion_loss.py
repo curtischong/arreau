@@ -348,21 +348,25 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, predicted_symmetric_vector_noise, _pred_lattice = (
-                self.phi(
-                    frac_x,
-                    F.one_hot(h, num_atomic_states).float(),
-                    t,
-                    num_atoms,
-                    lattice,
-                    symmetric_vector,
-                    model,
-                    Batch(
-                        num_atoms=num_atoms,
-                        batch=torch.tensor(0).repeat(num_atoms.sum()),
-                    ),
-                    t_emb_weights,
-                )
+            (
+                score_x,
+                score_h,
+                predicted_symmetric_vector_noise,
+                _pred_lattice,
+                _pred_l0_volume,
+            ) = self.phi(
+                frac_x,
+                F.one_hot(h, num_atomic_states).float(),
+                t,
+                num_atoms,
+                lattice,
+                symmetric_vector,
+                model,
+                Batch(
+                    num_atoms=num_atoms,
+                    batch=torch.tensor(0).repeat(num_atoms.sum()),
+                ),
+                t_emb_weights,
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
                 symmetric_vector, predicted_symmetric_vector_noise, timestep_vec
