@@ -183,8 +183,10 @@ class VP_lattice(nn.Module):
 
         return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
             symmetric_vector
-            - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
-            * pred_lattice_symmetric_vector_noise
+            - (
+                ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
+                * pred_lattice_symmetric_vector_noise
+            )
         ) + sigma * z
 
     # def normalizing_mean_constant(self, n: torch.Tensor):
