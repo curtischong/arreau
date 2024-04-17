@@ -165,10 +165,6 @@ class DiffusionLoss(torch.nn.Module):
             model(batch)
         )
 
-        # pred_symmetric_vector_noise = collapse_node_outputs_to_graph_outputs(
-        #     pred_symmetric_vector_noise, num_atoms
-        # )
-
         # normalize the predictions
         used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
@@ -191,7 +187,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_eps_x.squeeze(1) / used_sigmas_x,
             predicted_h0_logits,
             pred_symmetric_vector_noise,
-            pred_lattice_0,  # we are only passing this back so we the loss can use it's length in the loss calculation
+            pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
         )
 
     def normalize(self, x):
@@ -286,8 +282,10 @@ class DiffusionLoss(torch.nn.Module):
         )
         error_l = (
             F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
-            # + F.mse_loss(pred_lattice, lattice) # I don't htink this matters, since we have a loss for predicted symmetric vector
-            + vector_length_mse_loss(pred_lattice, lattice)
+            # + F.mse_loss(pred_lattice, lattice) # I don't think this matters, since we have a loss for predicted symmetric vector
+            + vector_length_mse_loss(
+                pred_lattice, lattice
+            )  # Without this loss, the model will explode the lattice's length
         )
 
         loss = (
