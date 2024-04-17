@@ -4,6 +4,7 @@ import numpy as np
 import itertools
 from torch_scatter import scatter
 import copy
+from torch.nn import functional as F
 
 SUPERCELLS = torch.DoubleTensor(list(itertools.product((-1, 0, 1), repeat=3)))
 EPSILON = 1e-8
@@ -576,6 +577,6 @@ def vector_length_mse_loss(
     target_lengths = torch.norm(target_matrices, dim=2)  # Shape: (batch_size, 3)
 
     # Calculate the MSE loss between the vector lengths
-    loss = nn.MSELoss(input_lengths, target_lengths)
+    loss = F.mse_loss(input_lengths, target_lengths)
 
     return loss
