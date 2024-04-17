@@ -17,6 +17,7 @@ from diffusion.diffusion_helpers import (
     radius_graph_pbc,
     subtract_cog,
     symmetric_matrix_to_vector,
+    vector_length_mse_loss,
     vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import (
@@ -265,9 +266,11 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(
-            pred_symmetric_vector, symmetric_matrix_vector
-        ) + F.mse_loss(pred_lattice, lattice)
+        error_l = (
+            F.mse_loss(pred_symmetric_vector, symmetric_matrix_vector)
+            + F.mse_loss(pred_lattice, lattice)
+            + vector_length_mse_loss(pred_lattice, lattice)
+        )
 
         loss = (
             self.cost_coord_coeff * error_x
