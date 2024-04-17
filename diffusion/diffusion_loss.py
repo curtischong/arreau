@@ -133,11 +133,11 @@ class DiffusionLoss(torch.nn.Module):
         t = self.lattice_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
 
-        noisy_symmetric_vector = torch.repeat_interleave(
+        noisy_symmetric_vector_feat = torch.repeat_interleave(
             noisy_symmetric_vector, num_atoms, dim=0
         )
 
-        scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector], dim=1)
+        scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector_feat], dim=1)
         cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
 
         lattice_feat = torch.repeat_interleave(lattice, num_atoms, dim=0)
@@ -221,7 +221,6 @@ class DiffusionLoss(torch.nn.Module):
             noisy_lattice,
             noisy_symmetric_vector,
             noise_vector,
-            symmetric_matrix_vector,
         )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
@@ -256,21 +255,22 @@ class DiffusionLoss(torch.nn.Module):
         (
             noisy_lattice,
             noisy_symmetric_vector,
-            _symmetric_vector_noise,
-            symmetric_matrix_vector,
+            symmetric_vector_noise,
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice = self.phi(
-            frac_x_t,
-            h_t_onehot,
-            t_int_atoms,
-            num_atoms,
-            noisy_lattice,
-            noisy_symmetric_vector,
-            model,
-            batch,
-            t_emb_weights,
+        pred_eps_x, predicted_h0_logits, pred_symmetric_vector_noise, pred_lattice = (
+            self.phi(
+                frac_x_t,
+                h_t_onehot,
+                t_int_atoms,
+                num_atoms,
+                noisy_lattice,
+                noisy_symmetric_vector,
+                model,
+                batch,
+                t_emb_weights,
+            )
         )
 
         # Compute the error.
@@ -285,7 +285,7 @@ class DiffusionLoss(torch.nn.Module):
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         error_l = (
-            F.mse_loss(pred_symmetric_vector, symmetric_matrix_vector)
+            F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
             # + F.mse_loss(pred_lattice, lattice) # I don't htink this matters, since we have a loss for predicted symmetric vector
             + vector_length_mse_loss(pred_lattice, lattice)
         )
