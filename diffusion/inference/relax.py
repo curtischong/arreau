@@ -5,7 +5,7 @@ from diffusion.lattice_dataset import load_dataset
 from ase import Atoms
 from ase.optimize import BFGS
 import numpy as np
-from ase.calculators.lj import LennardJones
+from ase.calculators.abinit import Abinit
 
 
 def get_sample_system():
@@ -19,9 +19,10 @@ def relax(L0: np.ndarray, frac_x: np.ndarray, atomic_numbers: np.ndarray, out_di
 
     model_path = f"{pathlib.Path(__file__).parent.resolve()}/../../models/2024-01-07-mace-128-L2_epoch-199.model"
     # calculator = MACECalculator(model_paths=model_path, device="cpu")
-    calculator = LennardJones(
-        epsilon=0.01042, sigma=3.4, maxiter=1000
-    )  # we need a high iter so it converges
+    # calculator = LennardJones(
+    #     epsilon=0.01042, sigma=3.4, maxiter=1000
+    # )  # we need a high iter so it converges
+    calculator = Abinit()
 
     # symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
 

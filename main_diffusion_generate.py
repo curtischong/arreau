@@ -97,8 +97,8 @@ def generate_n_crystals(
 if __name__ == "__main__":
     num_atoms = 4
     # use_constant_atomic_symbols = ["Ac", "Ac", "Ir", "Ag"]
-    # use_constant_atomic_symbols = ["C", "C", "C", "C", "C", "C", "C", "C"]
-    use_constant_atomic_symbols = None
+    use_constant_atomic_symbols = ["C", "C", "C", "C", "C", "C", "C", "C"]
+    # use_constant_atomic_symbols = None
 
     if use_constant_atomic_symbols is not None:
         num_atoms = len(use_constant_atomic_symbols)
@@ -110,6 +110,6 @@ if __name__ == "__main__":
     # )
     generate_n_crystals(
         num_crystals=20,
-        num_atoms_per_sample=4,
+        num_atoms_per_sample=num_atoms,
         use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
