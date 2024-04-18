@@ -5,6 +5,7 @@ import torch
 import pytorch_lightning as pl
 from diffusion.diffusion_helpers import GaussianFourierProjection
 from torch_geometric.data import Batch
+import numpy as np
 
 from diffusion.diffusion_loss import DiffusionLoss, DiffusionLossMetric, SampleResult
 from diffusion.inference.visualize_crystal import VisualizationSetting
@@ -221,6 +222,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
                 z_table,
                 use_constant_atomic_symbols,
             )
+            constant_atoms = np.repeat(constant_atoms, num_samples_in_batch)
         else:
             constant_atoms = None
 
