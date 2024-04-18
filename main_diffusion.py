@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     # PONTA model settings
     parser.add_argument(
-        "--num_ori", type=int, default=32, help="num elements of spherical grid"
+        "--num_ori", type=int, default=16, help="num elements of spherical grid"
     )
     parser.add_argument(
         "--hidden_dim", type=int, default=512, help="internal feature dimension"
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         "--degree", type=int, default=3, help="degree of the polynomial embedding"
     )
     parser.add_argument(
-        "--layers", type=int, default=7, help="Number of message passing layers"
+        "--layers", type=int, default=5, help="Number of message passing layers"
     )
     parser.add_argument(
         "--widening_factor",
