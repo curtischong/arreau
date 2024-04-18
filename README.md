@@ -72,3 +72,6 @@ Download mace-mp-0 [here](https://github.com/ACEsuit/mace-mp/releases/download/m
 
 install the ipykernel so you can import python functions (in this repo) in jupyter notebooks: python -m ipykernel install --user --name=venv
 - It works because this repo is saved as a dependency in venv
+
+you can install the latest mace (on the develop branch) here:
+pip install git+https://github.com/ACEsuit/mace.git@develop
