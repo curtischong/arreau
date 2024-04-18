@@ -29,4 +29,5 @@ def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
 
 if __name__ == "__main__":
     sample_results = load_sample_results_from_hdf5("out/crystals.h5")
-    visualize_one_crystal(sample_results, sample_idx=1)
+    # visualize_one_crystal(sample_results, sample_idx=1)
+    relax_one_crystal(sample_results, sample_idx=1)

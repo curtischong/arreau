@@ -26,6 +26,7 @@ def relax(L0: np.ndarray, frac_x: np.ndarray, atomic_numbers: np.ndarray, out_di
     # set initial positions
     positions = frac_x @ L0
     for i in range(num_relaxations):
+        positions += np.random.randn(*positions.shape) * 0.5
         system = Atoms(symbols=symbols, positions=positions, pbc=(True, True, True))
 
         # create the calculator
