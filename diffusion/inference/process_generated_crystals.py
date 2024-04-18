@@ -30,11 +30,18 @@ def load_sample_results_from_hdf5(
     return sample_results
 
 
-def get_one_crystal(sample_result: SampleResult, sample_idx: int):
-    lattice = sample_result.lattice[sample_idx]
+def get_crystal_indexes(sample_result: SampleResult, sample_idx: int):
     crystal_start_idx = sample_result.idx_start[sample_idx]
     num_atoms = sample_result.num_atoms[sample_idx]
     end_idx = crystal_start_idx + num_atoms
+    return crystal_start_idx, end_idx
+
+
+def get_one_crystal(sample_result: SampleResult, sample_idx: int):
+    lattice = sample_result.lattice[sample_idx]
+
+    crystal_start_idx, end_idx = get_crystal_indexes(sample_result, sample_idx)
+
     frac_x = sample_result.frac_x[crystal_start_idx:end_idx]
     atomic_numbers = sample_result.atomic_numbers[crystal_start_idx:end_idx]
     return lattice, frac_x, atomic_numbers
