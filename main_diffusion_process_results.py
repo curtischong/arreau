@@ -4,11 +4,13 @@ from diffusion.diffusion_loss import SampleResult
 from diffusion.inference.process_generated_crystals import (
     get_one_crystal,
     load_sample_results_from_hdf5,
+    save_sample_results_to_hdf5,
 )
 import os
 
 from diffusion.inference.relax import relax
 from diffusion.inference.visualize_crystal import visualize_and_save_crystal
+import numpy as np
 
 # TODO: put this in a config file?
 OUT_DIR = "out"
@@ -18,7 +20,16 @@ RELAX_DIR = f"{OUT_DIR}/relax"
 def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
     os.makedirs(RELAX_DIR, exist_ok=True)
     lattice, frac_x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
-    relax(lattice, frac_x, atomic_numbers, RELAX_DIR)
+    new_frac_x = relax(lattice, frac_x, atomic_numbers, RELAX_DIR)
+
+    relaxed_results = SampleResult(
+        frac_x=new_frac_x,
+        atomic_numbers=atomic_numbers,
+        lattice=np.expand_dims(lattice, axis=0),
+        idx_start=np.array([0]),
+        num_atoms=np.array([sample_result.num_atoms[sample_idx]]),
+    )
+    save_sample_results_to_hdf5(relaxed_results, f"{RELAX_DIR}/relaxed.h5")
 
 
 def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
