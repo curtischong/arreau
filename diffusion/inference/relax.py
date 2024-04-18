@@ -41,9 +41,9 @@ def relax(L0: np.ndarray, frac_x: np.ndarray, atomic_numbers: np.ndarray, out_di
 
         # Perform the relaxation for one timestep
         dyn = BFGS(system)
-        dyn.run()
+        dyn.run(steps=1)
 
-        frac_x = system.get_scaled_positions()
+        frac_x = dyn.atoms.get_scaled_positions()
         visualize_and_save_crystal(
             atomic_numbers, L0, frac_x, f"{out_dir}/relax_{i}", show_bonds=False
         )
