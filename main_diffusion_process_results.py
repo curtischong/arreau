@@ -8,7 +8,7 @@ from diffusion.inference.process_generated_crystals import (
 )
 import os
 
-from diffusion.inference.relax import relax
+from diffusion.inference.relax import bulk_relax, relax
 from diffusion.inference.visualize_crystal import visualize_and_save_crystal
 import numpy as np
 
@@ -20,7 +20,7 @@ RELAX_DIR = f"{OUT_DIR}/relax"
 def relax_one_crystal(sample_result: SampleResult, sample_idx: int):
     os.makedirs(RELAX_DIR, exist_ok=True)
     lattice, frac_x, atomic_numbers = get_one_crystal(sample_result, sample_idx)
-    new_frac_x = relax(lattice, frac_x, atomic_numbers, RELAX_DIR)
+    new_frac_x = relax(lattice, frac_x, atomic_numbers)
 
     relaxed_results = SampleResult(
         frac_x=new_frac_x,
@@ -38,7 +38,13 @@ def visualize_one_crystal(sample_result: SampleResult, sample_idx: int):
     visualize_and_save_crystal(atomic_numbers, lattice, frac_x, name, show_bonds=False)
 
 
+def relax_all_crystals(sample_result: SampleResult):
+    new_sample_result = bulk_relax(sample_result)
+    save_sample_results_to_hdf5(new_sample_result, f"{RELAX_DIR}/relaxed.h5")
+
+
 if __name__ == "__main__":
     sample_results = load_sample_results_from_hdf5("out/crystals.h5")
     # visualize_one_crystal(sample_results, sample_idx=1)
-    relax_one_crystal(sample_results, sample_idx=1)
+    # relax_one_crystal(sample_results, sample_idx=1)
+    relax_all_crystals(sample_results)
