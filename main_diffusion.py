@@ -115,10 +115,10 @@ if __name__ == "__main__":
 
     # PONTA model settings
     parser.add_argument(
-        "--num_ori", type=int, default=16, help="num elements of spherical grid"
+        "--num_ori", type=int, default=32, help="num elements of spherical grid"
     )
     parser.add_argument(
-        "--hidden_dim", type=int, default=128, help="internal feature dimension"
+        "--hidden_dim", type=int, default=256, help="internal feature dimension"
     )
     parser.add_argument(
         "--basis_dim", type=int, default=256, help="number of basis functions"
