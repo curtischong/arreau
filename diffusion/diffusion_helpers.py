@@ -71,14 +71,13 @@ class VE_pbc(nn.Module):
             torch.zeros_like(sigmas),
             self.sigmas[t - 1].view(-1, 1),
         )
-        cart_p_mean = xt - epx_x * (sigmas**2 - adjacent_sigmas**2)
+        frac_p_mean = xt - epx_x * (sigmas**2 - adjacent_sigmas**2)
         # the sign of eps_p here is related to the verification above.
-        cart_p_rand = torch.sqrt(
+        frac_p_rand = torch.sqrt(
             (adjacent_sigmas**2 * (sigmas**2 - adjacent_sigmas**2)) / (sigmas**2)
         ) * torch.randn_like(xt)
-        cart_p_next = cart_p_mean + cart_p_rand  # before wrapping
-        frac_p_next = cart_to_frac_coords(cart_p_next, lattice, num_atoms)
-        return frac_p_next
+        frac_p_next = frac_p_mean + frac_p_rand  # before wrapping
+        return frac_p_next % 1
 
 
 class VP(nn.Module):

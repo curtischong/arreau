@@ -187,7 +187,9 @@ class DiffusionLoss(torch.nn.Module):
 
         return (
             # pred_frac_eps_x.squeeze(1) / used_sigmas_x,
-            pred_frac_eps_x,
+            pred_frac_eps_x.squeeze(
+                1
+            ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
