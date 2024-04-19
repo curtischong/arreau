@@ -15,7 +15,6 @@ from diffusion.diffusion_helpers import (
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
-    subtract_cog,
     symmetric_matrix_to_vector,
     vector_length_mse_loss,
     vector_to_symmetric_matrix,
@@ -32,7 +31,7 @@ from torch.nn import functional as F
 
 
 pos_sigma_min = 0.001
-pos_sigma_max = 10.0
+pos_sigma_max = 1.0  # this was originally 10 but since we're diffusing over frac coords now, I changed it to 1
 
 type_power = 2
 lattice_power = 2
@@ -92,10 +91,8 @@ class DiffusionLoss(torch.nn.Module):
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
-        # self.norm_x = 10. # I'm not sure why mofdiff uses these values. I'm going to use 1.0 for now.
+        # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
         # self.norm_h = 10.
-        self.norm_x = 1.0
-        self.norm_h = 1.0
 
     def compute_error_for_global_vec(self, pred_eps, eps, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -161,13 +158,16 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
 
         # compute the predictions
-        predicted_h0_logits, pred_eps_x, pred_symmetric_vector_noise, pred_lattice_0 = (
-            model(batch)
-        )
+        (
+            predicted_h0_logits,
+            pred_frac_eps_x,
+            pred_symmetric_vector_noise,
+            pred_lattice_0,
+        ) = model(batch)
 
         # normalize the predictions
-        used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
-        pred_eps_x = subtract_cog(pred_eps_x, num_atoms)
+        # used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
+        # pred_frac_eps_x = subtract_cog(pred_frac_eps_x, num_atoms)
 
         # calculate the pred_lattice_symmetric_noise
         _rot, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice_0)
@@ -184,19 +184,13 @@ class DiffusionLoss(torch.nn.Module):
         ) / 2
 
         return (
-            pred_eps_x.squeeze(1) / used_sigmas_x,
+            pred_frac_eps_x.squeeze(
+                1
+            ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
         )
-
-    def normalize(self, x):
-        x = x / self.norm_x
-        return x
-
-    def unnormalize(self, x):
-        x = x * self.norm_x
-        return x
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
@@ -220,30 +214,28 @@ class DiffusionLoss(torch.nn.Module):
         )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
-        cart_x_0 = batch.pos.squeeze(0)
+        frac_x_0 = batch.X0
         h_0 = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
-        cart_x_0 = self.normalize(cart_x_0)
-
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
         if t_int is None:
             t_int = torch.randint(
-                1, self.T + 1, size=(num_atoms.size(0), 1), device=cart_x_0.device
+                1, self.T + 1, size=(num_atoms.size(0), 1), device=frac_x_0.device
             ).long()
         else:
             t_int = (
-                torch.ones((batch.num_atoms.size(0), 1), device=cart_x_0.device).long()
+                torch.ones((batch.num_atoms.size(0), 1), device=frac_x_0.device).long()
                 * t_int
             )
         t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
-        frac_x_t, target_eps_x, used_sigmas_x = self.pos_diffusion(
-            cart_x_0, t_int_atoms, lattice, num_atoms
+        frac_x_t, target_frac_eps_x, used_sigmas_x = self.pos_diffusion(
+            frac_x_0, t_int_atoms, lattice, num_atoms
         )
         h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
 
@@ -255,26 +247,29 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        pred_eps_x, predicted_h0_logits, pred_symmetric_vector_noise, pred_lattice = (
-            self.phi(
-                frac_x_t,
-                h_t_onehot,
-                t_int_atoms,
-                num_atoms,
-                noisy_lattice,
-                noisy_symmetric_vector,
-                model,
-                batch,
-                t_emb_weights,
-            )
+        (
+            pred_frac_eps_x,
+            predicted_h0_logits,
+            pred_symmetric_vector_noise,
+            pred_lattice,
+        ) = self.phi(
+            frac_x_t,
+            h_t_onehot,
+            t_int_atoms,
+            num_atoms,
+            noisy_lattice,
+            noisy_symmetric_vector,
+            model,
+            batch,
+            t_emb_weights,
         )
 
         # Compute the error.
         error_x = self.compute_error(
-            pred_eps_x,
-            target_eps_x / used_sigmas_x**2,
+            pred_frac_eps_x,
+            target_frac_eps_x,
             batch,
-            0.5 * used_sigmas_x**2,
+            # 0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
 
         error_h = self.d3pm.calculate_loss(
@@ -360,8 +355,7 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
-            frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
             if constant_atoms is not None:
                 h = constant_atoms
@@ -376,10 +370,6 @@ class DiffusionLoss(torch.nn.Module):
                 vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
-
-        frac_x = self.unnormalize(
-            frac_x
-        )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
