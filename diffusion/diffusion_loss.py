@@ -223,24 +223,24 @@ class DiffusionLoss(torch.nn.Module):
         )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
-        cart_x_0 = batch.pos.squeeze(0)
+        # cart_x_0 = batch.pos.squeeze(0)
         frac_x_0 = batch.X0
         h_0 = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
-        cart_x_0 = self.normalize(cart_x_0)
+        # cart_x_0 = self.normalize(cart_x_0)
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
         if t_int is None:
             t_int = torch.randint(
-                1, self.T + 1, size=(num_atoms.size(0), 1), device=cart_x_0.device
+                1, self.T + 1, size=(num_atoms.size(0), 1), device=frac_x_0.device
             ).long()
         else:
             t_int = (
-                torch.ones((batch.num_atoms.size(0), 1), device=cart_x_0.device).long()
+                torch.ones((batch.num_atoms.size(0), 1), device=frac_x_0.device).long()
                 * t_int
             )
         t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
@@ -367,8 +367,8 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
-            frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
+            # cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
+            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
             if constant_atoms is not None:
                 h = constant_atoms
