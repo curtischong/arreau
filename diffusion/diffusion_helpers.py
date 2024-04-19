@@ -575,6 +575,37 @@ def vector_length_mse_loss(
     target_lengths = torch.norm(target_matrices, dim=2)  # Shape: (batch_size, 3)
 
     # Calculate the MSE loss between the vector lengths
-    loss = F.mse_loss(input_lengths, target_lengths)
+    vector_length_loss = F.mse_loss(input_lengths, target_lengths)
+    cubic_score_loss = F.mse_loss(
+        cubic_score(input_lengths), cubic_score(target_lengths)
+    )
 
-    return loss
+    return vector_length_loss + cubic_score_loss
+
+
+def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
+    # edge_lengths should have shape (batch_size, 3)
+    # where batch_size is the number of parallelepipeds in the batch,
+    # and each row contains the lengths of the three edges of a parallelepiped
+
+    # Unpack the edge lengths
+    a, b, c = edge_lengths[:, 0], edge_lengths[:, 1], edge_lengths[:, 2]
+
+    # Calculate the average length of the edges
+    avg = (a + b + c) / 3
+
+    # Calculate the absolute differences between each edge length and the average
+    diff_a = torch.abs(a - avg)
+    diff_b = torch.abs(b - avg)
+    diff_c = torch.abs(c - avg)
+
+    # Calculate the sum of these differences
+    sum_diff = diff_a + diff_b + diff_c
+
+    # Normalize the sum of differences by dividing it by the average length
+    normalized_diff = sum_diff / avg
+
+    # Calculate the cubic score
+    cubic_score = 1 - normalized_diff
+
+    return cubic_score
