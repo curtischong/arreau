@@ -233,8 +233,8 @@ def min_distance_sqr_pbc(
         return_to_jimages == True:
             to_jimages: (N_atoms, 3), position of cart_coord2 relative to cart_coord1 in pbc
 
-    curtis: I think this function works by creating the 3x3 volume of lattice points, so
-    it the center cell can then have the other points in neighboring cells to compute the distance.
+    curtis: This function works by creating a 3x3 volume of lattice points around the center cell, so
+    it the center cell can then compute the distance between its points and the other points in neighboring cells.
     """
     batch_size = len(num_atoms)
 

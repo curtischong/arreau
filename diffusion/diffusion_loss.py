@@ -91,10 +91,8 @@ class DiffusionLoss(torch.nn.Module):
         self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
-        # self.norm_x = 10. # I'm not sure why mofdiff uses these values. I'm going to use 1.0 for now.
+        # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
         # self.norm_h = 10.
-        self.norm_x = 1.0
-        self.norm_h = 1.0
 
     def compute_error_for_global_vec(self, pred_eps, eps, weights=None):
         """Computes error, i.e. the most likely prediction of x."""
@@ -195,14 +193,6 @@ class DiffusionLoss(torch.nn.Module):
             pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
         )
 
-    def normalize(self, x):
-        x = x / self.norm_x
-        return x
-
-    def unnormalize(self, x):
-        x = x * self.norm_x
-        return x
-
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance
@@ -225,14 +215,11 @@ class DiffusionLoss(torch.nn.Module):
         )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
-        # cart_x_0 = batch.pos.squeeze(0)
         frac_x_0 = batch.X0
         h_0 = batch.A0
         lattice = batch.L0
         lattice = lattice.view(-1, 3, 3)
         num_atoms = batch.num_atoms
-
-        # cart_x_0 = self.normalize(cart_x_0)
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
@@ -369,7 +356,6 @@ class DiffusionLoss(torch.nn.Module):
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
 
-            # cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
             if constant_atoms is not None:
@@ -385,10 +371,6 @@ class DiffusionLoss(torch.nn.Module):
                 vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
-
-        frac_x = self.unnormalize(
-            frac_x
-        )  # why does mofdiff unnormalize? The fractional x coords can be > 1 after unormalizing.
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
