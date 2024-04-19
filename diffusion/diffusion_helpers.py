@@ -39,24 +39,23 @@ class VE_pbc(nn.Module):
             torch.exp(torch.linspace(np.log(sigma_min), np.log(sigma_max), self.T + 1)),
         )
 
-    def forward(self, x0, t, lattice, num_atoms, **kwargs):
-        """
-        x0 should be wrapped cart coords.
-        """
+    def forward(self, frac_x0, t, lattice, num_atoms, **kwargs):
         used_sigmas = self.sigmas[t].view(-1, 1)
-        eps_x = torch.randn_like(x0) * used_sigmas
-        frac_p_noisy = cart_to_frac_coords(x0 + eps_x, lattice, num_atoms)
-        cart_p_noisy = frac_to_cart_coords(frac_p_noisy, lattice, num_atoms)
+        eps_x = torch.randn_like(frac_x0) * used_sigmas
+        frac_noisy = (frac_x0 + eps_x) % 1
+        cart_noisy = frac_to_cart_coords(frac_noisy, lattice, num_atoms)
+        cart_p = frac_to_cart_coords(frac_x0, lattice, num_atoms)
         _, wrapped_eps_x = min_distance_sqr_pbc(
-            cart_p_noisy,
-            x0,
+            cart_noisy,
+            cart_p,
             lattice,
             num_atoms,
-            x0.device,
+            cart_p.device,
             return_vector=True,
         )
-        # wrapped_eps_x is like the noise. it's a vector tat points from the noisy coords to the clean x0 coord.
-        return frac_p_noisy, wrapped_eps_x, used_sigmas
+        wrapped_frac_eps_x = cart_to_frac_coords(wrapped_eps_x, lattice, num_atoms)
+        # wrapped_eps_x is like the noise. it's a vector that points from the noisy coords to the clean x0 coord.
+        return frac_noisy, wrapped_frac_eps_x, used_sigmas
 
     def reverse(self, xt, epx_x, t, lattice, num_atoms):
         """
@@ -230,6 +229,9 @@ def min_distance_sqr_pbc(
             min_atom_distance_vector: vector pointing from cart_coords1 to cart_coords2, (N_atoms, 3)
         return_to_jimages == True:
             to_jimages: (N_atoms, 3), position of cart_coord2 relative to cart_coord1 in pbc
+
+    curtis: I think this function works by creating the 3x3 volume of lattice points, so
+    it the center cell can then have the other points in neighboring cells to compute the distance.
     """
     batch_size = len(num_atoms)
 
@@ -252,12 +254,15 @@ def min_distance_sqr_pbc(
     pos1 = pos1.view(-1, 3, 1).expand(-1, -1, num_cells)
     pos2 = pos2.view(-1, 3, 1).expand(-1, -1, num_cells)
     # Add the PBC offsets for the second atom
+    # curtis: why not for the first coords too? Cause the first coord is the center cell. We just expand it to have dim 27 so we can calculate the difference between pos2
     pos2 = pos2 + pbc_offsets_per_atom
 
     # Compute the vector between atoms
     # shape (num_atom_squared_sum, 3, 27)
     atom_distance_vector = pos1 - pos2
-    atom_distance_sqr = torch.sum(atom_distance_vector**2, dim=1)
+    atom_distance_sqr = torch.sum(
+        atom_distance_vector**2, dim=1
+    )  # There is an optimization here. we take the distance^2 (rather than distance) since distance is monotonically increasing
 
     min_atom_distance_sqr, min_indices = atom_distance_sqr.min(dim=-1)
 
