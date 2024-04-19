@@ -184,7 +184,6 @@ class DiffusionLoss(torch.nn.Module):
         ) / 2
 
         return (
-            # pred_frac_eps_x.squeeze(1) / used_sigmas_x,
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
