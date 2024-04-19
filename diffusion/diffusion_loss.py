@@ -359,6 +359,7 @@ class DiffusionLoss(torch.nn.Module):
 
             next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
             lattice = rotation_matrix @ next_symmetric_matrix
+            lattice = lattice * 0.98  # slight pressure to keep it small
 
             cart_x = frac_to_cart_coords(frac_x, lattice, num_atoms)
             frac_x = self.pos_diffusion.reverse(cart_x, score_x, t, lattice, num_atoms)
