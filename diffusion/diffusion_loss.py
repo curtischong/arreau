@@ -31,7 +31,7 @@ from torch.nn import functional as F
 
 
 pos_sigma_min = 0.001
-pos_sigma_max = 10.0
+pos_sigma_max = 1.0  # this was originally 10 but since we're diffusing over frac coords now, I changed it to 1
 
 type_power = 2
 lattice_power = 2
@@ -168,7 +168,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = model(batch)
 
         # normalize the predictions
-        used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
+        # used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
         # pred_frac_eps_x = subtract_cog(pred_frac_eps_x, num_atoms)
 
         # calculate the pred_lattice_symmetric_noise
@@ -186,7 +186,8 @@ class DiffusionLoss(torch.nn.Module):
         ) / 2
 
         return (
-            pred_frac_eps_x.squeeze(1) / used_sigmas_x,
+            # pred_frac_eps_x.squeeze(1) / used_sigmas_x,
+            pred_frac_eps_x,
             predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
@@ -278,9 +279,9 @@ class DiffusionLoss(torch.nn.Module):
         # Compute the error.
         error_x = self.compute_error(
             pred_frac_eps_x,
-            target_frac_eps_x / used_sigmas_x**2,
+            target_frac_eps_x,
             batch,
-            0.5 * used_sigmas_x**2,
+            # 0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
 
         error_h = self.d3pm.calculate_loss(

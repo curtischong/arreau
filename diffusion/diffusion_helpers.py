@@ -45,7 +45,9 @@ class VE_pbc(nn.Module):
         frac_noisy = (frac_x0 + eps_x) % 1
         cart_noisy = frac_to_cart_coords(frac_noisy, lattice, num_atoms)
         cart_p = frac_to_cart_coords(frac_x0, lattice, num_atoms)
-        _, wrapped_eps_x = min_distance_sqr_pbc(
+
+        # this returns the distance from the current point to it's noisy point. it chooses the lclosest noisy point to opint to (from the neighbouring cells)
+        _, cart_min_atomic_distance_noise = min_distance_sqr_pbc(
             cart_noisy,
             cart_p,
             lattice,
@@ -53,7 +55,9 @@ class VE_pbc(nn.Module):
             cart_p.device,
             return_vector=True,
         )
-        wrapped_frac_eps_x = cart_to_frac_coords(wrapped_eps_x, lattice, num_atoms)
+        wrapped_frac_eps_x = cart_to_frac_coords(
+            cart_min_atomic_distance_noise, lattice, num_atoms
+        )
         # wrapped_eps_x is like the noise. it's a vector that points from the noisy coords to the clean x0 coord.
         return frac_noisy, wrapped_frac_eps_x, used_sigmas
 
