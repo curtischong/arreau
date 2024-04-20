@@ -579,8 +579,26 @@ def vector_length_mse_loss(
     cubic_score_loss = F.mse_loss(
         cubic_score(input_lengths), cubic_score(target_lengths)
     )
+    edge_ratio_loss = (
+        F.mse_loss(
+            edge_ratio(input_lengths, 0, 1),
+            edge_ratio(target_lengths, 0, 1),
+        )
+        + F.mse_loss(
+            edge_ratio(input_lengths, 0, 2),
+            edge_ratio(target_lengths, 0, 2),
+        )
+        + F.mse_loss(
+            edge_ratio(input_lengths, 1, 2),
+            edge_ratio(target_lengths, 1, 2),
+        )
+    )
 
-    return vector_length_loss + cubic_score_loss
+    return vector_length_loss + edge_ratio_loss + cubic_score_loss
+
+
+def edge_ratio(edge_lengths, edge1: int, edge2: int):
+    return edge_lengths[:, edge1] / (edge_lengths[:, edge2] + EPSILON)
 
 
 def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
