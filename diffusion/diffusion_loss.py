@@ -74,7 +74,9 @@ class DiffusionLoss(torch.nn.Module):
         self.max_neighbors = args.max_neighbors
         self.T = args.num_timesteps
         self.pos_diffusion = VE_pbc(
-            self.T, sigma_min=pos_sigma_min, sigma_max=pos_sigma_max
+            self.T,
+            sigma_min=pos_sigma_min,
+            sigma_max=pos_sigma_max * (np.e ** (self.T // 10)),
         )
 
         self.d3pm = D3PM(
