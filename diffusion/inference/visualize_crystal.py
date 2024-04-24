@@ -86,7 +86,7 @@ def plot_crystal(
     show_bonds: bool,
 ) -> go.Figure:
     lattice = Lattice(raw_lattice)
-    # we use max(z, 118) since the mask state needs a visualization
+    # we use min(z, 118) since the mask state needs a visualization
     element_symbols = [Element.from_Z(min(z, 118)).symbol for z in atomic_numbers]
     pos_arr = []
     for i in range(len(atomic_numbers)):
