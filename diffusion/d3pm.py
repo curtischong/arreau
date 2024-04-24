@@ -31,7 +31,7 @@ class D3PM(nn.Module):
                 mat.diagonal().fill_(1 - (num_classes - 1) * beta / num_classes)
                 q_onestep_mats.append(mat)
             elif forward_type == "mask":
-                transition_to_mask_state_prob = 0.008
+                transition_to_mask_state_prob = 0.02
                 # the mask state is always the last class
                 mat = torch.zeros(num_classes, num_classes)
                 mat[:, -1] = torch.full((num_classes,), transition_to_mask_state_prob)
