@@ -343,7 +343,9 @@ class DiffusionLoss(torch.nn.Module):
                     model,
                     Batch(
                         num_atoms=num_atoms,
-                        batch=torch.tensor(0).repeat(num_atoms.sum()),
+                        batch=torch.arange(0, num_samples_in_batch).repeat_interleave(
+                            num_atoms_per_sample
+                        ),
                     ),
                     t_emb_weights,
                 )
