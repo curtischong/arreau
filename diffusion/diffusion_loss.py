@@ -78,7 +78,10 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         self.d3pm = D3PM(
-            x0_model=None, n_T=args.num_timesteps, num_classes=num_atomic_states
+            x0_model=None,
+            n_T=args.num_timesteps,
+            num_classes=num_atomic_states,
+            forward_type="mask",
         )
 
         self.lattice_diffusion = VP_lattice(
@@ -323,7 +326,10 @@ class DiffusionLoss(torch.nn.Module):
         if constant_atoms is not None:
             h = constant_atoms
         else:
-            h = torch.argmax(torch.randn([num_atoms.sum(), num_atomic_states]), dim=-1)
+            # init as the mask state
+            h = torch.full(
+                (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
+            )
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
