@@ -251,7 +251,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_frac_eps_x,
             predicted_h0_logits,
             # pred_symmetric_vector_noise,
-            pred_lattice,
+            pred_l_0,
         ) = self.phi(
             frac_x_t,
             h_t_onehot,
@@ -275,7 +275,7 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        pred_lattice_noise = noisy_lattice - pred_lattice
+        pred_lattice_noise = noisy_lattice - pred_l_0
         _rot, pred_symmetric_matrix_noise = polar_decomposition(pred_lattice_noise)
         pred_symmetric_vector_noise = symmetric_matrix_to_vector(
             pred_symmetric_matrix_noise
@@ -284,7 +284,7 @@ class DiffusionLoss(torch.nn.Module):
             F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
             # + F.mse_loss(pred_lattice, lattice) # I don't think this matters, since we have a loss for predicted symmetric vector noise
             + vector_length_mse_loss(
-                pred_lattice, lattice
+                pred_l_0, lattice
             )  # Without this loss, the model will explode the lattice's length
         )
 
