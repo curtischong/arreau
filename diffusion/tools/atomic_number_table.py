@@ -6,7 +6,7 @@ from pymatgen.core import Element
 
 class AtomicNumberTable:
     MASK_ATOMIC_NUMBER = (
-        2001  # This is the mask atomic number used in the mattergen paper
+        2001  # This is the mask atomic number used in the mattergen paper (from d3pm)
     )
 
     def __init__(self, zs: Sequence[int]):
@@ -29,7 +29,7 @@ def get_atomic_number_table_from_zs(zs: set[int]) -> AtomicNumberTable:
     z_set = set(zs[0])  # copy the original set so we don't modify it
     for i in range(1, len(zs)):
         z_set.update(zs[i])
-    # z_set.add(AtomicNumberTable.MASK_ATOMIC_NUMBER)
+    z_set.add(AtomicNumberTable.MASK_ATOMIC_NUMBER)
     return AtomicNumberTable(sorted(list(z_set)))
 
 

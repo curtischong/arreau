@@ -323,7 +323,8 @@ class DiffusionLoss(torch.nn.Module):
         if constant_atoms is not None:
             h = constant_atoms
         else:
-            h = torch.argmax(torch.randn([num_atoms.sum(), num_atomic_states]), dim=-1)
+            # init as the mask state
+            h = torch.full(num_atoms.sum(), num_atomic_states - 1)
 
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
