@@ -146,6 +146,7 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
                 self.fiber_kernel.weight.data = self.fiber_kernel.weight.data * std_1/std_2
             self.callibrated = ~self.callibrated
 
+    # from https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/nn/conv/message_passing.py#L478
     def propagate2(
         self,
         edge_index: Adj,
