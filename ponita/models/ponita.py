@@ -94,7 +94,7 @@ class PonitaFiberBundle(nn.Module):
         # Interaction + readout layers
         readouts = []
         for interaction_layer, readout_layer in zip(self.interaction_layers, self.read_out_layers):
-            x = interaction_layer(x, graph.edge_index, edge_attr=kernel_basis, fiber_attr=fiber_kernel_basis, batch=graph.batch)
+            x. messages = interaction_layer(x, graph.edge_index, edge_attr=kernel_basis, fiber_attr=fiber_kernel_basis, batch=graph.batch)
             if readout_layer is not None: readouts.append(readout_layer(x))
         readout = sum(readouts) / len(readouts)
         

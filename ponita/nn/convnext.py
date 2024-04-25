@@ -21,7 +21,7 @@ class ConvNext(torch.nn.Module):
         """
         """
         input = x
-        x = self.conv(x, edge_index, edge_attr, **kwargs)
+        x, messages = self.conv(x, edge_index, edge_attr, **kwargs)
         x = self.norm(x)
         x = self.linear_1(x)
         x = self.act_fn(x)
@@ -30,4 +30,4 @@ class ConvNext(torch.nn.Module):
             x = self.layer_scale * x
         if input.shape == x.shape: 
             x = x + input
-        return x
+        return x, messages

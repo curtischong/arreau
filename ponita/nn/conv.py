@@ -108,16 +108,18 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
 
         # Do the convolutions: 1. Spatial conv, 2. Spherical conv
         kernel = self.kernel(edge_attr)
-        # edge_features = self.message(x, kernel)
-        x_1 = self.propagate2(edge_index, x=x, kernel=kernel)
+        x_1, messages = self.propagate2(edge_index, x=x, kernel=kernel)
         if self.separable:
             fiber_kernel = self.fiber_kernel(fiber_attr)
             if self.depthwise:
                 x_2 = torch.einsum('boc,opc->bpc', x_1, fiber_kernel) / fiber_kernel.shape[-2]
+                messages_2 = torch.einsum('boc,opc->bpc', messages, fiber_kernel) / fiber_kernel.shape[-2]
             else:
                 x_2 = torch.einsum('boc,opdc->bpd', x_1, fiber_kernel.unflatten(-1, (self.out_channels, self.in_channels))) / fiber_kernel.shape[-2]
+                messages_2 = torch.einsum('boc,opdc->bpd', messages, fiber_kernel.unflatten(-1, (self.out_channels, self.in_channels))) / fiber_kernel.shape[-2]
         else:
             x_2 = x_1
+            messages_2 = messages
 
         # Re-callibrate the initializaiton
         if self.training and not(self.callibrated):
@@ -125,9 +127,9 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
 
         # Add bias
         if self.bias is not None:
-            return x_2 + self.bias
+            return x_2 + self.bias, messages_2 + self.bias
         else:  
-            return x_2
+            return x_2, messages_2
 
     def message(self, x_j, kernel):
         if self.separable:
@@ -224,6 +226,7 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
                     for a in decomp_args
                 }
                 decomp_out = []
+                decomp_messages = []
 
             for i in range(decomposed_layers):
                 if decomposed_layers > 1:
@@ -240,6 +243,7 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
                     if res is not None:
                         msg_kwargs = res[0] if isinstance(res, tuple) else res
                 out = self.message(**msg_kwargs)
+                messages = out
                 for hook in self._message_forward_hooks.values():
                     res = hook(self, (msg_kwargs, ), out)
                     if res is not None:
@@ -270,13 +274,15 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
 
                 if decomposed_layers > 1:
                     decomp_out.append(out)
+                    decomp_messages.append(messages)
 
             if decomposed_layers > 1:
                 out = torch.cat(decomp_out, dim=-1)
+                messages = torch.cat(decomp_messages, dim=-1)
 
         for hook in self._propagate_forward_hooks.values():
             res = hook(self, (edge_index, mutable_size, kwargs), out)
             if res is not None:
                 out = res
 
-        return out
+        return out, messages
