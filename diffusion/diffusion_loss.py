@@ -14,7 +14,6 @@ from diffusion.diffusion_helpers import (
     VP_lattice,
     frac_to_cart_coords,
     polar_decomposition,
-    radius_graph_pbc,
     symmetric_matrix_to_vector,
     vector_length_mse_loss,
     vector_to_symmetric_matrix,
@@ -28,6 +27,8 @@ from diffusion.inference.visualize_crystal import (
     vis_crystal_during_sampling,
 )
 from torch.nn import functional as F
+
+from diffusion.tools.neighborhood import get_neighborhood
 
 
 pos_sigma_min = 0.001
@@ -150,13 +151,21 @@ class DiffusionLoss(torch.nn.Module):
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
-        edge_index, cell_offsets, neighbors = radius_graph_pbc(
-            cart_x_t,
-            lattice,
-            batch.num_atoms,
-            self.cutoff,
-            self.max_neighbors,
-            device=cart_x_t.device,
+        # edge_index, cell_offsets, neighbors = radius_graph_pbc(
+        #     cart_x_t,
+        #     lattice,
+        #     batch.num_atoms,
+        #     self.cutoff,
+        #     self.max_neighbors,
+        #     device=cart_x_t.device,
+        # )
+        # # batch.edge_index = edge_index
+        # batch.edge_index = torch.unique(torch.tensor(edge_index).T, dim=0).T
+        edge_index, shifts, unit_shifts = get_neighborhood(
+            positions=frac_x_t,
+            cutoff=self.cutoff,
+            pbc=(True, True, True),
+            cell=lattice,
         )
         batch.edge_index = edge_index
 
