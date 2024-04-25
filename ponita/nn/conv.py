@@ -109,7 +109,7 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
         # Do the convolutions: 1. Spatial conv, 2. Spherical conv
         kernel = self.kernel(edge_attr)
         # edge_features = self.message(x, kernel)
-        x_1 = self.propagate(edge_index, x=x, kernel=kernel)
+        x_1 = self.propagate2(edge_index, x=x, kernel=kernel)
         if self.separable:
             fiber_kernel = self.fiber_kernel(fiber_attr)
             if self.depthwise:
@@ -146,7 +146,7 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
                 self.fiber_kernel.weight.data = self.fiber_kernel.weight.data * std_1/std_2
             self.callibrated = ~self.callibrated
 
-    def propagate(
+    def propagate2(
         self,
         edge_index: Adj,
         size: Size = None,
