@@ -67,6 +67,7 @@ class PonitaFiberBundle(nn.Module):
         # Make feedforward network
         self.interaction_layers = nn.ModuleList()
         self.read_out_layers = nn.ModuleList()
+        self.edge_readout_layers = nn.ModuleList()
         for i in range(num_layers):
             conv = FiberBundleConv(hidden_dim, hidden_dim, basis_dim, groups=hidden_dim, separable=True)
             layer = ConvNext(hidden_dim, conv, act=act_fn, layer_scale=layer_scale, widening_factor=widening_factor)
@@ -74,6 +75,7 @@ class PonitaFiberBundle(nn.Module):
             # self.interaction_layers.append(ConvNextR3S2(hidden_dim, basis_dim, act=act_fn, widening_factor=widening_factor, layer_scale=layer_scale))
             if multiple_readouts or i == (num_layers - 1):
                 self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_scalar + output_dim_global_vec))
+                # self.edge_readout_layers.append(nn.Linear(basis_dim, output_dim + output_dim_vec + output_dim_global_scalar + output_dim_global_vec))
             else:
                 self.read_out_layers.append(None)
     
@@ -134,7 +136,7 @@ class PonitaFiberBundle(nn.Module):
     def global_scalar_readout_fn(self, readout_scalar, batch):
         if self.output_dim_global_scalar > 0:
             output_scalar = sphere_to_scalar(readout_scalar)
-            output_scalar=global_add_pool(output_scalar, batch)
+            output_scalar = global_add_pool(output_scalar, batch)
         else:
             output_scalar = None
         return output_scalar
