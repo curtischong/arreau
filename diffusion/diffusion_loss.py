@@ -166,6 +166,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_frac_eps_x,
             pred_symmetric_vector_noise,
             pred_lattice_0,
+            edge_scores,
         ) = model(batch)
 
         # normalize the predictions

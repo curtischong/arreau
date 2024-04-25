@@ -77,6 +77,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
             6  # 6 predicted noise in the noisy_symmetric_vector params
         )
         out_channels_global_vector = 3  # predicted lattice at t=0 (3)
+        output_dim_edge_vector = (
+            1  # how much the lattice should shift in each direction
+        )
 
         # Make the model
         self.model = PonitaFiberBundle(
@@ -85,6 +88,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             out_channels_scalar,
             out_channels_global_scalar,
             out_channels_global_vector,
+            output_dim_edge_vector,
             args.layers,
             output_dim_vec=out_channels_vec,
             radius=args.radius,
