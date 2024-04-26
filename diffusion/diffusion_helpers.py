@@ -59,7 +59,13 @@ class VE_pbc(nn.Module):
             cart_min_atomic_distance_noise, lattice, num_atoms
         )
         # wrapped_eps_x is like the noise. it's a vector that points from the noisy coords to the clean x0 coord.
-        return frac_noisy, wrapped_frac_eps_x, used_sigmas
+        return (
+            frac_noisy.type(
+                torch.float64
+            ),  # TODO: investigate why the default type is not float64
+            wrapped_frac_eps_x,
+            used_sigmas,
+        )
 
     def reverse(self, xt, epx_x, t, lattice, num_atoms):
         """
