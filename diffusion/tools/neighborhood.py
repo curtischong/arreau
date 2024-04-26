@@ -142,9 +142,6 @@ def get_edge_index_for_center_cells(
     cutoff,
     num_atoms,
 ):
-    print(lattice.device)
-    print(num_atoms.device)
-    print(supercells.device)
     batch_indexes = torch.arange(
         lattice.shape[0], device=lattice.device
     ).repeat_interleave(num_atoms * supercells.shape[0], dim=0)
