@@ -436,13 +436,19 @@ def radius_graph_pbc(
         or max_num_neighbors_threshold <= 0
     ):
         if topk_per_pair is None:
-            return torch.stack((index2, index1)), -unit_cell, num_neighbors_image
+            return (
+                torch.stack((index2, index1)),
+                -unit_cell,
+                num_neighbors_image,
+                atom_distance_sqr,
+            )
         else:
             return (
                 torch.stack((index2, index1)),
                 -unit_cell,
                 num_neighbors_image,
                 topk_mask,
+                atom_distance_sqr,
             )
 
     atom_distance_sqr = torch.masked_select(atom_distance_sqr, mask)
