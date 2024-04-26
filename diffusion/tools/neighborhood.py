@@ -75,18 +75,18 @@ def get_neighborhood(
 # you receive a [num_supercells * num_atoms, 3] tensor
 # we use repeat_interleave, so the first <num_supercells> coords are the same as the first atom
 def atom_cart_coords_in_supercell(
-    lattices: torch.Tensor,  # [batch, 3, 3]
+    lattice: torch.Tensor,  # [batch, 3, 3]
     supercells: torch.Tensor,
     num_atoms: torch.Tensor,
     frac_coords: torch.Tensor,
 ):
-    shifts = supercells.to(lattices.device).repeat(num_atoms.sum(), 1).unsqueeze(1)
+    shifts = supercells.repeat(num_atoms.sum(), 1).unsqueeze(1)
     num_supercells = supercells.shape[0]
 
     adjusted_num_atoms = (
         num_supercells * num_atoms
     )  # since we need to put the atom in each supercell
-    lattices_for_cells = torch.repeat_interleave(lattices, adjusted_num_atoms, dim=0)
+    lattices_for_cells = torch.repeat_interleave(lattice, adjusted_num_atoms, dim=0)
     frac_coords_for_cells = torch.repeat_interleave(frac_coords, num_supercells, dim=0)
     cart_coords = torch.einsum(
         "bi,bij->bj", frac_coords_for_cells, lattices_for_cells
@@ -107,11 +107,8 @@ def get_neighborhood_for_batch(
     num_atoms: torch.Tensor,
     cutoff: float,
 ) -> torch.Tensor:
-    supercells = SUPERCELLS
+    supercells = SUPERCELLS.to(lattice.device)
     # the same as the above, but we always assume periodic boundary conditions AND that each input has a batch dimension
-    print(frac_coords.device)
-    print(lattice.device)
-    print(num_atoms.device)
     supercell_cart_coords, center_cell_indices = atom_cart_coords_in_supercell(
         lattice,
         supercells,
