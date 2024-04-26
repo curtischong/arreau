@@ -9,7 +9,7 @@ def test_get_neighborhood():
     # frac_coords = torch.tensor([[0.0, 0.0, 0.0], [0.9, 0.9, 0.9], [0.5, 0.5, 0.5]])
     torch.set_default_dtype(torch.float64)
     frac_coords = torch.tensor(
-        [[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.8, 0.8]],
+        [[0.5, 0.5, 0.5], [0.5, 0.5, 0.6], [0.5, 0.8, 0.8]],
         dtype=torch.get_default_dtype(),
     )
     lattice = torch.tensor(
@@ -19,7 +19,7 @@ def test_get_neighborhood():
         ],
         dtype=torch.get_default_dtype(),
     )
-    num_atoms = torch.tensor([1, 2])
+    num_atoms = torch.tensor([2, 1])
     neighborhood = get_neighborhood_for_batch(
         frac_coords, lattice, num_atoms=num_atoms, cutoff=1
     )

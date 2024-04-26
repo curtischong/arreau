@@ -90,7 +90,7 @@ def atom_cart_coords_in_supercell(
         "bi,bij->bj", frac_coords_for_cells, lattices_for_cells
     )  # cart coords
     shifted_adjustment = (shifts * lattices_for_cells).sum(dim=1)
-    return cart_coords + shifted_adjustment
+    return cart_coords + shifted_adjustment, shifts
 
 
 def get_neighborhood_for_batch(
@@ -100,22 +100,33 @@ def get_neighborhood_for_batch(
     cutoff: float,
 ) -> torch.Tensor:
     # the same as the above, but we always assume periodic boundary conditions AND that each input has a batch dimension
-    supercell_cart_coords = atom_cart_coords_in_supercell(
+    supercell_cart_coords, shifts = atom_cart_coords_in_supercell(
         lattice, SUPERCELLS, num_atoms, frac_coords
     )
     cart_coords = frac_to_cart_coords(frac_coords, lattice, num_atoms)
-    return get_neighbors_within_cutoff(cart_coords, supercell_cart_coords, cutoff)
+    distances = get_neighbors_within_cutoff(cart_coords, supercell_cart_coords, cutoff)
+    indices = get_indices_within_cutoff(distances, cutoff)
+
+    return distances, indices, shifts
+
+
+def get_indices_within_cutoff(distances, cutoff):
+    # Create a mask for distances less than cutoff and greater than 0
+    mask = (distances < cutoff) & (distances > 0)
+
+    # Get the indices where the mask is True
+    indices = torch.nonzero(mask, as_tuple=True)
+
+    # Extract the i and j indices
+    i_indices = indices[0]
+    j_indices = indices[1]
+
+    # Combine i_indices and j_indices into a 2xN tensor
+    return torch.stack((i_indices, j_indices), dim=0)
 
 
 def get_neighbors_within_cutoff(
-    initial_coords, coords: torch.Tensor, cutoff: float
+    initial_coords, lattice_coords: torch.Tensor, cutoff: float
 ) -> torch.Tensor:
     # Calculate pairwise distances between coordinates
-    distances = torch.cdist(initial_coords, coords)
-
-    # Find the indices of the k nearest neighbors (excluding the i-th coordinate itself)
-    # _, indices = torch.topk(distances.squeeze(), k + 1, largest=False)
-    # indices = indices[1:]  # Exclude the i-th coordinate itself
-    # Find the indices of the coordinates within radius r (excluding the i-th coordinate itself)
-    indices = torch.where((distances <= cutoff) & (distances > 0))
-    return indices
+    return torch.cdist(initial_coords, lattice_coords, p=2)
