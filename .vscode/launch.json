@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/mask-atomic-state.ckpt",
+                "--model_path=models/fix-radius_graph_pbc.ckpt",
             ],
         },
         {
