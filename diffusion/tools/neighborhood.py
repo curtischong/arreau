@@ -115,7 +115,7 @@ def get_neighborhood_for_batch(
         num_atoms,
         frac_coords,
     )
-    return get_edge_index_for_center_cells(
+    edge_index_in_supercell = get_edge_index_for_center_cells(
         supercells,
         lattice,
         supercell_cart_coords,
@@ -123,6 +123,15 @@ def get_neighborhood_for_batch(
         cutoff,
         num_atoms,
     )
+    # I'm not sure if we can divide BEFORE we do keep_edges_with_node_in_center because
+    # we need to rid all of the edges that are not part of the main center cell first (before we disambiguate the coords)
+    original_node_edge_index = edge_index_in_supercell // supercells.shape[0]
+
+    # finally, remove duplicate edges
+    res = torch.unique(
+        original_node_edge_index.T, dim=0
+    ).T  # transpose since the shape is originally [2,n]
+    return res
 
 
 def get_edge_index_for_center_cells(
