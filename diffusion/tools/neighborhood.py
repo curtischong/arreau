@@ -92,7 +92,13 @@ def atom_cart_coords_in_supercell(
         "bi,bij->bj", frac_coords_for_cells, lattices_for_cells
     )  # cart coords
     shifted_adjustment = (shifts * lattices_for_cells).sum(dim=1)
-    return cart_coords + shifted_adjustment, shifts
+    # indices_where_no_shifts = torch.where(shifts == [0, 0, 0])
+
+    center_cell_indices = torch.nonzero(
+        torch.all(shifts == 0, dim=2).squeeze(), as_tuple=False
+    ).squeeze()
+
+    return cart_coords + shifted_adjustment, center_cell_indices
 
 
 def get_neighborhood_for_batch(
@@ -103,14 +109,19 @@ def get_neighborhood_for_batch(
 ) -> torch.Tensor:
     supercells = SUPERCELLS
     # the same as the above, but we always assume periodic boundary conditions AND that each input has a batch dimension
-    supercell_cart_coords, shifts = atom_cart_coords_in_supercell(
+    supercell_cart_coords, center_cell_indices = atom_cart_coords_in_supercell(
         lattice,
         supercells,
         num_atoms,
         frac_coords,
     )
     edge_index = get_edge_index_for_center_cells(
-        supercells, lattice, supercell_cart_coords, cutoff, num_atoms
+        supercells,
+        lattice,
+        supercell_cart_coords,
+        center_cell_indices,
+        cutoff,
+        num_atoms,
     )
     # cart_coords = frac_to_cart_coords(frac_coords, lattice, num_atoms)
 
@@ -126,6 +137,7 @@ def get_edge_index_for_center_cells(
     supercells,
     lattice,
     cart_coords,
+    center_cell_indices,
     cutoff,
     num_atoms,
 ):
