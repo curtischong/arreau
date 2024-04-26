@@ -109,6 +109,9 @@ def get_neighborhood_for_batch(
 ) -> torch.Tensor:
     supercells = SUPERCELLS
     # the same as the above, but we always assume periodic boundary conditions AND that each input has a batch dimension
+    print(frac_coords.device)
+    print(lattice.device)
+    print(num_atoms.device)
     supercell_cart_coords, center_cell_indices = atom_cart_coords_in_supercell(
         lattice,
         supercells,
