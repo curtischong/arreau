@@ -1,4 +1,7 @@
-from diffusion.tools.neighborhood import get_neighborhood_for_batch, shift_lattice
+from diffusion.tools.neighborhood import (
+    get_neighborhood_for_batch,
+    atom_cart_coords_in_supercell,
+)
 import torch
 
 
@@ -37,8 +40,10 @@ def test_shift_lattice():
         dtype=torch.get_default_dtype(),
     )
     num_atoms = torch.tensor([2, 1])
-    shifted_lattices = shift_lattice(lattice, supercells, num_atoms, frac_coords)
-    print(shifted_lattices)
+    cart_coords = atom_cart_coords_in_supercell(
+        lattice, supercells, num_atoms, frac_coords
+    )
+    print(cart_coords)
 
 
 if __name__ == "__main__":

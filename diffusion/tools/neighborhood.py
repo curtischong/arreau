@@ -72,7 +72,7 @@ def get_neighborhood(
     return edge_index, shifts, unit_shifts
 
 
-def shift_lattice(
+def atom_cart_coords_in_supercell(
     lattices: torch.Tensor,  # [batch, 3, 3]
     supercells: torch.Tensor,
     num_atoms: torch.Tensor,
@@ -89,7 +89,8 @@ def shift_lattice(
     cart_coords = torch.einsum(
         "bi,bij->bj", frac_coords_for_cells, lattices_for_cells
     )  # cart coords
-    return cart_coords + (shifts * lattices_for_cells)
+    shifted_adjustment = (shifts * lattices_for_cells).sum(dim=1)
+    return cart_coords + shifted_adjustment
 
 
 def get_neighborhood_for_batch(
