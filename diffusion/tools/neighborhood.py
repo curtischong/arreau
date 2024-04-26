@@ -115,7 +115,7 @@ def get_neighborhood_for_batch(
         num_atoms,
         frac_coords,
     )
-    edge_index = get_edge_index_for_center_cells(
+    return get_edge_index_for_center_cells(
         supercells,
         lattice,
         supercell_cart_coords,
@@ -123,14 +123,6 @@ def get_neighborhood_for_batch(
         cutoff,
         num_atoms,
     )
-    # cart_coords = frac_to_cart_coords(frac_coords, lattice, num_atoms)
-
-    # we need to repeat all the cartesian coords so we can compare the coords in the center cell with each of the atoms in the supercells
-    # cart_coords = torch.repeat_interleave(cart_coords, num_supercells, dim=0)
-    # distances = get_distances(cart_coords, supercell_cart_coords)
-    # indices = get_indices_within_cutoff(distances, cutoff)
-
-    return edge_index
 
 
 def get_edge_index_for_center_cells(
@@ -158,7 +150,23 @@ def get_edge_index_for_center_cells(
     # I used this to verify that the edge_index points to the nodes in its own graph. Make sure they're both the same!:
     # batch_indexes[all_edge_index[1]][1200:1800]
     # batch_indexes[all_edge_index[0]][1200:1800]
-    return all_edge_index
+
+    # now create a new tensor where only the edges with a node in the center_cell_indices are kept
+    return keep_edges_with_node_in_center(all_edge_index, center_cell_indices)
+
+
+def keep_edges_with_node_in_center(indices, center_cell_indices):
+    # Create a boolean mask for each row of indices
+    mask_0 = torch.isin(indices[0], center_cell_indices)
+    mask_1 = torch.isin(indices[1], center_cell_indices)
+
+    # Combine the masks using logical OR
+    mask = mask_0 | mask_1
+
+    # Apply the mask to the indices tensor
+    filtered_indices = indices[:, mask]
+
+    return filtered_indices
 
 
 def get_indices_within_cutoff(distances, cutoff):
