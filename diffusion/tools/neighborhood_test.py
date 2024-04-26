@@ -47,4 +47,4 @@ def test_shift_lattice():
 
 
 if __name__ == "__main__":
-    test_shift_lattice()
+    test_get_neighborhood()
