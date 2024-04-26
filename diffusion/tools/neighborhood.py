@@ -80,7 +80,7 @@ def atom_cart_coords_in_supercell(
     num_atoms: torch.Tensor,
     frac_coords: torch.Tensor,
 ):
-    shifts = supercells.repeat(num_atoms.sum(), 1).unsqueeze(1)
+    shifts = supercells.to(lattices.device).repeat(num_atoms.sum(), 1).unsqueeze(1)
     num_supercells = supercells.shape[0]
 
     adjusted_num_atoms = (
