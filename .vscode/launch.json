@@ -17,7 +17,7 @@
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
                 "--is_local_dev=true",
-                "--max_neighbors=24",
+                "--max_neighbors=50000", // having a small max_neighbors removes information about the material. This big number ensures that we'll send messages through each neighbor
             ],
         },
         {
