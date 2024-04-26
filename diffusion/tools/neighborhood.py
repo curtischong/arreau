@@ -104,7 +104,7 @@ def get_neighborhood_for_batch(
         lattice, SUPERCELLS, num_atoms, frac_coords
     )
     cart_coords = frac_to_cart_coords(frac_coords, lattice, num_atoms)
-    distances = get_neighbors_within_cutoff(cart_coords, supercell_cart_coords, cutoff)
+    distances = get_neighbors_for_batch(cart_coords, supercell_cart_coords, num_atoms)
     indices = get_indices_within_cutoff(distances, cutoff)
 
     return distances, indices, shifts
@@ -125,8 +125,15 @@ def get_indices_within_cutoff(distances, cutoff):
     return torch.stack((i_indices, j_indices), dim=0)
 
 
-def get_neighbors_within_cutoff(
-    initial_coords, lattice_coords: torch.Tensor, cutoff: float
+def get_neighbors_for_batch(
+    initial_coords,
+    lattice_coords: torch.Tensor,
+    num_atoms: torch.Tensor,
 ) -> torch.Tensor:
     # Calculate pairwise distances between coordinates
+    for i in range(num_atoms.size(0)):
+        num_atoms_in_batch = num_atoms[i]
+        initial_coords_batch = initial_coords[i]
+        lattice_coords_batch = lattice_coords[i]
+
     return torch.cdist(initial_coords, lattice_coords, p=2)
