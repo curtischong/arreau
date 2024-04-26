@@ -105,7 +105,9 @@ class CrystalDataset(Dataset):
         )
         return Data(
             pos=X0_cart,  # we need to have a pos field so the datalolader generates the batch atribute for each batch
-            X0=torch.tensor(X0, dtype=torch.float64),
+            X0=torch.tensor(
+                X0, dtype=torch.float64
+            ),  # TODO: figure out why default dtype is float32
             A0=A0,
             L0=torch.tensor(L0, dtype=torch.float64),
             num_atoms=len(config.atomic_numbers),
