@@ -161,7 +161,7 @@ class DiffusionLoss(torch.nn.Module):
         # )
         # # batch.edge_index = edge_index
         # batch.edge_index = torch.unique(torch.tensor(edge_index).T, dim=0).T
-        distances, edge_index, shifts = get_neighborhood_for_batch(
+        edge_index = get_neighborhood_for_batch(
             frac_coords=frac_x_t,
             lattice=lattice,
             cutoff=self.cutoff,
