@@ -180,6 +180,7 @@ if __name__ == "__main__":
 
     # ------------------------ Device settings
 
+    torch.set_default_dtype(torch.float64)
     if args.gpus > 0:
         accelerator = "gpu"
         devices = args.gpus

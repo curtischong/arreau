@@ -60,9 +60,7 @@ class VE_pbc(nn.Module):
         )
         # wrapped_eps_x is like the noise. it's a vector that points from the noisy coords to the clean x0 coord.
         return (
-            frac_noisy.type(
-                torch.float64
-            ),  # TODO: investigate why the default type is not float64
+            frac_noisy,
             wrapped_frac_eps_x,
             used_sigmas,
         )
