@@ -32,8 +32,13 @@ def test_shift_lattice():
         dtype=torch.get_default_dtype(),
     )
     supercells = torch.tensor([[0, 0, 0], [1, 1, 1]])
+    frac_coords = torch.tensor(
+        [[0.0, 0.0, 0.0], [0.9, 0.9, 0.9], [0.5, 0.5, 0.5]],
+        dtype=torch.get_default_dtype(),
+    )
     num_atoms = torch.tensor([2, 1])
-    new_lattice = shift_lattice(lattice, supercells, num_atoms)
+    shifted_lattices = shift_lattice(lattice, supercells, num_atoms, frac_coords)
+    print(shifted_lattices)
 
 
 if __name__ == "__main__":

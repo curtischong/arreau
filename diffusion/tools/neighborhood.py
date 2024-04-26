@@ -76,23 +76,20 @@ def shift_lattice(
     lattices: torch.Tensor,  # [batch, 3, 3]
     supercells: torch.Tensor,
     num_atoms: torch.Tensor,
+    frac_coords: torch.Tensor,
 ):
-    batch_size = lattices.shape[0]
-    shifts = supercells.repeat(num_atoms.sum(), 1)
+    shifts = supercells.repeat(num_atoms.sum(), 1).unsqueeze(1)
     num_supercells = supercells.shape[0]
-    lattices_for_cells = torch.repeat_interleave(
-        lattices, num_supercells * num_atoms, dim=0
-    )
-    shifted_lattices = lattices_for_cells + (shifts * lattices_for_cells)
-    return shifted_lattices
-    # lattice_translations_batch = supercells.repeat(batch_size, 1).view(
-    #     batch_size, supercells.shape[0], 3
-    # )
-    # lattice_translations_batch = lattice_translations_batch.unsqueeze(-1)
-    # lattice = lattice.unsqueeze(1)
 
-    # result = lattice_translations_batch * lattice
-    # result = result.view(-1, 3, 3)  # [batch_size * 27, 3, 3]
+    adjusted_num_atoms = (
+        num_supercells * num_atoms
+    )  # since we need to put the atom in each supercell
+    lattices_for_cells = torch.repeat_interleave(lattices, adjusted_num_atoms, dim=0)
+    frac_coords_for_cells = torch.repeat_interleave(frac_coords, num_supercells, dim=0)
+    cart_coords = torch.einsum(
+        "bi,bij->bj", frac_coords_for_cells, lattices_for_cells
+    )  # cart coords
+    return cart_coords + (shifts * lattices_for_cells)
 
 
 def get_neighborhood_for_batch(
