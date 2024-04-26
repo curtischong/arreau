@@ -4,8 +4,7 @@ from typing import Optional, Tuple
 import numpy as np
 from matscipy.neighbours import neighbour_list
 import torch
-
-from diffusion.diffusion_helpers import frac_to_cart_coords
+import torch_geometric
 
 
 SUPERCELLS = torch.DoubleTensor(list(itertools.product((-1, 0, 1), repeat=3)))
@@ -72,6 +71,9 @@ def get_neighborhood(
     return edge_index, shifts, unit_shifts
 
 
+# converts the coords into carteisan, and tiles them into the supercells
+# you receive a [num_supercells * num_atoms, 3] tensor
+# we use repeat_interleave, so the first <num_supercells> coords are the same as the first atom
 def atom_cart_coords_in_supercell(
     lattices: torch.Tensor,  # [batch, 3, 3]
     supercells: torch.Tensor,
@@ -99,15 +101,52 @@ def get_neighborhood_for_batch(
     num_atoms: torch.Tensor,
     cutoff: float,
 ) -> torch.Tensor:
+    supercells = SUPERCELLS
     # the same as the above, but we always assume periodic boundary conditions AND that each input has a batch dimension
     supercell_cart_coords, shifts = atom_cart_coords_in_supercell(
-        lattice, SUPERCELLS, num_atoms, frac_coords
+        lattice,
+        supercells,
+        num_atoms,
+        frac_coords,
     )
-    cart_coords = frac_to_cart_coords(frac_coords, lattice, num_atoms)
-    distances = get_neighbors_for_batch(cart_coords, supercell_cart_coords, num_atoms)
-    indices = get_indices_within_cutoff(distances, cutoff)
+    edge_index = get_edge_index_for_center_cells(
+        supercells, lattice, supercell_cart_coords, cutoff, num_atoms
+    )
+    # cart_coords = frac_to_cart_coords(frac_coords, lattice, num_atoms)
 
-    return distances, indices, shifts
+    # we need to repeat all the cartesian coords so we can compare the coords in the center cell with each of the atoms in the supercells
+    # cart_coords = torch.repeat_interleave(cart_coords, num_supercells, dim=0)
+    # distances = get_distances(cart_coords, supercell_cart_coords)
+    # indices = get_indices_within_cutoff(distances, cutoff)
+
+    return edge_index
+
+
+def get_edge_index_for_center_cells(
+    supercells,
+    lattice,
+    cart_coords,
+    cutoff,
+    num_atoms,
+):
+    batch_indexes = torch.arange(lattice.shape[0]).repeat_interleave(
+        num_atoms * supercells.shape[0], dim=0
+    )
+    is_self_loops_in_result = False
+    all_edge_index = torch_geometric.nn.radius_graph(
+        cart_coords,
+        cutoff,
+        batch=batch_indexes,
+        loop=is_self_loops_in_result,
+        max_num_neighbors=32,
+        flow="source_to_target",
+        num_workers=1,
+    )
+    # now return all the indices where the src node is in the first dimension of the result
+    # I used this to verify that the edge_index points to the nodes in its own graph. Make sure they're both the same!:
+    # batch_indexes[all_edge_index[1]][1200:1800]
+    # batch_indexes[all_edge_index[0]][1200:1800]
+    return all_edge_index
 
 
 def get_indices_within_cutoff(distances, cutoff):
@@ -125,15 +164,17 @@ def get_indices_within_cutoff(distances, cutoff):
     return torch.stack((i_indices, j_indices), dim=0)
 
 
-def get_neighbors_for_batch(
-    initial_coords,
-    lattice_coords: torch.Tensor,
-    num_atoms: torch.Tensor,
-) -> torch.Tensor:
-    # Calculate pairwise distances between coordinates
-    for i in range(num_atoms.size(0)):
-        num_atoms_in_batch = num_atoms[i]
-        initial_coords_batch = initial_coords[i]
-        lattice_coords_batch = lattice_coords[i]
+def get_distances(tensor1, tensor2):
+    # Ensure the tensors have the same shape
+    assert tensor1.shape == tensor2.shape, "Tensors must have the same shape"
 
-    return torch.cdist(initial_coords, lattice_coords, p=2)
+    # Calculate the squared differences between corresponding coordinates
+    squared_diffs = (tensor1 - tensor2) ** 2
+
+    # Sum the squared differences along the last dimension (coordinate dimension)
+    squared_distances = torch.sum(squared_diffs, dim=-1)
+
+    # Take the square root to get the Euclidean distances
+    distances = torch.sqrt(squared_distances)
+
+    return distances

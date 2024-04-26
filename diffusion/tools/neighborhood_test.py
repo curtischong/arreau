@@ -21,7 +21,7 @@ def test_get_neighborhood():
     )
     num_atoms = torch.tensor([2, 1])
     neighborhood = get_neighborhood_for_batch(
-        frac_coords, lattice, num_atoms=num_atoms, cutoff=1
+        frac_coords, lattice, num_atoms=num_atoms, cutoff=20
     )
     print(neighborhood)
 
