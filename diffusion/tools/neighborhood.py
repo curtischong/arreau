@@ -145,9 +145,9 @@ def get_edge_index_for_center_cells(
     print(lattice.device)
     print(num_atoms.device)
     print(supercells.device)
-    batch_indexes = torch.arange(lattice.shape[0]).repeat_interleave(
-        num_atoms * supercells.shape[0], dim=0
-    )
+    batch_indexes = torch.arange(
+        lattice.shape[0], device=lattice.device
+    ).repeat_interleave(num_atoms * supercells.shape[0], dim=0)
     is_self_loops_in_result = False
     all_edge_index = torch_geometric.nn.radius_graph(
         cart_coords,
