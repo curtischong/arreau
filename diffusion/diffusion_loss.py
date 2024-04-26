@@ -28,7 +28,7 @@ from diffusion.inference.visualize_crystal import (
 )
 from torch.nn import functional as F
 
-from diffusion.tools.neighborhood import get_neighborhood
+from diffusion.tools.neighborhood import get_neighborhood_for_batch
 
 
 pos_sigma_min = 0.001
@@ -161,7 +161,7 @@ class DiffusionLoss(torch.nn.Module):
         # )
         # # batch.edge_index = edge_index
         # batch.edge_index = torch.unique(torch.tensor(edge_index).T, dim=0).T
-        edge_index, shifts, unit_shifts = get_neighborhood(
+        edge_index = get_neighborhood_for_batch(
             positions=frac_x_t,
             cutoff=self.cutoff,
             pbc=(True, True, True),

@@ -126,6 +126,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "neighborhood test",
+            "type": "python",
+            "request": "launch",
+            "program": "diffusion/tools/neighborhood_test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
