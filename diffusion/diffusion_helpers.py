@@ -405,6 +405,7 @@ def radius_graph_pbc(
         mask = torch.logical_and(mask_within_radius, mask_not_same)
     else:
         mask = mask_within_radius
+    # TODO: filter atom_distance_sqr using the mask
     index1 = torch.masked_select(index1, mask)
     index2 = torch.masked_select(index2, mask)
     unit_cell = torch.masked_select(
@@ -430,6 +431,7 @@ def radius_graph_pbc(
     _natoms[1:] = torch.cumsum(num_atoms, dim=0)
     num_neighbors_image = _num_neighbors[_natoms[1:]] - _num_neighbors[_natoms[:-1]]
 
+    atom_distance_sqr = torch.masked_select(atom_distance_sqr, mask)
     # If max_num_neighbors is below the threshold, return early
     if (
         max_num_neighbors <= max_num_neighbors_threshold
@@ -440,7 +442,7 @@ def radius_graph_pbc(
                 torch.stack((index2, index1)),
                 -unit_cell,
                 num_neighbors_image,
-                atom_distance_sqr,
+                torch.sqrt(atom_distance_sqr),
             )
         else:
             return (
@@ -448,10 +450,8 @@ def radius_graph_pbc(
                 -unit_cell,
                 num_neighbors_image,
                 topk_mask,
-                atom_distance_sqr,
+                torch.sqrt(atom_distance_sqr),
             )
-
-    atom_distance_sqr = torch.masked_select(atom_distance_sqr, mask)
 
     # Create a tensor of size [num_atoms, max_num_neighbors] to sort the distances of the neighbors.
     # Fill with values greater than radius*radius so we can easily remove unused distances later.
