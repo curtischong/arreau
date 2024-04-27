@@ -139,5 +139,5 @@ dmypy.json
 lightning_logs/
 checkpoints/
 out/
-models/
+/models/
 *secrets.yaml
