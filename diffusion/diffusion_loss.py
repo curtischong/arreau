@@ -150,7 +150,7 @@ class DiffusionLoss(torch.nn.Module):
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
-        edge_index, cell_offsets, neighbors, atom_distance = radius_graph_pbc(
+        edge_index, cell_offsets, neighbors, _atom_distance = radius_graph_pbc(
             cart_x_t,
             lattice,
             batch.num_atoms,
@@ -167,6 +167,8 @@ class DiffusionLoss(torch.nn.Module):
             pred_symmetric_vector_noise,
             pred_lattice_0,
             edge_scores,
+            edge_distances,  # we have to use this one, rather than the distances we pass into the model(batch) because ponita does a transofrmation on the original graph. this dist is for the transformed graph
+            # NOTE: edge_distances may not respect periodic boundaries. so the dist may be further than it is
         ) = model(batch)
 
         # normalize the predictions
@@ -194,6 +196,8 @@ class DiffusionLoss(torch.nn.Module):
             predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
+            edge_scores,
+            edge_distances,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -256,6 +260,8 @@ class DiffusionLoss(torch.nn.Module):
             predicted_h0_logits,
             pred_symmetric_vector_noise,
             pred_lattice,
+            edge_scores,
+            edge_distances,
         ) = self.phi(
             frac_x_t,
             h_t_onehot,
@@ -293,6 +299,18 @@ class DiffusionLoss(torch.nn.Module):
             + self.lattice_coeff * error_l
         )
         return loss.mean()
+
+    def compute_lattice_edge_loss(
+        self, edge_scores, edge_distances, num_atoms, lattice
+    ):
+        # equation A32 in mattergen
+        # edge_distances should already be cartesian. so no need to multiply by lattice
+        # distance_frac = cart_to_frac_coords(edge_distances, lattice, num_atoms)
+        edge_distances_norm = torch.norm(edge_distances, dim=1)
+
+        # delta_d_over_delta_l = (edge_distances * distance_frac) / edge_distances_norm
+
+        phi_l = torch.diagonal(edge_scores / edge_distances_norm)
 
     @torch.no_grad()
     def sample(
