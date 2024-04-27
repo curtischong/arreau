@@ -1,1 +1,3 @@
-# TODO turn this into a proper library :)
+# ponita/__init__.py
+
+# Empty content
