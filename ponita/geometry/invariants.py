@@ -7,9 +7,11 @@ def invariant_attr_rn(pos, edge_index):
     return dists
 
 
-def invariant_attr_r3s2_fiber_bundle(pos, ori_grid, edge_index, separable=False):
-    pos_send, pos_receive = pos[edge_index[0]], pos[edge_index[1]]                # [num_edges, 3]
-    rel_pos = (pos_send - pos_receive)                                            # [num_edges, 3]
+def invariant_attr_r3s2_fiber_bundle(pos, ori_grid, edge_index, inter_atom_direction, separable=False):
+    # pos_send, pos_receive = pos[edge_index[0]], pos[edge_index[1]]                # [num_edges, 3]
+    # rel_pos = (pos_send - pos_receive)                                            # [num_edges, 3]
+    # TODO: add graph.dist as a feature
+    rel_pos = inter_atom_direction
 
     # Convenient shape
     rel_pos = rel_pos[:, None, :]                                                 # [num_edges, 1, 3]

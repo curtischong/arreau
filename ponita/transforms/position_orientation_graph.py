@@ -58,7 +58,8 @@ class PositionOrientationGraph(BaseTransform):
             graph.edge_index = torch_geometric.nn.radius_graph(graph.pos[:,:graph.n], self.radius, graph.batch, loop, max_num_neighbors=1000)
         else:
             if loop:
-                graph.edge_index = coalesce(add_self_loops(graph.edge_index)[0])
+                # graph.edge_index = coalesce(add_self_loops(graph.edge_index)[0])
+                graph.edge_index = graph.edge_index # Curtis:  I removed self-loops and coalesced items since these edges should be pre-calculated when we consider the periodic boundary conditions (and make the input graph)
         return graph
 
     def to_po_fiber_bundle(self, graph):
