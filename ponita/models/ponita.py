@@ -117,10 +117,10 @@ class PonitaFiberBundle(nn.Module):
         output_vector = self.vec_readout_fn(readout_vec, graph.ori_grid)
         global_output_scalar = self.global_scalar_readout_fn(readout_global_scalar, graph.batch)
         global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
-        edge_output_vector = [self.vec_readout_fn(edge_readout, graph.ori_grid) for edge_readout in edge_readouts]
+        edge_output_scalar = [self.scalar_readout_fn(edge_readout) for edge_readout in edge_readouts]
 
         # Return predictions
-        return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_vector
+        return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_scalar
     
     def scalar_readout_fn(self, readout_scalar):
         if self.output_dim > 0:
