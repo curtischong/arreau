@@ -352,7 +352,8 @@ class DiffusionLoss(torch.nn.Module):
             )
             layer_scores.append(layer_score)
         symmetric_matrix = torch.sum(torch.stack(layer_scores), dim=0)
-        return F.mse_loss(symmetric_matrix, symmetric_vector_noise)
+        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix.unsqueeze(0))
+        return F.mse_loss(symmetric_vector, symmetric_vector_noise)
 
     @torch.no_grad()
     def sample(
