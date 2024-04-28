@@ -12,6 +12,7 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
+    cart_to_frac_coords_no_mod,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -204,6 +205,7 @@ class DiffusionLoss(torch.nn.Module):
             # edge_scores,
             inter_atom_distance,
             pred_edge_distance_score,
+            neighbor_direction,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -268,6 +270,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_lattice,
             inter_atom_distance,
             pred_edge_distance_score,
+            neighbor_direction,
         ) = self.phi(
             frac_x_t,
             h_t_onehot,
@@ -299,7 +302,11 @@ class DiffusionLoss(torch.nn.Module):
         #     )  # Without this loss, the model will explode the lattice's length
         # )
         error_l = self.compute_lattice_edge_loss(
-            inter_atom_distance, pred_edge_distance_score
+            inter_atom_distance,
+            neighbor_direction,
+            pred_edge_distance_score,
+            noisy_lattice,
+            num_atoms,
         )
 
         loss = (
@@ -309,20 +316,47 @@ class DiffusionLoss(torch.nn.Module):
         )
         return loss.mean()
 
-    def compute_lattice_edge_loss(self, inter_atom_distance, pred_edge_distance_score):
-        # equation A32 in mattergen
+    def compute_lattice_edge_loss(
+        self,
+        inter_atom_distance,
+        neighbor_direction,
+        pred_edge_distance_score,
+        lattice,
+        num_atoms,
+    ):
         # edge_distances should already be cartesian. so no need to multiply by lattice
-        # distance_frac = cart_to_frac_coords(edge_distances, lattice, num_atoms)
+        frac_neighbor_direction = cart_to_frac_coords_no_mod(
+            neighbor_direction, lattice, num_atoms
+        )
+
+        # equation A32 in mattergen
+        # delta_dist_over_delta_l = (1 / inter_atom_distance) * (
+        #     neighbor_direction * frac_neighbor_direction.T
+        # )
 
         # get the norm for each layer's edge readouts
-        edge_distances_norm = [
-            torch.norm(distance, dim=1) for distance in inter_atom_distance
-        ]
         avg_predicted_scores = torch.mean(pred_edge_distance_score, dim=1)
+        avg_predicted_scores_norm = torch.abs(avg_predicted_scores)
 
-        # delta_d_over_delta_l = (edge_distances * distance_frac) / edge_distances_norm
+        # equation A33 in mattergen
+        # layer_scores = []
+        # for scores_for_layer in pred_edge_distance_score:
+        #     lattice_score_for_layer = (1 / avg_predicted_scores) * sum(
+        #         delta_dist_over_delta_l * delta_dist_over_delta_l
+        #     )
+        #     layer_scores.append(lattice_score_for_layer)
 
-        phi_l = torch.diagonal(edge_scores / edge_distances_norm)
+        # equation A35 in mattergen
+
+        layer_scores = []
+        for scores_for_layer in pred_edge_distance_score:
+            phi_l = torch.diagonal(
+                scores_for_layer
+                / (avg_predicted_scores_norm * (frac_neighbor_direction**2))
+            )
+            layer_score = inter_atom_distance * phi_l * inter_atom_distance.T
+            layer_scores.append(layer_score)
+        return sum(layer_scores, dim=1)
 
     @torch.no_grad()
     def sample(
