@@ -371,8 +371,10 @@ class DiffusionLoss(torch.nn.Module):
             layer_scores.append(layer_score)
         all_scores = torch.stack(
             layer_scores, dim=0
-        )  # shape (num_layers, num_batches, num_edges_in_all_batches, num_edges_in_all_batches)
-        symmetric_matrix = torch.sum(all_scores, dim=0)
+        )  # shape: (num_layers, num_batches, num_edges_in_all_batches, num_edges_in_all_batches)
+        symmetric_matrix = torch.sum(
+            all_scores, dim=0
+        )  # shape: (num_batches, num_edges_in_all_batches, num_edges_in_all_batches)
         symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
         return symmetric_vector
 
