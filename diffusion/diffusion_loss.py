@@ -340,9 +340,16 @@ class DiffusionLoss(torch.nn.Module):
         #     neighbor_direction * frac_neighbor_direction.T
         # )
 
+        pred_edge_distance_score = [
+            score.squeeze(1) for score in pred_edge_distance_score
+        ]
+
         # get the norm for each layer's edge readouts
-        avg_predicted_scores = torch.mean(pred_edge_distance_score, dim=1)
-        avg_predicted_scores_norm = torch.abs(avg_predicted_scores)
+        avg_predicted_scores_norm = []
+        for score in pred_edge_distance_score:
+            avg_score = torch.mean(score, dim=0)
+            avg_score_abs = torch.abs(avg_score)
+            avg_predicted_scores_norm.append(avg_score_abs)
 
         # equation A33 in mattergen
         # layer_scores = []
@@ -355,10 +362,19 @@ class DiffusionLoss(torch.nn.Module):
         # equation A35 in mattergen
 
         layer_scores = []
-        for scores_for_layer in pred_edge_distance_score:
+        num_layers = len(pred_edge_distance_score)
+        for i in range(num_layers):
+            scores_for_layer = pred_edge_distance_score[i]
+
+            # (avg_predicted_scores_norm[i] * (frac_neighbor_direction**2)) # I think this is a typo in the paper. squaring the frac coords leads to really small numbers
+            score_normalization = avg_predicted_scores_norm[i].repeat(
+                inter_atom_distance.shape[0], 1
+            )
+
+            # TODO: this is not a diagonal matrix.
             phi_l = torch.diagonal(
                 scores_for_layer
-                / (avg_predicted_scores_norm * (frac_neighbor_direction**2))
+                / (inter_atom_distance.view(-1, 1) * score_normalization)
             )
             layer_score = inter_atom_distance * phi_l * inter_atom_distance.T
             layer_scores.append(layer_score)
