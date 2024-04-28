@@ -169,38 +169,16 @@ class DiffusionLoss(torch.nn.Module):
         (
             predicted_h0_logits,
             pred_frac_eps_x,
-            pred_symmetric_vector_noise,
-            pred_lattice_0,
-            pred_edge_distance_score,  # we have to use this one, rather than the distances we pass into the model(batch) because ponita does a transofrmation on the original graph. this dist is for the transformed graph
-            # NOTE: edge_distances may not respect periodic boundaries. so the dist may be further than it is
+            _global_output_scalar,
+            _global_output_vector,
+            pred_edge_distance_score,
         ) = model(batch)
-
-        # normalize the predictions
-        # used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
-        # pred_frac_eps_x = subtract_cog(pred_frac_eps_x, num_atoms)
-
-        # calculate the pred_lattice_symmetric_noise
-        # _rot, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice_0)
-        # pred_lattice_symmetric_vector = symmetric_matrix_to_vector(
-        #     pred_lattice_symmetric_matrix
-        # )
-        # pred_lattice_symmetric_noise = (
-        #     noisy_symmetric_vector - pred_lattice_symmetric_vector
-        # )
-
-        # # blend the two predictions for the lattice, so when we do inference, we just rely on this one prediction
-        # pred_symmetric_vector_noise = (
-        #     pred_symmetric_vector_noise + pred_lattice_symmetric_noise
-        # ) / 2
 
         return (
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            pred_symmetric_vector_noise,
-            pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
-            # edge_scores,
             inter_atom_distance,
             pred_edge_distance_score,
             neighbor_direction,
@@ -265,8 +243,6 @@ class DiffusionLoss(torch.nn.Module):
         (
             pred_frac_eps_x,
             predicted_h0_logits,
-            pred_symmetric_vector_noise,
-            pred_lattice,
             inter_atom_distance,
             pred_edge_distance_score,
             neighbor_direction,
@@ -294,13 +270,6 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        # error_l = (
-        #     F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
-        #     # + F.mse_loss(pred_lattice, lattice) # I don't think this matters, since we have a loss for predicted symmetric vector noise
-        #     + vector_length_mse_loss(
-        #         pred_lattice, lattice
-        #     )  # Without this loss, the model will explode the lattice's length
-        # )
         error_l = self.compute_lattice_edge_loss(
             inter_atom_distance,
             neighbor_direction,
@@ -375,19 +344,11 @@ class DiffusionLoss(torch.nn.Module):
         num_layers = len(pred_edge_distance_score)
         for i in range(num_layers):
             scores_for_layer = pred_edge_distance_score[i]
-
-            # (avg_predicted_scores_norm[i] * (frac_neighbor_direction**2)) # I think this is a typo in the paper. squaring the frac coords leads to really small numbers
-            # score_normalization = avg_predicted_scores_norm[i].repeat(
-            #     inter_atom_distance.shape[0], 1
-            # )
-            score_normalization = num_edges
-
-            # TODO: this is not a diagonal matrix.
-            phi_l = torch.diagonal(
-                scores_for_layer
-                / (score_normalization * (inter_atom_distance.view(-1, 1) ** 2))
+            normalized_scores = scores_for_layer / (
+                num_edges * (inter_atom_distance**2)
             )
-            layer_score = inter_atom_distance * phi_l * inter_atom_distance.T
+            phi_l = torch.diag(normalized_scores)
+            layer_score = neighbor_direction.T * phi_l * neighbor_direction
             layer_scores.append(layer_score)
         return sum(layer_scores, dim=1)
 
