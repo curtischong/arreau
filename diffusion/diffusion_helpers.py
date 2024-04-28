@@ -201,20 +201,16 @@ def frac_to_cart_coords(
     return pos
 
 
-def cart_to_frac_coords_no_mod(cart_coords, lattice, num_atoms):
-    # use pinv in case the predicted lattice is not rank 3
-    inv_lattice = torch.linalg.pinv(lattice)
-    inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_atoms, dim=0)
-    frac_coords = torch.einsum("bi,bij->bj", cart_coords, inv_lattice_nodes)
-    return frac_coords
-
-
 def cart_to_frac_coords(
     cart_coords,
     lattice,
     num_atoms,
 ):
-    return cart_to_frac_coords_no_mod(cart_coords, lattice, num_atoms) % 1.0
+    # use pinv in case the predicted lattice is not rank 3
+    inv_lattice = torch.linalg.pinv(lattice)
+    inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_atoms, dim=0)
+    frac_coords = torch.einsum("bi,bij->bj", cart_coords, inv_lattice_nodes)
+    return frac_coords % 1.0
 
 
 def min_distance_sqr_pbc(
