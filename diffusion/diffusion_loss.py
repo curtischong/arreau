@@ -12,7 +12,6 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
-    cart_to_frac_coords_no_mod,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -205,6 +204,7 @@ class DiffusionLoss(torch.nn.Module):
             inter_atom_distance,
             pred_edge_distance_score,
             neighbor_direction,
+            edge_index,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -270,6 +270,7 @@ class DiffusionLoss(torch.nn.Module):
             inter_atom_distance,
             pred_edge_distance_score,
             neighbor_direction,
+            edge_index,
         ) = self.phi(
             frac_x_t,
             h_t_onehot,
@@ -305,7 +306,8 @@ class DiffusionLoss(torch.nn.Module):
             neighbor_direction,
             pred_edge_distance_score,
             noisy_lattice,
-            num_atoms,
+            edge_index,
+            batch.batch,
         )
 
         loss = (
@@ -321,11 +323,15 @@ class DiffusionLoss(torch.nn.Module):
         neighbor_direction,
         pred_edge_distance_score,
         lattice,
-        num_atoms,
+        edge_index,
+        batch_batch,
     ):
-        # edge_distances should already be cartesian. so no need to multiply by lattice
-        frac_neighbor_direction = cart_to_frac_coords_no_mod(
-            neighbor_direction, lattice, num_atoms
+        batch_of_edge = batch_batch[edge_index[0]]
+        num_edge_batch = torch.bincount(batch_of_edge)
+        inv_lattice = torch.linalg.pinv(lattice)
+        inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_edge_batch, dim=0)
+        frac_neighbor_direction = torch.einsum(
+            "bi,bij->bj", neighbor_direction, inv_lattice_nodes
         )
 
         # equation A32 in mattergen
