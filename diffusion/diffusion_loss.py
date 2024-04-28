@@ -174,7 +174,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_edge_distance_score,
         ) = model(batch)
 
-        pred_symmetric_vector = self.edge_score_to_symmetric_lattice(
+        pred_symmetric_vector_noise = self.edge_score_to_symmetric_lattice(
             inter_atom_distance,
             neighbor_direction,
             pred_edge_distance_score,
@@ -186,7 +186,7 @@ class DiffusionLoss(torch.nn.Module):
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            pred_symmetric_vector,
+            pred_symmetric_vector_noise,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -396,23 +396,21 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, predicted_symmetric_vector_noise, _pred_lattice = (
-                self.phi(
-                    frac_x,
-                    F.one_hot(h, num_atomic_states).float(),
-                    t,
-                    num_atoms,
-                    lattice,
-                    symmetric_vector,
-                    model,
-                    Batch(
-                        num_atoms=num_atoms,
-                        batch=torch.arange(0, num_samples_in_batch).repeat_interleave(
-                            num_atoms_per_sample
-                        ),
+            score_x, score_h, predicted_symmetric_vector_noise = self.phi(
+                frac_x,
+                F.one_hot(h, num_atomic_states).float(),
+                t,
+                num_atoms,
+                lattice,
+                symmetric_vector,
+                model,
+                Batch(
+                    num_atoms=num_atoms,
+                    batch=torch.arange(0, num_samples_in_batch).repeat_interleave(
+                        num_atoms_per_sample
                     ),
-                    t_emb_weights,
-                )
+                ),
+                t_emb_weights,
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
                 symmetric_vector, predicted_symmetric_vector_noise, timestep_vec
