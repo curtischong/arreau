@@ -346,9 +346,16 @@ class DiffusionLoss(torch.nn.Module):
             normalized_scores = scores_for_layer / (
                 num_edges * (inter_atom_distance**2)
             )
-            phi_l = torch.diag(normalized_scores)
+
+            # The below code is equivalent to this commented code:
+            # phi_l = torch.diag(normalized_scores)
+            # layer_score = torch.matmul(
+            #     torch.matmul(neighbor_direction.T, phi_l), neighbor_direction
+            # )
             layer_score = torch.matmul(
-                torch.matmul(neighbor_direction.T, phi_l), neighbor_direction
+                # neighbor_direction.T * normalized_scores is a broadcasting operation. we multiply each row of neighbor_direction by normalized_scores. This means we avoid creating a costly diagonal matrix
+                neighbor_direction.T * normalized_scores,
+                neighbor_direction,
             )
             layer_scores.append(layer_score)
         symmetric_matrix = torch.sum(torch.stack(layer_scores), dim=0)
