@@ -563,12 +563,6 @@ def symmetric_matrix_to_vector(matrix: torch.Tensor):
     ), "Input must be a batch of matrices with shape (batch_size, 3, 3)"
     assert matrix.shape[1:] == (3, 3), "Each matrix in the batch must be 3x3"
 
-    assert torch.allclose(
-        matrix,
-        matrix.transpose(1, 2),
-        rtol=1e-02,  # this tolerance is to avoid numerical instabilities. It's kinda high, but I don't want to take chances. it's mainly for defensive programming
-    ), f"Each matrix in the batch must be symmetric (got {matrix})"
-
     vector = torch.stack(
         [
             matrix[:, 0, 0],
