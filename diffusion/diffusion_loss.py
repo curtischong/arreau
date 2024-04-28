@@ -275,9 +275,8 @@ class DiffusionLoss(torch.nn.Module):
             inter_atom_distance,
             neighbor_direction,
             pred_edge_distance_score,
-            noisy_lattice,
             edge_index,
-            batch.batch,
+            symmetric_vector_noise,
         )
 
         loss = (
@@ -292,17 +291,16 @@ class DiffusionLoss(torch.nn.Module):
         inter_atom_distance,
         neighbor_direction,
         pred_edge_distance_score,
-        lattice,
         edge_index,
-        batch_batch,
+        symmetric_vector_noise,
     ):
-        batch_of_edge = batch_batch[edge_index[0]]
-        num_edge_batch = torch.bincount(batch_of_edge)
-        inv_lattice = torch.linalg.pinv(lattice)
-        inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_edge_batch, dim=0)
-        frac_neighbor_direction = torch.einsum(
-            "bi,bij->bj", neighbor_direction, inv_lattice_nodes
-        )
+        # batch_of_edge = batch_batch[edge_index[0]]
+        # num_edge_batch = torch.bincount(batch_of_edge)
+        # inv_lattice = torch.linalg.pinv(lattice)
+        # inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_edge_batch, dim=0)
+        # frac_neighbor_direction = torch.einsum(
+        #     "bi,bij->bj", neighbor_direction, inv_lattice_nodes
+        # )
 
         # equation A32 in mattergen
         # delta_dist_over_delta_l = (1 / inter_atom_distance) * (
@@ -349,9 +347,12 @@ class DiffusionLoss(torch.nn.Module):
                 num_edges * (inter_atom_distance**2)
             )
             phi_l = torch.diag(normalized_scores)
-            layer_score = neighbor_direction.T * phi_l * neighbor_direction
+            layer_score = torch.matmul(
+                torch.matmul(neighbor_direction.T, phi_l), neighbor_direction
+            )
             layer_scores.append(layer_score)
-        return sum(layer_scores, dim=1)
+        symmetric_matrix = torch.sum(torch.stack(layer_scores), dim=0)
+        return F.mse_loss(symmetric_matrix, symmetric_vector_noise)
 
     @torch.no_grad()
     def sample(
