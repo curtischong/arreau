@@ -565,7 +565,7 @@ def symmetric_matrix_to_vector(matrix: torch.Tensor):
 
     assert torch.allclose(
         matrix, matrix.transpose(1, 2)
-    ), "Each matrix in the batch must be symmetric"
+    ), f"Each matrix in the batch must be symmetric (got {matrix})"
 
     vector = torch.stack(
         [
