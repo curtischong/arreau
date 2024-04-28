@@ -180,6 +180,7 @@ class DiffusionLoss(torch.nn.Module):
             neighbor_direction,
             pred_edge_distance_score,
             edge_index,
+            batch,
         )
 
         return (
@@ -277,15 +278,20 @@ class DiffusionLoss(torch.nn.Module):
         )
         return loss.mean()
 
+    # TODO: make it only sum for each lattice's nodes
     def edge_score_to_symmetric_lattice(
         self,
-        inter_atom_distance,
-        neighbor_direction,
-        pred_edge_distance_score,
-        edge_index,
+        inter_atom_distance: torch.Tensor,
+        neighbor_direction: torch.Tensor,
+        pred_edge_distance_score: list[torch.Tensor],
+        edge_index: torch.Tensor,
+        batch: Batch,
     ):
-        # batch_of_edge = batch_batch[edge_index[0]]
-        # num_edge_batch = torch.bincount(batch_of_edge)
+        # we need to do this because different edges belong in different batches
+        batch_of_edge = batch.batch[edge_index[0]]
+        num_edges = torch.bincount(batch_of_edge)  # number of edges per batch
+        num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
+
         # inv_lattice = torch.linalg.pinv(lattice)
         # inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_edge_batch, dim=0)
         # frac_neighbor_direction = torch.einsum(
@@ -307,8 +313,6 @@ class DiffusionLoss(torch.nn.Module):
         #     avg_score = torch.mean(score_for_layer, dim=0)
         #     avg_score_abs = torch.abs(avg_score)
         #     avg_predicted_scores_norm.append(avg_score_abs)
-
-        num_edges = edge_index.shape[1]
 
         # equation A33 in mattergen
         # layer_scores = []
@@ -333,8 +337,9 @@ class DiffusionLoss(torch.nn.Module):
         num_layers = len(pred_edge_distance_score)
         for i in range(num_layers):
             scores_for_layer = pred_edge_distance_score[i]
+
             normalized_scores = scores_for_layer / (
-                num_edges * (inter_atom_distance**2)
+                num_edges_for_ith_edge * (inter_atom_distance**2)
             )
 
             # The below code is equivalent to this commented code:
@@ -342,14 +347,33 @@ class DiffusionLoss(torch.nn.Module):
             # layer_score = torch.matmul(
             #     torch.matmul(neighbor_direction.T, phi_l), neighbor_direction
             # )
-            layer_score = torch.matmul(
-                # neighbor_direction.T * normalized_scores is a broadcasting operation. we multiply each row of neighbor_direction by normalized_scores. This means we avoid creating a costly diagonal matrix
-                neighbor_direction.T * normalized_scores,
-                neighbor_direction,
+
+            # neighbor_direction.T * normalized_scores is a broadcasting operation. we multiply each row of neighbor_direction by normalized_scores. This means we avoid creating a costly diagonal matrix
+            left_diagonal_multiplication_result = (
+                neighbor_direction.T * normalized_scores
             )
+            num_batches = num_edges.shape[0]
+            layer_scores_per_batch = []
+            for batch_idx in range(num_batches):
+                batch_start_idx = num_edges[:batch_idx].sum()
+                batch_end_idx = batch_start_idx + num_edges[batch_idx]
+
+                symmetric_matrix_for_batch = torch.matmul(
+                    left_diagonal_multiplication_result[
+                        :, batch_start_idx:batch_end_idx
+                    ],
+                    neighbor_direction[batch_start_idx:batch_end_idx, :],
+                )
+                layer_scores_per_batch.append(symmetric_matrix_for_batch)
+
+            layer_score = torch.stack(layer_scores_per_batch, dim=0)
+            # layer_score is a tensor of shape (num_batches, num_edges_in_its_batch, num_edges_in_its_batch)
             layer_scores.append(layer_score)
-        symmetric_matrix = torch.sum(torch.stack(layer_scores), dim=0)
-        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix.unsqueeze(0))
+        all_scores = torch.stack(
+            layer_scores, dim=0
+        )  # shape (num_layers, num_batches, num_edges_in_all_batches, num_edges_in_all_batches)
+        symmetric_matrix = torch.sum(all_scores, dim=0)
+        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
         return symmetric_vector
 
     @torch.no_grad()
