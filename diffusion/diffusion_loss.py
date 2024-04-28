@@ -345,11 +345,13 @@ class DiffusionLoss(torch.nn.Module):
         ]
 
         # get the norm for each layer's edge readouts
-        avg_predicted_scores_norm = []
-        for score in pred_edge_distance_score:
-            avg_score = torch.mean(score, dim=0)
-            avg_score_abs = torch.abs(avg_score)
-            avg_predicted_scores_norm.append(avg_score_abs)
+        # avg_predicted_scores_norm = []
+        # for score_for_layer in pred_edge_distance_score:
+        #     avg_score = torch.mean(score_for_layer, dim=0)
+        #     avg_score_abs = torch.abs(avg_score)
+        #     avg_predicted_scores_norm.append(avg_score_abs)
+
+        num_edges = edge_index.shape[1]
 
         # equation A33 in mattergen
         # layer_scores = []
@@ -361,15 +363,22 @@ class DiffusionLoss(torch.nn.Module):
 
         # equation A35 in mattergen
 
+        # if you think about how a derivative is calculated from first principles,
+        # you'll realize that f(x) is the lattice tranformation of the input frac_x, where f is the lattice transformation matrix
+
+        # the delta_dist_over_delta_l is rate of change of the lattice.
+        # the edge_score is the amount to multiply by the rate of change of the lattice
+
         layer_scores = []
         num_layers = len(pred_edge_distance_score)
         for i in range(num_layers):
             scores_for_layer = pred_edge_distance_score[i]
 
             # (avg_predicted_scores_norm[i] * (frac_neighbor_direction**2)) # I think this is a typo in the paper. squaring the frac coords leads to really small numbers
-            score_normalization = avg_predicted_scores_norm[i].repeat(
-                inter_atom_distance.shape[0], 1
-            )
+            # score_normalization = avg_predicted_scores_norm[i].repeat(
+            #     inter_atom_distance.shape[0], 1
+            # )
+            score_normalization = num_edges
 
             # TODO: this is not a diagonal matrix.
             phi_l = torch.diagonal(
