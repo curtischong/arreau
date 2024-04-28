@@ -369,6 +369,9 @@ class DiffusionLoss(torch.nn.Module):
         # the delta_dist_over_delta_l is rate of change of the lattice.
         # the edge_score is the amount to multiply by the rate of change of the lattice
 
+        # delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice
+        # the edge score is the amount to multiply by the rate of change of this edge length
+
         layer_scores = []
         num_layers = len(pred_edge_distance_score)
         for i in range(num_layers):
@@ -383,7 +386,7 @@ class DiffusionLoss(torch.nn.Module):
             # TODO: this is not a diagonal matrix.
             phi_l = torch.diagonal(
                 scores_for_layer
-                / (inter_atom_distance.view(-1, 1) * score_normalization)
+                / (score_normalization * (inter_atom_distance.view(-1, 1) ** 2))
             )
             layer_score = inter_atom_distance * phi_l * inter_atom_distance.T
             layer_scores.append(layer_score)
