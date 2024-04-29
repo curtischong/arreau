@@ -277,7 +277,6 @@ class DiffusionLoss(torch.nn.Module):
         )
         return loss.mean()
 
-    # TODO: make it only sum for each lattice's nodes
     def edge_score_to_symmetric_lattice(
         self,
         inter_atom_distance: torch.Tensor,
@@ -295,46 +294,12 @@ class DiffusionLoss(torch.nn.Module):
         )  # number of edges per batch
         num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
 
-        # inv_lattice = torch.linalg.pinv(lattice)
-        # inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_edge_batch, dim=0)
-        # frac_neighbor_direction = torch.einsum(
-        #     "bi,bij->bj", neighbor_direction, inv_lattice_nodes
-        # )
-
-        # equation A32 in mattergen
-        # delta_dist_over_delta_l = (1 / inter_atom_distance) * (
-        #     neighbor_direction * frac_neighbor_direction.T
-        # )
-
         pred_edge_distance_score = [
             score.squeeze(1) for score in pred_edge_distance_score
         ]
 
-        # get the norm for each layer's edge readouts
-        # avg_predicted_scores_norm = []
-        # for score_for_layer in pred_edge_distance_score:
-        #     avg_score = torch.mean(score_for_layer, dim=0)
-        #     avg_score_abs = torch.abs(avg_score)
-        #     avg_predicted_scores_norm.append(avg_score_abs)
-
-        # equation A33 in mattergen
-        # layer_scores = []
-        # for scores_for_layer in pred_edge_distance_score:
-        #     lattice_score_for_layer = (1 / avg_predicted_scores) * sum(
-        #         delta_dist_over_delta_l * delta_dist_over_delta_l
-        #     )
-        #     layer_scores.append(lattice_score_for_layer)
-
-        # equation A35 in mattergen
-
-        # if you think about how a derivative is calculated from first principles,
-        # you'll realize that f(x) is the lattice tranformation of the input frac_x, where f is the lattice transformation matrix
-
-        # the delta_dist_over_delta_l is rate of change of the lattice.
-        # the edge_score is the amount to multiply by the rate of change of the lattice
-
-        # delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice
-        # the edge score is the amount to multiply by the rate of change of this edge length
+        # delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice?
+        # The edge score is the amount to multiply by the rate of change of this edge length
 
         layer_scores = []
         num_layers = len(pred_edge_distance_score)
@@ -345,13 +310,9 @@ class DiffusionLoss(torch.nn.Module):
                 num_edges_for_ith_edge * (inter_atom_distance**2)
             )
 
-            # The below code is equivalent to this commented code:
-            # phi_l = torch.diag(normalized_scores)
-            # layer_score = torch.matmul(
-            #     torch.matmul(neighbor_direction.T, phi_l), neighbor_direction
-            # )
-
-            # neighbor_direction.T * normalized_scores is a broadcasting operation. we multiply each row of neighbor_direction by normalized_scores. This means we avoid creating a costly diagonal matrix
+            # neighbor_direction.T * normalized_scores is a broadcasting operation.
+            # we multiply each row of neighbor_direction by normalized_scores.
+            # This means we avoid creating a costly diagonal matrix
             left_diagonal_multiplication_result = (
                 neighbor_direction.T * normalized_scores
             )
@@ -368,15 +329,14 @@ class DiffusionLoss(torch.nn.Module):
                 )
                 layer_scores_per_batch.append(symmetric_matrix_for_batch)
 
-            layer_score = torch.stack(layer_scores_per_batch, dim=0)
-            # layer_score is a tensor of shape (num_batches, num_edges_in_its_batch, num_edges_in_its_batch)
+            layer_score = torch.stack(
+                layer_scores_per_batch, dim=0
+            )  # shape: [num_batches, 3, 3]
             layer_scores.append(layer_score)
         all_scores = torch.stack(
             layer_scores, dim=0
-        )  # shape: (num_layers, num_batches, num_edges_in_all_batches, num_edges_in_all_batches)
-        symmetric_matrix = torch.sum(
-            all_scores, dim=0
-        )  # shape: (num_batches, num_edges_in_all_batches, num_edges_in_all_batches)
+        )  # shape: [num_layers, num_batches, 3, 3]
+        symmetric_matrix = torch.sum(all_scores, dim=0)  # shape: [num_batches, 3, 3]
         symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
         return symmetric_vector
 
