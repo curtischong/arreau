@@ -179,7 +179,6 @@ class DiffusionLoss(torch.nn.Module):
             inter_atom_distance,
             neighbor_direction,
             pred_edge_distance_score,
-            edge_index,
             batch,
         )
 
@@ -284,12 +283,16 @@ class DiffusionLoss(torch.nn.Module):
         inter_atom_distance: torch.Tensor,
         neighbor_direction: torch.Tensor,
         pred_edge_distance_score: list[torch.Tensor],
-        edge_index: torch.Tensor,
         batch: Batch,
     ):
         # we need to do this because different edges belong in different batches
-        batch_of_edge = batch.batch[edge_index[0]]
-        num_edges = torch.bincount(batch_of_edge)  # number of edges per batch
+        batch_of_edge = batch.batch[batch.edge_index[0]]
+        num_batches = batch.num_atoms.shape[
+            0
+        ]  # we need to use num_atoms since some batches may not have edges (atoms are too far)
+        num_edges = torch.bincount(
+            batch_of_edge, minlength=num_batches
+        )  # number of edges per batch
         num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
 
         # inv_lattice = torch.linalg.pinv(lattice)
@@ -352,7 +355,6 @@ class DiffusionLoss(torch.nn.Module):
             left_diagonal_multiplication_result = (
                 neighbor_direction.T * normalized_scores
             )
-            num_batches = num_edges.shape[0]
             layer_scores_per_batch = []
             for batch_idx in range(num_batches):
                 batch_start_idx = num_edges[:batch_idx].sum()
