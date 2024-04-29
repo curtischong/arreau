@@ -8,3 +8,6 @@ train:
 
 generate:
 	python main_diffusion_generate.py --model_path="models/last.ckpt"
+
+benchmark:
+	python main_diffusion.py --num_timesteps=100 --gpus=0 --radius=5 --num_workers=-1 --is_local_dev=true --max_neighbors=8 --epochs=1000
