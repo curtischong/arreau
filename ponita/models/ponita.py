@@ -83,7 +83,8 @@ class PonitaFiberBundle(nn.Module):
         graph = self.transform(graph)
 
         # Sample the kernel basis and window the spatial kernel with a smooth cut-off
-        kernel_basis = self.basis_fn(graph.attr) * self.windowing_fn(graph.dists).unsqueeze(-2)
+        # PERF: do we need to use this windowing function? Since the dists are already masked to be within the cutoff radius
+        kernel_basis = self.basis_fn(graph.attr) * self.windowing_fn(graph.dists).unsqueeze(-1).unsqueeze(-1)
         fiber_kernel_basis = self.fiber_basis_fn(graph.fiber_attr)
 
         # Initial feature embeding

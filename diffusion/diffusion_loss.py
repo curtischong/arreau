@@ -150,15 +150,21 @@ class DiffusionLoss(torch.nn.Module):
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
-        edge_index, cell_offsets, neighbors = radius_graph_pbc(
-            cart_x_t,
-            lattice,
-            batch.num_atoms,
-            self.cutoff,
-            self.max_neighbors,
-            device=cart_x_t.device,
+
+        # I'm not sure how useful neighbors is. It's a count of how many neighbors each atom has
+        edge_index, cell_offsets, neighbors, inter_atom_distance, neighbor_direction = (
+            radius_graph_pbc(
+                cart_x_t,
+                lattice,
+                batch.num_atoms,
+                self.cutoff,
+                self.max_neighbors,
+                device=cart_x_t.device,
+            )
         )
         batch.edge_index = edge_index
+        batch.dists = inter_atom_distance  # TODO: rename dists to inter_atom_distance
+        batch.inter_atom_direction = neighbor_direction
 
         # compute the predictions
         (

@@ -55,7 +55,8 @@ class SEnInvariantAttributes(BaseTransform):
                     graph.attr = invariant_attr_r2s1_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, separable=False)
                 return graph
         else:
-            graph.dists = invariant_attr_rn(graph.pos[:,:graph.n], graph.edge_index)
+            # assume that graph.dists is already computed (when we calculated the edge_index)
+            # graph.dists = invariant_attr_rn(graph.pos[:,:graph.n], graph.edge_index)
             graph.attr = graph.dists
             if self.point_cloud:
                 if graph.pos.size(-1) == graph.n: 
@@ -65,7 +66,7 @@ class SEnInvariantAttributes(BaseTransform):
                 return graph
             else:
                 if self.separable:
-                    graph.attr, graph.fiber_attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, separable=True)
+                    graph.attr, graph.fiber_attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, graph.inter_atom_direction, separable=True)
                 else:
                     graph.attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, separable=False)
                 return graph

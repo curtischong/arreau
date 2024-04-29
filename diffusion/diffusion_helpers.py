@@ -375,7 +375,9 @@ def radius_graph_pbc(
     pos2 = pos2 + pbc_offsets_per_atom
 
     # Compute the squared distance between atoms
-    atom_distance_sqr = torch.sum((pos1 - pos2) ** 2, dim=1)
+
+    neighbor_direction = pos2 - pos1
+    atom_distance_sqr = torch.sum(neighbor_direction**2, dim=1)
 
     if topk_per_pair is not None:
         assert topk_per_pair.size(0) == num_atom_pairs
@@ -430,22 +432,33 @@ def radius_graph_pbc(
     _natoms[1:] = torch.cumsum(num_atoms, dim=0)
     num_neighbors_image = _num_neighbors[_natoms[1:]] - _num_neighbors[_natoms[:-1]]
 
+    neighbor_direction = neighbor_direction.transpose(1, 2).reshape(-1, 3)
+    neighbor_direction = neighbor_direction[mask]
+    atom_distance_sqr = torch.masked_select(atom_distance_sqr, mask)
+
     # If max_num_neighbors is below the threshold, return early
     if (
         max_num_neighbors <= max_num_neighbors_threshold
         or max_num_neighbors_threshold <= 0
     ):
+        atomic_distance = torch.sqrt(atom_distance_sqr)
         if topk_per_pair is None:
-            return torch.stack((index2, index1)), -unit_cell, num_neighbors_image
+            return (
+                torch.stack((index2, index1)),
+                -unit_cell,
+                num_neighbors_image,
+                atomic_distance,
+                neighbor_direction,
+            )
         else:
             return (
                 torch.stack((index2, index1)),
                 -unit_cell,
                 num_neighbors_image,
                 topk_mask,
+                atomic_distance,
+                neighbor_direction,
             )
-
-    atom_distance_sqr = torch.masked_select(atom_distance_sqr, mask)
 
     # Create a tensor of size [num_atoms, max_num_neighbors] to sort the distances of the neighbors.
     # Fill with values greater than radius*radius so we can easily remove unused distances later.
@@ -498,11 +511,28 @@ def radius_graph_pbc(
 
     edge_index = torch.stack((index2, index1))
 
+    atom_distance_sqr = torch.masked_select(atom_distance_sqr, mask_num_neighbors)
+    atomic_distance = torch.sqrt(atom_distance_sqr)
+    neighbor_direction = neighbor_direction[mask_num_neighbors]
+
     # fix to to_jimages: negate unit_cell.
     if topk_per_pair is None:
-        return edge_index, -unit_cell, num_neighbors_image
+        return (
+            edge_index,
+            -unit_cell,
+            num_neighbors_image,
+            atomic_distance,
+            neighbor_direction,
+        )
     else:
-        return edge_index, -unit_cell, num_neighbors_image, topk_mask
+        return (
+            edge_index,
+            -unit_cell,
+            num_neighbors_image,
+            topk_mask,
+            atomic_distance,
+            neighbor_direction,
+        )
 
 
 def symmetrize_matrix(matrix: torch.Tensor) -> torch.Tensor:
