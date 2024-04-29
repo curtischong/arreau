@@ -9,6 +9,7 @@ from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
 from lightning_wrappers.callbacks import EMA, EpochTimer
 import torch
+from pytorch_lightning.profilers import PyTorchProfiler
 
 
 # ------------------------ Function to convert the nbody dataset to a dataloader for pytorch geometric graphs
@@ -165,6 +166,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--experiment_name", type=str, help="the number of diffusion timesteps"
     )
+    parser.add_argument(
+        "--profiler",
+        type=str,
+        default=False,
+        help="Specifies the type of profiler",
+        choices=["pytorch", "advanced"],
+    )
 
     # Parallel computing stuff
     parser.add_argument(
@@ -298,6 +306,16 @@ if __name__ == "__main__":
     if args.log:
         callbacks.append(pl.callbacks.LearningRateMonitor(logging_interval="epoch"))
 
+    if args.profiler == "pytorch":
+        profiler = PyTorchProfiler(
+            dirpath="profile_results",
+            row_limit=None,
+        )
+    elif args.profiler == "advanced":
+        profiler = "advanced"
+    else:
+        profiler = None
+
     # Initialize the trainer
     trainer = pl.Trainer(
         logger=logger,
@@ -308,6 +326,7 @@ if __name__ == "__main__":
         devices=devices,
         check_val_every_n_epoch=args.val_interval,
         enable_progress_bar=args.enable_progress_bar,
+        profiler=profiler,
     )
     #  log_every_n_steps=1) # TODO: increase this
 
