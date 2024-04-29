@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # ------------------------ Input arguments
 
     # Run parameters
-    parser.add_argument("--epochs", type=int, default=10000, help="number of epochs")
+    parser.add_argument("--epochs", type=int, default=100, help="number of epochs")
     parser.add_argument("--warmup", type=int, default=10, help="number of epochs")
     parser.add_argument(
         "--batch_size",
@@ -308,6 +308,7 @@ if __name__ == "__main__":
         devices=devices,
         check_val_every_n_epoch=args.val_interval,
         enable_progress_bar=args.enable_progress_bar,
+        profiler="advanced",
     )
     #  log_every_n_steps=1) # TODO: increase this
 
