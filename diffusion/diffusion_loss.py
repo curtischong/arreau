@@ -160,7 +160,7 @@ class DiffusionLoss(torch.nn.Module):
                 self.cutoff,
                 self.max_neighbors,
                 device=cart_x_t.device,
-                remove_self_edges=False,
+                remove_self_edges=False,  # so we can have self-interactions. This feels important because how else will we incorporate data about our current node from the previous layer?
             )
         )
         batch.edge_index = edge_index
