@@ -17,7 +17,7 @@
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
                 "--is_local_dev=true",
-                "--max_neighbors=24", // more neighbors = more messages. But since the number of neighbors explodes, we need to limit this number
+                "--max_neighbors=7", // more neighbors = more messages. But since the number of neighbors explodes, we need to limit this number
             ],
         },
         {

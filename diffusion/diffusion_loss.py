@@ -160,6 +160,7 @@ class DiffusionLoss(torch.nn.Module):
                 self.cutoff,
                 self.max_neighbors,
                 device=cart_x_t.device,
+                remove_self_edges=False,
             )
         )
         batch.edge_index = edge_index
