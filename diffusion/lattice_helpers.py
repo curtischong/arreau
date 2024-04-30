@@ -31,7 +31,7 @@ def matrix_to_params(matrix: torch.Tensor) -> torch.Tensor:
                 1.0,
             )
         )
-    # angles = angles * 180.0 / torch.pi # convert radians to degrees
+    # angles = angles * 180.0 / torch.pi  # convert radians to degrees
     return torch.cat([lengths, angles], dim=1)
 
 

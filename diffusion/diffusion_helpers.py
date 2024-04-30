@@ -152,13 +152,32 @@ class VP_lattice(nn.Module):
         self.register_buffer("betas", betas)
         self.register_buffer("sigmas", sigmas)
 
-    def forward(self, h0, t):
-        alpha_bar = self.alpha_bars[t]
-        eps = torch.randn_like(h0)
-        ht = (
-            torch.sqrt(alpha_bar).view(-1, 1) * h0
-            + torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
+    def forward(self, l0_vector, t, num_atoms):
+        alpha_bar = self.alpha_bars[t].view(-1, 1)
+        # when t is high, alpha_bar is close to 0
+        eps = torch.randn_like(l0_vector)
+
+        identity_matrix = (
+            torch.eye(3, device=l0_vector.device)
+            .reshape((1, 3, 3))
+            .repeat(l0_vector.shape[0], 1, 1)
         )
+        mean_cell = (
+            self.normalizing_mean_constant(num_atoms).view(-1, 1, 1) * identity_matrix
+        )
+        mean_cell_vector = symmetric_matrix_to_vector(mean_cell)
+        mean = (
+            torch.sqrt(alpha_bar) * l0_vector
+            + (1 - torch.sqrt(alpha_bar)) * mean_cell_vector
+        )
+
+        variance = torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
+        # variance = (
+        #     torch.sqrt(1 - alpha_bar)
+        #     * self.normalizing_variance_constant(num_atoms).view(-1, 1)
+        #     * eps
+        # )
+        ht = mean + variance
         return ht, eps
 
     def reverse(self, lt, predicted_symmetric_vector_noise, t):
@@ -180,15 +199,21 @@ class VP_lattice(nn.Module):
             * predicted_symmetric_vector_noise
         ) + sigma * z
 
-    # def normalizing_mean_constant(self, n: torch.Tensor):
-    #     avg_density_of_dataset = 0.05539856385043283
-    #     c = 1 / avg_density_of_dataset
-    #     return torch.pow(n * c, 1 / 3)
+    def normalizing_mean_constant(self, n: torch.Tensor) -> torch.Tensor:
+        # volume = mass (aka num_atoms) / density
+        # side length of mean cell (i.e. this function's return value) = cube_root(volume)
+        # so we need to return cube_root(num_atoms / density)
 
-    # def normalizing_variance_constant(self, n: torch.Tensor):
-    #     v = 152.51649752530176  # assuming that v is the average volume of the dataset
-    #     v = v / 6  # This is an adjustment I think will lead to more stable volumes
-    #     return torch.pow(n * v, 1 / 3)
+        avg_density_of_dataset = 0.05539856385043283
+        c = 1 / avg_density_of_dataset
+        return torch.pow(n * c, 1 / 3)
+
+    def normalizing_variance_constant(self, n: torch.Tensor):
+        v = 152.51649752530176  # assuming that v is the average volume of the dataset
+        v = v / 6  # This is an adjustment I think will lead to more stable volumes
+        # I tested that with this v, the first and third quartiles of the generated angles at t=999 are around 60 and 120 degrees
+        # I had to test because the paper wasn't specific about how they got v
+        return torch.pow(n * v, 1 / 3)
 
 
 def frac_to_cart_coords(
