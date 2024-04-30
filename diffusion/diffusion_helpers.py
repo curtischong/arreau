@@ -152,20 +152,23 @@ class VP_lattice(nn.Module):
         self.register_buffer("betas", betas)
         self.register_buffer("sigmas", sigmas)
 
-    def forward(self, h0, t, num_atoms):
+    def forward(self, l0_vector, t, num_atoms):
         alpha_bar = self.alpha_bars[t].view(-1, 1)
         # when t is high, alpha_bar is close to 0
-        eps = torch.randn_like(h0)
+        eps = torch.randn_like(l0_vector)
 
         identity_matrix = (
-            torch.eye(3, device=h0.device).reshape((1, 3, 3)).repeat(h0.shape[0], 1, 1)
+            torch.eye(3, device=l0_vector.device)
+            .reshape((1, 3, 3))
+            .repeat(l0_vector.shape[0], 1, 1)
         )
         mean_cell = (
             self.normalizing_mean_constant(num_atoms).view(-1, 1, 1) * identity_matrix
         )
         mean_cell_vector = symmetric_matrix_to_vector(mean_cell)
         mean = (
-            torch.sqrt(alpha_bar) * h0 + (1 - torch.sqrt(alpha_bar)) * mean_cell_vector
+            torch.sqrt(alpha_bar) * l0_vector
+            + (1 - torch.sqrt(alpha_bar)) * mean_cell_vector
         )
 
         variance = torch.sqrt(1 - alpha_bar).view(-1, 1) * eps
@@ -175,7 +178,7 @@ class VP_lattice(nn.Module):
         #     * eps
         # )
         ht = mean + variance
-        return ht, eps, mean_cell
+        return ht, eps
 
     def reverse(self, lt, predicted_symmetric_vector_noise, t):
         alpha = 1 - self.betas[t]
