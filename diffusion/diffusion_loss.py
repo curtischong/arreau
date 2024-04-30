@@ -202,7 +202,7 @@ class DiffusionLoss(torch.nn.Module):
         rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-        noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
+        noisy_symmetric_vector, noise_vector, _mean_cell = self.lattice_diffusion(
             symmetric_matrix_vector, t_int, num_atoms
         )
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)

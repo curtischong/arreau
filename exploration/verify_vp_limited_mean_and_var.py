@@ -35,7 +35,7 @@ def main():
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
         num_atoms = torch.tensor([8])
         noisy_symmetric_vector, _symmetric_vector_noise, mean_cell = vp(
-            symmetric_matrix_vector, t, num_atoms, real_lattice
+            symmetric_matrix_vector, t, num_atoms
         )
 
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)

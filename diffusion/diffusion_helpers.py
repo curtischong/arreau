@@ -178,7 +178,7 @@ class VP_lattice(nn.Module):
         #     * eps
         # )
         ht = mean + variance
-        return ht, eps
+        return ht, eps, mean_cell
 
     def reverse(self, lt, predicted_symmetric_vector_noise, t):
         alpha = 1 - self.betas[t]
