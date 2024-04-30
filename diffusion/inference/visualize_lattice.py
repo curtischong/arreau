@@ -88,7 +88,7 @@ def visualize_multiple_lattices(lattices: list[torch.Tensor], out_path: str):
         if i == 0:
             color = "#0d5d85"
         else:
-            color = "#ffffff"
+            color = "#ff0000"
         points.extend(
             plot_with_parallelopied(fig, lattice.squeeze(0), color=color).tolist()
         )
