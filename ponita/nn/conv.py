@@ -113,13 +113,10 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
             fiber_kernel = self.fiber_kernel(fiber_attr)
             if self.depthwise:
                 x_2 = torch.einsum('boc,opc->bpc', x_1, fiber_kernel) / fiber_kernel.shape[-2]
-                messages_2 = torch.einsum('boc,opc->bpc', messages, fiber_kernel) / fiber_kernel.shape[-2]
             else:
                 x_2 = torch.einsum('boc,opdc->bpd', x_1, fiber_kernel.unflatten(-1, (self.out_channels, self.in_channels))) / fiber_kernel.shape[-2]
-                messages_2 = torch.einsum('boc,opdc->bpd', messages, fiber_kernel.unflatten(-1, (self.out_channels, self.in_channels))) / fiber_kernel.shape[-2]
         else:
             x_2 = x_1
-            messages_2 = messages
 
         # Re-callibrate the initializaiton
         if self.training and not(self.callibrated):
@@ -127,9 +124,9 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
 
         # Add bias
         if self.bias is not None:
-            return x_2 + self.bias, messages_2 + self.bias
+            return x_2 + self.bias, messages
         else:  
-            return x_2, messages_2
+            return x_2, messages
 
     def message(self, x_j, kernel):
         if self.separable:
