@@ -286,21 +286,22 @@ class DiffusionLoss(torch.nn.Module):
     ):
         # we need to do this because different edges belong in different batches
         batch_of_edge = batch.batch[batch.edge_index[0]]
-        num_batches = batch.num_atoms.shape[
-            0
-        ]  # we need to use num_atoms since some batches may not have edges (atoms are too far)
-        num_edges = torch.bincount(
-            batch_of_edge, minlength=num_batches
-        )  # number of edges per batch
+        num_batches = batch.num_atoms.shape[0]
+
+        # calculate the number of edges for each graph in the batch
+        # we need to use minlength since some batches may not have edges (atoms are too far)
+        num_edges = torch.bincount(batch_of_edge, minlength=num_batches)
+
         num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
 
         pred_edge_distance_score = [
             score.squeeze(1) for score in pred_edge_distance_score
         ]
 
-        # delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice?
+        # In the paper, for equation (A32), delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice?
         # The edge score is the amount to multiply by the rate of change of this edge length
 
+        # equation (A35) in the paper
         layer_scores = []
         num_layers = len(pred_edge_distance_score)
         for i in range(num_layers):
@@ -333,10 +334,11 @@ class DiffusionLoss(torch.nn.Module):
                 layer_scores_per_batch, dim=0
             )  # shape: [num_batches, 3, 3]
             layer_scores.append(layer_score)
-        all_scores = torch.stack(
-            layer_scores, dim=0
-        )  # shape: [num_layers, num_batches, 3, 3]
-        symmetric_matrix = torch.sum(all_scores, dim=0)  # shape: [num_batches, 3, 3]
+
+        # equation (A36) in the paper: summing all the scores across the layers
+        all_scores = torch.stack(layer_scores, dim=0)  # [num_layers, num_batches, 3, 3]
+        symmetric_matrix = torch.sum(all_scores, dim=0)  # [num_batches, 3, 3]
+
         symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
         return symmetric_vector
 
