@@ -106,8 +106,6 @@ class PonitaFiberBundle(nn.Module):
             if readout_layer is not None: readouts.append(readout_layer(x))
             if edge_readout_layer is not None: edge_readouts.append(edge_readout_layer(messages))
         readout = sum(readouts) / len(readouts)
-        # do not sum. we want edge readouts per-layer
-        # edge_readouts = sum(edge_readouts) / len(edge_readouts)
         
         # Read out the scalar and vector part of the output
         readout_scalar, readout_vec, readout_global_vec, readout_global_scalar = torch.split(readout, [self.output_dim, self.output_dim_vec, self.output_dim_global_vec, self.output_dim_global_scalar], dim=-1)
@@ -117,7 +115,9 @@ class PonitaFiberBundle(nn.Module):
         output_vector = self.vec_readout_fn(readout_vec, graph.ori_grid)
         global_output_scalar = self.global_scalar_readout_fn(readout_global_scalar, graph.batch)
         global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
-        edge_output_scalar = [self.scalar_readout_fn(edge_readout) for edge_readout in edge_readouts]
+
+        # Note: Do not sum. we want edge readouts per-layer
+        edge_output_scalar = [self.edge_scalar_readout_fn(edge_readout) for edge_readout in edge_readouts]
 
         # Return predictions
         return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_scalar
@@ -149,6 +149,13 @@ class PonitaFiberBundle(nn.Module):
         if self.output_dim_global_scalar > 0:
             output_scalar = sphere_to_scalar(readout_scalar)
             output_scalar = global_add_pool(output_scalar, batch)
+        else:
+            output_scalar = None
+        return output_scalar
+    
+    def edge_scalar_readout_fn(self, readout_scalar):
+        if self.output_dim_edge_scalar > 0:
+            output_scalar =  sphere_to_scalar(readout_scalar)
         else:
             output_scalar = None
         return output_scalar
