@@ -286,11 +286,11 @@ class DiffusionLoss(torch.nn.Module):
     ):
         # we need to do this because different edges belong in different batches
         batch_of_edge = batch.batch[batch.edge_index[0]]
-        num_batches = batch.num_atoms.shape[0]
+        batch_size = batch.num_atoms.shape[0]
 
         # calculate the number of edges for each graph in the batch
         # we need to use minlength since some batches may not have edges (atoms are too far)
-        num_edges = torch.bincount(batch_of_edge, minlength=num_batches)
+        num_edges = torch.bincount(batch_of_edge, minlength=batch_size)
 
         num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
 
@@ -311,14 +311,17 @@ class DiffusionLoss(torch.nn.Module):
                 num_edges_for_ith_edge * (inter_atom_distance**2)
             )
 
-            # neighbor_direction.T * normalized_scores is a broadcasting operation.
-            # we multiply each row of neighbor_direction by normalized_scores.
-            # This means we avoid creating a costly diagonal matrix
+            # By multiplying each row of neighbor_direction by normalized_scores (via a braodcasting operation)
+            # We avoid creating a costly diagonal matrix and doing a costly matrix multiplication
+            # NOTE: we do NOT need to do this for every batch since a broadcasting operation is just a scalar multiplication
+            # so this operation can be done outside the for loop below
             left_diagonal_multiplication_result = (
                 neighbor_direction.T * normalized_scores
             )
+
+            # Not sure if there's a way to avoid the for loop when performing the matmul for each distinct batch
             layer_scores_per_batch = []
-            for batch_idx in range(num_batches):
+            for batch_idx in range(batch_size):
                 batch_start_idx = num_edges[:batch_idx].sum()
                 batch_end_idx = batch_start_idx + num_edges[batch_idx]
 
@@ -332,12 +335,12 @@ class DiffusionLoss(torch.nn.Module):
 
             layer_score = torch.stack(
                 layer_scores_per_batch, dim=0
-            )  # shape: [num_batches, 3, 3]
+            )  # shape: [batch_size, 3, 3]
             layer_scores.append(layer_score)
 
         # equation (A36) in the paper: summing all the scores across the layers
-        all_scores = torch.stack(layer_scores, dim=0)  # [num_layers, num_batches, 3, 3]
-        symmetric_matrix = torch.sum(all_scores, dim=0)  # [num_batches, 3, 3]
+        all_scores = torch.stack(layer_scores, dim=0)  # [num_layers, batch_size, 3, 3]
+        symmetric_matrix = torch.sum(all_scores, dim=0)  # [batch_size, 3, 3]
 
         symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
         return symmetric_vector
