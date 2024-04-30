@@ -1,7 +1,4 @@
 import pathlib
-from diffusion.inference.visualize_crystal import (
-    visualize_and_save_crystal,
-)
 from diffusion.lattice_dataset import CrystalDataset
 import os
 
@@ -21,20 +18,21 @@ def main():
     )
     os.makedirs(dataset_vis_dir, exist_ok=True)
 
-    for i in range(50):
+    for i in range(20000, 25000):
         print(f"sample {i}")
         ith_sample = dataset[i]
 
         atomic_num = ith_sample.A0
         lattice = ith_sample.L0.numpy()
         frac_x = ith_sample.X0.numpy()
-        visualize_and_save_crystal(
-            atomic_num,
-            lattice,
-            frac_x,
-            name=f"{dataset_vis_dir}/{i}",
-            show_bonds=False,
-        )
+        # visualize_and_save_crystal(
+        #     atomic_num,
+        #     lattice,
+        #     frac_x,
+        #     name=f"{dataset_vis_dir}/{i}",
+        #     show_bonds=False,
+        # )
+        print(lattice.tolist())
 
 
 if __name__ == "__main__":
