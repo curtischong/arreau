@@ -146,6 +146,7 @@ class FiberBundleConv(torch_geometric.nn.MessagePassing):
             self.callibrated = ~self.callibrated
 
     # from https://github.com/pyg-team/pytorch_geometric/blob/master/torch_geometric/nn/conv/message_passing.py#L478
+    # the main thing I changed was returning the messages that are propagated during message passing
     def propagate2(
         self,
         edge_index: Adj,
