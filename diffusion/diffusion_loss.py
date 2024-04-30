@@ -16,7 +16,6 @@ from diffusion.diffusion_helpers import (
     polar_decomposition,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
-    vector_length_mse_loss,
     vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import (
@@ -171,27 +170,17 @@ class DiffusionLoss(torch.nn.Module):
         (
             predicted_h0_logits,
             pred_frac_eps_x,
-            pred_symmetric_vector_noise,
-            pred_lattice_0,
+            _global_output_scalar,
+            _global_output_vector,
+            pred_edge_distance_score,
         ) = model(batch)
 
-        # normalize the predictions
-        # used_sigmas_x = self.pos_diffusion.sigmas[t_int].view(-1, 1)
-        # pred_frac_eps_x = subtract_cog(pred_frac_eps_x, num_atoms)
-
-        # calculate the pred_lattice_symmetric_noise
-        _rot, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice_0)
-        pred_lattice_symmetric_vector = symmetric_matrix_to_vector(
-            pred_lattice_symmetric_matrix
+        pred_symmetric_vector_noise = self.edge_score_to_symmetric_lattice(
+            inter_atom_distance,
+            neighbor_direction,
+            pred_edge_distance_score,
+            batch,
         )
-        pred_lattice_symmetric_noise = (
-            noisy_symmetric_vector - pred_lattice_symmetric_vector
-        )
-
-        # blend the two predictions for the lattice, so when we do inference, we just rely on this one prediction
-        pred_symmetric_vector_noise = (
-            pred_symmetric_vector_noise + pred_lattice_symmetric_noise
-        ) / 2
 
         return (
             pred_frac_eps_x.squeeze(
@@ -199,7 +188,6 @@ class DiffusionLoss(torch.nn.Module):
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
             pred_symmetric_vector_noise,
-            pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -257,12 +245,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (
-            pred_frac_eps_x,
-            predicted_h0_logits,
-            pred_symmetric_vector_noise,
-            pred_lattice,
-        ) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_symmetric_vector) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
@@ -285,13 +268,7 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = (
-            F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
-            # + F.mse_loss(pred_lattice, lattice) # I don't think this matters, since we have a loss for predicted symmetric vector noise
-            + vector_length_mse_loss(
-                pred_lattice, lattice
-            )  # Without this loss, the model will explode the lattice's length
-        )
+        error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
 
         loss = (
             self.cost_coord_coeff * error_x
@@ -299,6 +276,74 @@ class DiffusionLoss(torch.nn.Module):
             + self.lattice_coeff * error_l
         )
         return loss.mean()
+
+    def edge_score_to_symmetric_lattice(
+        self,
+        inter_atom_distance: torch.Tensor,
+        neighbor_direction: torch.Tensor,
+        pred_edge_distance_score: list[torch.Tensor],
+        batch: Batch,
+    ):
+        # we need to do this because different edges belong in different batches
+        batch_of_edge = batch.batch[batch.edge_index[0]]
+        batch_size = batch.num_atoms.shape[0]
+
+        # calculate the number of edges for each graph in the batch
+        # we need to use minlength since some batches may not have edges (atoms are too far)
+        num_edges = torch.bincount(batch_of_edge, minlength=batch_size)
+
+        num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
+
+        pred_edge_distance_score = [
+            score.squeeze(1) for score in pred_edge_distance_score
+        ]
+
+        # In the paper, for equation (A32), delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice?
+        # The edge score is the amount to multiply by the rate of change of this edge length
+
+        # equation (A35) in the paper
+        layer_scores = []
+        num_layers = len(pred_edge_distance_score)
+        for i in range(num_layers):
+            scores_for_layer = pred_edge_distance_score[i]
+
+            normalized_scores = scores_for_layer / (
+                num_edges_for_ith_edge * (inter_atom_distance**2)
+            )
+
+            # By multiplying each row of neighbor_direction by normalized_scores (via a braodcasting operation)
+            # We avoid creating a costly diagonal matrix and doing a costly matrix multiplication
+            # NOTE: we do NOT need to do this for every batch since a broadcasting operation is just a scalar multiplication
+            # so this operation can be done outside the for loop below
+            left_diagonal_multiplication_result = (
+                neighbor_direction.T * normalized_scores
+            )
+
+            # Not sure if there's a way to avoid the for loop when performing the matmul for each distinct batch
+            layer_scores_per_batch = []
+            for batch_idx in range(batch_size):
+                batch_start_idx = num_edges[:batch_idx].sum()
+                batch_end_idx = batch_start_idx + num_edges[batch_idx]
+
+                symmetric_matrix_for_batch = torch.matmul(
+                    left_diagonal_multiplication_result[
+                        :, batch_start_idx:batch_end_idx
+                    ],
+                    neighbor_direction[batch_start_idx:batch_end_idx, :],
+                )
+                layer_scores_per_batch.append(symmetric_matrix_for_batch)
+
+            layer_score = torch.stack(
+                layer_scores_per_batch, dim=0
+            )  # shape: [batch_size, 3, 3]
+            layer_scores.append(layer_score)
+
+        # equation (A36) in the paper: summing all the scores across the layers
+        all_scores = torch.stack(layer_scores, dim=0)  # [num_layers, batch_size, 3, 3]
+        symmetric_matrix = torch.sum(all_scores, dim=0)  # [batch_size, 3, 3]
+
+        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
+        return symmetric_vector
 
     @torch.no_grad()
     def sample(
@@ -345,23 +390,21 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, predicted_symmetric_vector_noise, _pred_lattice = (
-                self.phi(
-                    frac_x,
-                    F.one_hot(h, num_atomic_states).float(),
-                    t,
-                    num_atoms,
-                    lattice,
-                    symmetric_vector,
-                    model,
-                    Batch(
-                        num_atoms=num_atoms,
-                        batch=torch.arange(0, num_samples_in_batch).repeat_interleave(
-                            num_atoms_per_sample
-                        ),
+            score_x, score_h, predicted_symmetric_vector_noise = self.phi(
+                frac_x,
+                F.one_hot(h, num_atomic_states).float(),
+                t,
+                num_atoms,
+                lattice,
+                symmetric_vector,
+                model,
+                Batch(
+                    num_atoms=num_atoms,
+                    batch=torch.arange(0, num_samples_in_batch).repeat_interleave(
+                        num_atoms_per_sample
                     ),
-                    t_emb_weights,
-                )
+                ),
+                t_emb_weights,
             )
             next_symmetric_vector = self.lattice_diffusion.reverse(
                 symmetric_vector, predicted_symmetric_vector_noise, timestep_vec

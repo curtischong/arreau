@@ -34,6 +34,7 @@ class PonitaFiberBundle(nn.Module):
                  output_dim,
                  output_dim_global_scalar: int,
                  output_dim_global_vec: int,
+                 output_dim_edge_scalar: int,
                  num_layers,
                  output_dim_vec = 0,
                  radius = None,
@@ -47,7 +48,11 @@ class PonitaFiberBundle(nn.Module):
         super().__init__()
 
         # Input output settings
-        self.output_dim, self.output_dim_vec, self.output_dim_global_scalar, self.output_dim_global_vec = output_dim, output_dim_vec, output_dim_global_scalar, output_dim_global_vec
+        self.output_dim = output_dim
+        self.output_dim_vec = output_dim_vec
+        self.output_dim_global_scalar = output_dim_global_scalar
+        self.output_dim_global_vec = output_dim_global_vec
+        self.output_dim_edge_scalar = output_dim_edge_scalar
 
         # For constructing the position-orientation graph and its invariants
         self.transform = Compose([PositionOrientationGraph(num_ori), SEnInvariantAttributes(separable=True)])
@@ -67,6 +72,7 @@ class PonitaFiberBundle(nn.Module):
         # Make feedforward network
         self.interaction_layers = nn.ModuleList()
         self.read_out_layers = nn.ModuleList()
+        self.edge_readout_layers = nn.ModuleList()
         for i in range(num_layers):
             conv = FiberBundleConv(hidden_dim, hidden_dim, basis_dim, groups=hidden_dim, separable=True)
             layer = ConvNext(hidden_dim, conv, act=act_fn, layer_scale=layer_scale, widening_factor=widening_factor)
@@ -74,8 +80,10 @@ class PonitaFiberBundle(nn.Module):
             # self.interaction_layers.append(ConvNextR3S2(hidden_dim, basis_dim, act=act_fn, widening_factor=widening_factor, layer_scale=layer_scale))
             if multiple_readouts or i == (num_layers - 1):
                 self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_scalar + output_dim_global_vec))
+                self.edge_readout_layers.append(nn.Linear(hidden_dim, output_dim_edge_scalar))
             else:
                 self.read_out_layers.append(None)
+                self.edge_readout_layers.append(None)
     
     def forward(self, graph):
 
@@ -92,9 +100,11 @@ class PonitaFiberBundle(nn.Module):
 
         # Interaction + readout layers
         readouts = []
-        for interaction_layer, readout_layer in zip(self.interaction_layers, self.read_out_layers):
-            x = interaction_layer(x, graph.edge_index, edge_attr=kernel_basis, fiber_attr=fiber_kernel_basis, batch=graph.batch)
+        edge_readouts = []
+        for interaction_layer, readout_layer, edge_readout_layer in zip(self.interaction_layers, self.read_out_layers, self.edge_readout_layers):
+            x, messages = interaction_layer(x, graph.edge_index, edge_attr=kernel_basis, fiber_attr=fiber_kernel_basis, batch=graph.batch)
             if readout_layer is not None: readouts.append(readout_layer(x))
+            if edge_readout_layer is not None: edge_readouts.append(edge_readout_layer(messages))
         readout = sum(readouts) / len(readouts)
         
         # Read out the scalar and vector part of the output
@@ -106,8 +116,11 @@ class PonitaFiberBundle(nn.Module):
         global_output_scalar = self.global_scalar_readout_fn(readout_global_scalar, graph.batch)
         global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
 
+        # Note: Do not sum. we want edge readouts per-layer
+        edge_output_scalar = [self.edge_scalar_readout_fn(edge_readout) for edge_readout in edge_readouts]
+
         # Return predictions
-        return output_scalar, output_vector, global_output_scalar, global_output_vector
+        return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_scalar
     
     def scalar_readout_fn(self, readout_scalar):
         if self.output_dim > 0:
@@ -135,7 +148,14 @@ class PonitaFiberBundle(nn.Module):
     def global_scalar_readout_fn(self, readout_scalar, batch):
         if self.output_dim_global_scalar > 0:
             output_scalar = sphere_to_scalar(readout_scalar)
-            output_scalar=global_add_pool(output_scalar, batch)
+            output_scalar = global_add_pool(output_scalar, batch)
+        else:
+            output_scalar = None
+        return output_scalar
+    
+    def edge_scalar_readout_fn(self, readout_scalar):
+        if self.output_dim_edge_scalar > 0:
+            output_scalar =  sphere_to_scalar(readout_scalar)
         else:
             output_scalar = None
         return output_scalar
