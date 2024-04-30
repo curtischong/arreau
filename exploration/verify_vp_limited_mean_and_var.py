@@ -34,7 +34,7 @@ def main():
         rotation_matrix, symmetric_matrix = polar_decomposition(real_lattice)
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
         num_atoms = torch.tensor([8])
-        noisy_symmetric_vector, _symmetric_vector_noise = vp(
+        noisy_symmetric_vector, _symmetric_vector_noise, mean_cell = vp(
             symmetric_matrix_vector, t, num_atoms
         )
 
@@ -44,7 +44,10 @@ def main():
         angles = params[:, 3:]
         all_angles.append(angles.squeeze())
 
-        visualize_multiple_lattices([real_lattice, noisy_lattice], f"{OUT_DIR}/{i}.png")
+        fig = visualize_multiple_lattices(
+            [real_lattice, noisy_lattice, mean_cell], f"{OUT_DIR}/{i}.png"
+        )
+        fig.show()
     quantiles = torch.quantile(
         torch.stack(all_angles), torch.tensor([0.1, 0.25, 0.5, 0.75, 0.9])
     )

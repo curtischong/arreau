@@ -87,8 +87,10 @@ def visualize_multiple_lattices(lattices: list[torch.Tensor], out_path: str):
     for i, lattice in enumerate(lattices):
         if i == 0:
             color = "#0d5d85"
-        else:
+        elif i == 1:
             color = "#ff0000"
+        else:
+            color = "#00ff00"
         points.extend(
             plot_with_parallelopied(fig, lattice.squeeze(0), color=color).tolist()
         )
@@ -117,3 +119,4 @@ def visualize_multiple_lattices(lattices: list[torch.Tensor], out_path: str):
     # Save the plot as a PNG file
     fig.write_image(out_path)
     print(f"Saved {out_path}")
+    return fig
