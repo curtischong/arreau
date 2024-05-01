@@ -126,6 +126,14 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },{
+            "name": "largest system in dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/largest_system_in_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
