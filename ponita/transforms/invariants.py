@@ -71,7 +71,7 @@ class SEnInvariantAttributes(BaseTransform):
                     # TODO: I'm assuming we do NOT need to add the features to the fiber_attr???
                     r3s2_attr, graph.fiber_attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, graph.inter_atom_direction, separable=True)
 
-                    # The other features that I'm using are only in the reals. It's similar to a norm. So I think
+                    # Since the other features that I'm adding are directionless scalars, it's similar to a norm. So I think
                     # I can just concat them to the end of the attributes
                     # I came to this conclusion after looking at Theorem 1 of the ponita paper
 
