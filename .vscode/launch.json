@@ -52,7 +52,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/lattice-edge-features.ckpt",
+                "--model_path=models/prevent-lattice-squishing-ii.ckpt",
             ],
         },
         {
