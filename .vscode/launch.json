@@ -21,30 +21,6 @@
             ],
         },
         {
-            "name": "train md17",
-            "type": "python",
-            "request": "launch",
-            "program": "main_md17.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--gpus=0", // force it to use cpu (for development)
-                "--radius=5", // cutoff distance 
-            ],
-        },
-        {
-            "name": "train nbody",
-            "type": "python",
-            "request": "launch",
-            "program": "main_nbody.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--gpus=0", // force it to use cpu (for development)
-                "--radius=5", // cutoff distance 
-            ],
-        },
-        {
             "name": "generate",
             "type": "python",
             "request": "launch",
