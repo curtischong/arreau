@@ -8,7 +8,6 @@ class PolynomialFeatures(torch.nn.Module):
         self.degree = degree
 
     def forward(self, x):
-
         polynomial_list = [x]
         for it in range(1, self.degree):
             polynomial_list.append(torch.einsum('...i,...j->...ij', polynomial_list[-1], x).flatten(-2,-1))

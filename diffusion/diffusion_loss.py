@@ -165,6 +165,9 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
         batch.dists = inter_atom_distance  # TODO: rename dists to inter_atom_distance
         batch.inter_atom_direction = neighbor_direction
+        batch.lattice = lattice
+
+        batch.batch_of_edge = batch.batch[batch.edge_index[0]]
 
         # compute the predictions
         (
@@ -285,12 +288,11 @@ class DiffusionLoss(torch.nn.Module):
         batch: Batch,
     ):
         # we need to do this because different edges belong in different batches
-        batch_of_edge = batch.batch[batch.edge_index[0]]
         batch_size = batch.num_atoms.shape[0]
 
         # calculate the number of edges for each graph in the batch
         # we need to use minlength since some batches may not have edges (atoms are too far)
-        num_edges = torch.bincount(batch_of_edge, minlength=batch_size)
+        num_edges = torch.bincount(batch.batch_of_edge, minlength=batch_size)
 
         num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
 
