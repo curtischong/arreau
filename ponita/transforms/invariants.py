@@ -78,7 +78,7 @@ class SEnInvariantAttributes(BaseTransform):
                     angle_diff_1 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 1, :])
                     angle_diff_2 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 2, :])
                     
-                    graph.attr = torch.cat([r3s2_attr, graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1)
+                    graph.attr = [r3s2_attr, torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1)]
                 else:
                     graph.attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, separable=False)
                 return graph

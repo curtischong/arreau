@@ -7,12 +7,15 @@ class PolynomialFeatures(torch.nn.Module):
 
         self.degree = degree
 
-    def forward(self, x):
-
+    def forward(self, attributes):
+        x = attributes[0]
+        additional_features = attributes[1]
+        
         polynomial_list = [x]
         for it in range(1, self.degree):
             polynomial_list.append(torch.einsum('...i,...j->...ij', polynomial_list[-1], x).flatten(-2,-1))
-        return torch.cat(polynomial_list, -1)
+        return torch.cat([torch.cat(polynomial_list, -1).flatten(1), additional_features], dim=1)
+        # return torch.cat(polynomial_list, -1)
 
 
 class RandomFourierFeatures(torch.nn.Module):
