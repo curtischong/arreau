@@ -22,6 +22,7 @@ class SEnInvariantAttributes(BaseTransform):
         # Discretization of the orientation grid
         self.separable = separable
         self.point_cloud = point_cloud
+        self.cosine_similarity = torch.nn.CosineSimilarity(dim=-1)
 
     def __call__(self, graph):
         """
@@ -66,7 +67,18 @@ class SEnInvariantAttributes(BaseTransform):
                 return graph
             else:
                 if self.separable:
-                    graph.attr, graph.fiber_attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, graph.inter_atom_direction, separable=True)
+                    r3s2_attr, graph.fiber_attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, graph.inter_atom_direction, separable=True)
+
+                    # The other features that I'm using are only in the reals. It's similar to a norm. So I think
+                    # I can just concat them to the end of the attributes
+                    # I came to this conclusion after looking at Theorem 1 of the ponita paper
+
+                    lattice_for_edge = torch.index_select(graph.lattice, 0, graph.batch_of_edge)
+                    angle_diff_0 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 0, :]) # note: cos is an even function, so the order we subtract doesn't matter
+                    angle_diff_1 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 1, :])
+                    angle_diff_2 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 2, :])
+                    
+                    graph.attr = torch.cat([r3s2_attr, graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1)
                 else:
                     graph.attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, separable=False)
                 return graph
