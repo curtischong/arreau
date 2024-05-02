@@ -223,17 +223,14 @@ class DiffusionLoss(torch.nn.Module):
         lattice1_det = torch.abs(torch.linalg.det(noisy_lattice1))
         lattice2_det = torch.abs(torch.linalg.det(noisy_lattice2))
         # select the lattice with the higher determinant
-        noisy_lattice = torch.where(
-            lattice1_det > lattice2_det, noisy_lattice1, noisy_lattice2
-        )
+        selected_lattice = (lattice1_det > lattice2_det).view(-1, 1)
+        noisy_lattice = torch.where(selected_lattice, noisy_lattice1, noisy_lattice2)
         noisy_symmetric_vector = torch.where(
-            lattice1_det > lattice2_det,
+            selected_lattice,
             noisy_symmetric_vector1,
             noisy_symmetric_vector2,
         )
-        noise_vector = torch.where(
-            lattice1_det > lattice2_det, noise_vector1, noise_vector2
-        )
+        noise_vector = torch.where(selected_lattice, noise_vector1, noise_vector2)
 
         # given the noisy_symmetric_vector, it needs to predict the noise vector
         # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
