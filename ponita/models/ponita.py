@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch_geometric.nn import global_add_pool
-from ponita.utils.to_from_sphere import sphere_to_scalar, sphere_to_vec
+from ponita.utils.to_from_sphere import scalar_to_sphere, sphere_to_scalar, sphere_to_vec
 from ponita.nn.embedding import PolynomialFeatures
 from ponita.utils.windowing import PolynomialCutoff
 from ponita.transforms import PositionOrientationGraph, SEnInvariantAttributes
@@ -80,13 +80,12 @@ class PonitaFiberBundle(nn.Module):
             # self.interaction_layers.append(ConvNextR3S2(hidden_dim, basis_dim, act=act_fn, widening_factor=widening_factor, layer_scale=layer_scale))
             if multiple_readouts or i == (num_layers - 1):
                 self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_scalar + output_dim_global_vec))
-                self.edge_readout_layers.append(nn.Linear(hidden_dim, output_dim_edge_scalar))
+                self.edge_readout_layers.append(nn.Linear(hidden_dim + 4, output_dim_edge_scalar)) # + 4 for the distance and cosine similarity
             else:
                 self.read_out_layers.append(None)
                 self.edge_readout_layers.append(None)
     
     def forward(self, graph):
-
         # Lift and compute invariants
         graph = self.transform(graph)
 
@@ -104,7 +103,8 @@ class PonitaFiberBundle(nn.Module):
         for interaction_layer, readout_layer, edge_readout_layer in zip(self.interaction_layers, self.read_out_layers, self.edge_readout_layers):
             x, messages = interaction_layer(x, graph.edge_index, edge_attr=kernel_basis, fiber_attr=fiber_kernel_basis, batch=graph.batch)
             if readout_layer is not None: readouts.append(readout_layer(x))
-            if edge_readout_layer is not None: edge_readouts.append(edge_readout_layer(messages))
+            if edge_readout_layer is not None: edge_readouts.append(edge_readout_layer(torch.cat([messages, graph.edge_scalar_features], dim=-1)))
+
         readout = sum(readouts) / len(readouts)
         
         # Read out the scalar and vector part of the output
@@ -121,6 +121,7 @@ class PonitaFiberBundle(nn.Module):
 
         # Return predictions
         return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_scalar
+
     
     def scalar_readout_fn(self, readout_scalar):
         if self.output_dim > 0:
