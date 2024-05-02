@@ -23,6 +23,7 @@ class SEnInvariantAttributes(BaseTransform):
         # Discretization of the orientation grid
         self.separable = separable
         self.point_cloud = point_cloud
+        self.cosine_similarity = torch.nn.CosineSimilarity(dim=-1)
 
     def __call__(self, graph):
         """
@@ -76,6 +77,13 @@ class SEnInvariantAttributes(BaseTransform):
 
 
                     # Note: I believe that adding graph.dists is a useful feature since it will help the model determine by how much it should scale this edge (to determine the lattice lengths)                    
+                    # The cosine similarities are for equation (A39) in mattergen
+                    lattice_for_edge = torch.index_select(graph.lattice, 0, graph.batch_of_edge)
+                    angle_diff_0 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 0, :]) # note: cos is an even function, so the order we subtract doesn't matter
+                    angle_diff_1 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 1, :])
+                    angle_diff_2 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 2, :])
+                    graph.edge_scalar_features = scalar_to_sphere(torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1), graph.ori_grid)
+
                     graph.attr = torch.cat([r3s2_attr, graph.edge_scalar_features], dim=-1)
 
                 else:

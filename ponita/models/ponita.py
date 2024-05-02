@@ -68,7 +68,6 @@ class PonitaFiberBundle(nn.Module):
 
         # Initial node embedding
         self.x_embedder = nn.Linear(input_dim, hidden_dim, False)
-        self.cosine_similarity = torch.nn.CosineSimilarity(dim=-1)
         
         # Make feedforward network
         self.interaction_layers = nn.ModuleList()
@@ -87,8 +86,6 @@ class PonitaFiberBundle(nn.Module):
                 self.edge_readout_layers.append(None)
     
     def forward(self, graph):
-        self.add_edge_features(graph)
-
         # Lift and compute invariants
         graph = self.transform(graph)
 
@@ -124,14 +121,7 @@ class PonitaFiberBundle(nn.Module):
 
         # Return predictions
         return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_scalar
-    
-    def add_edge_features(self, graph):
-        # The cosine similarities are for equation (A39) in mattergen
-        lattice_for_edge = torch.index_select(graph.lattice, 0, graph.batch_of_edge)
-        angle_diff_0 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 0, :]) # note: cos is an even function, so the order we subtract doesn't matter
-        angle_diff_1 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 1, :])
-        angle_diff_2 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 2, :])
-        graph.edge_scalar_features = scalar_to_sphere(torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1), graph.ori_grid)
+
     
     def scalar_readout_fn(self, readout_scalar):
         if self.output_dim > 0:
