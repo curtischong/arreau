@@ -4,7 +4,7 @@ prep-datasets:
 	python diffusion/prep_datasets.py
 
 train:
-	python main_diffusion.py --num_timesteps=300 --gpus=1 --radius=5 --num_workers=-1 --max_neighbors=8 --batch_size=400
+	python main_diffusion.py --num_timesteps=1000 --gpus=1 --radius=5 --num_workers=-1 --max_neighbors=8 --batch_size=350 --lr=0.0003
 
 train-equivariance:
 	python main_diffusion.py --num_timesteps=300 --gpus=0 --radius=5 --num_workers=-1 --max_neighbors=8 --batch_size=10
