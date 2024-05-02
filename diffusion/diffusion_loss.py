@@ -224,7 +224,9 @@ class DiffusionLoss(torch.nn.Module):
         lattice2_det = torch.abs(torch.linalg.det(noisy_lattice2))
         # select the lattice with the higher determinant
         selected_lattice = (lattice1_det > lattice2_det).view(-1, 1)
-        noisy_lattice = torch.where(selected_lattice, noisy_lattice1, noisy_lattice2)
+        noisy_lattice = torch.where(
+            selected_lattice, noisy_lattice1.view(-1, 9), noisy_lattice2.view(-1, 9)
+        ).view(-1, 3, 3)
         noisy_symmetric_vector = torch.where(
             selected_lattice,
             noisy_symmetric_vector1,
