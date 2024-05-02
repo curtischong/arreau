@@ -112,4 +112,4 @@ if __name__ == "__main__":
     #     num_crystals=10,
     #     num_atoms_per_sample=num_atoms,
     #     use_constant_atomic_symbols=use_constant_atomic_symbols,
-    # )
+    # sample-better-variance )
