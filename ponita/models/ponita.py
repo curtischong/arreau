@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch_geometric.nn import global_add_pool
-from ponita.utils.to_from_sphere import sphere_to_scalar, sphere_to_vec
+from ponita.utils.to_from_sphere import scalar_to_sphere, sphere_to_scalar, sphere_to_vec
 from ponita.nn.embedding import PolynomialFeatures
 from ponita.utils.windowing import PolynomialCutoff
 from ponita.transforms import PositionOrientationGraph, SEnInvariantAttributes
@@ -106,7 +106,8 @@ class PonitaFiberBundle(nn.Module):
         for interaction_layer, readout_layer, edge_readout_layer in zip(self.interaction_layers, self.read_out_layers, self.edge_readout_layers):
             x, messages = interaction_layer(x, graph.edge_index, edge_attr=kernel_basis, fiber_attr=fiber_kernel_basis, batch=graph.batch)
             if readout_layer is not None: readouts.append(readout_layer(x))
-            if edge_readout_layer is not None: edge_readouts.append(edge_readout_layer(torch.cat(messages, graph.edge_scalar_features, dim=-1)))
+            if edge_readout_layer is not None: edge_readouts.append(edge_readout_layer(torch.cat([messages, graph.edge_scalar_features], dim=-1)))
+
         readout = sum(readouts) / len(readouts)
         
         # Read out the scalar and vector part of the output
@@ -130,7 +131,7 @@ class PonitaFiberBundle(nn.Module):
         angle_diff_0 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 0, :]) # note: cos is an even function, so the order we subtract doesn't matter
         angle_diff_1 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 1, :])
         angle_diff_2 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 2, :])
-        graph.edge_scalar_features = torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1)
+        graph.edge_scalar_features = scalar_to_sphere(torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1), graph.ori_grid)
     
     def scalar_readout_fn(self, readout_scalar):
         if self.output_dim > 0:

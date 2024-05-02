@@ -76,7 +76,7 @@ class SEnInvariantAttributes(BaseTransform):
 
 
                     # Note: I believe that adding graph.dists is a useful feature since it will help the model determine by how much it should scale this edge (to determine the lattice lengths)                    
-                    graph.attr = torch.cat([r3s2_attr, scalar_to_sphere(graph.edge_scalar_features, graph.ori_grid)], dim=-1)
+                    graph.attr = torch.cat([r3s2_attr, graph.edge_scalar_features], dim=-1)
 
                 else:
                     graph.attr = invariant_attr_r3s2_fiber_bundle(graph.pos, graph.ori_grid, graph.edge_index, separable=False)
