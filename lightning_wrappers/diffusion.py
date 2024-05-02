@@ -74,7 +74,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
         out_channels_global_scalar = 0
-        out_channels_global_vector = 0
+        out_channels_global_vector = 3
         output_dim_edge_scalar = 1  # How much we should scale the edge length. This score helps us determine the predicted lattice noise
 
         # Make the model

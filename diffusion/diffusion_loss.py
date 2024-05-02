@@ -16,6 +16,7 @@ from diffusion.diffusion_helpers import (
     polar_decomposition,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
+    vector_length_mse_loss,
     vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import (
@@ -174,7 +175,7 @@ class DiffusionLoss(torch.nn.Module):
             predicted_h0_logits,
             pred_frac_eps_x,
             _global_output_scalar,
-            _global_output_vector,
+            pred_lattice_0,
             pred_edge_distance_score,
         ) = model(batch)
 
@@ -185,12 +186,26 @@ class DiffusionLoss(torch.nn.Module):
             batch,
         )
 
+        # calculate the pred_lattice_symmetric_noise
+        _rot, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice_0)
+        pred_lattice_symmetric_vector = symmetric_matrix_to_vector(
+            pred_lattice_symmetric_matrix
+        )
+        pred_lattice_symmetric_noise = (
+            noisy_symmetric_vector - pred_lattice_symmetric_vector
+        )
+
+        pred_symmetric_vector_noise = (
+            pred_symmetric_vector_noise + pred_lattice_symmetric_noise
+        ) / 2
+
         return (
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
             pred_symmetric_vector_noise,
+            pred_lattice_0,  # we are only passing this back so the loss can use it's length in the loss calculation
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -248,16 +263,18 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_symmetric_vector) = self.phi(
-            frac_x_t,
-            h_t_onehot,
-            t_int_atoms,
-            num_atoms,
-            noisy_lattice,
-            noisy_symmetric_vector,
-            model,
-            batch,
-            t_emb_weights,
+        (pred_frac_eps_x, predicted_h0_logits, pred_symmetric_vector, pred_lattice) = (
+            self.phi(
+                frac_x_t,
+                h_t_onehot,
+                t_int_atoms,
+                num_atoms,
+                noisy_lattice,
+                noisy_symmetric_vector,
+                model,
+                batch,
+                t_emb_weights,
+            )
         )
 
         # Compute the error.
@@ -271,7 +288,11 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
+        error_l = F.mse_loss(
+            pred_symmetric_vector, symmetric_vector_noise
+        ) + vector_length_mse_loss(
+            pred_lattice, lattice
+        )  # Without this loss, the model will explode the lattice's length
 
         loss = (
             self.cost_coord_coeff * error_x
