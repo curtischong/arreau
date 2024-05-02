@@ -193,6 +193,19 @@ class DiffusionLoss(torch.nn.Module):
             pred_symmetric_vector_noise,
         )
 
+    def sample_diffusion(
+        self,
+        rotation_matrix,
+        symmetric_matrix_vector: torch.Tensor,
+        t_int: torch.Tensor,
+    ):
+        noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
+            symmetric_matrix_vector, t_int
+        )
+        noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
+        noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
+        return noisy_lattice, noisy_symmetric_vector, noise_vector
+
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
         # This is so the model can use vector features for the equivariance
@@ -200,11 +213,27 @@ class DiffusionLoss(torch.nn.Module):
         rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
         symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-        noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
-            symmetric_matrix_vector, t_int
+        noisy_lattice1, noisy_symmetric_vector1, noise_vector1 = self.sample_diffusion(
+            rotation_matrix, symmetric_matrix_vector, t_int
         )
-        noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
-        noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
+        noisy_lattice2, noisy_symmetric_vector2, noise_vector2 = self.sample_diffusion(
+            rotation_matrix, symmetric_matrix_vector, t_int
+        )
+
+        lattice1_det = torch.abs(torch.linalg.det(noisy_lattice1))
+        lattice2_det = torch.abs(torch.linalg.det(noisy_lattice2))
+        # select the lattice with the higher determinant
+        noisy_lattice = torch.where(
+            lattice1_det > lattice2_det, noisy_lattice1, noisy_lattice2
+        )
+        noisy_symmetric_vector = torch.where(
+            lattice1_det > lattice2_det,
+            noisy_symmetric_vector1,
+            noisy_symmetric_vector2,
+        )
+        noise_vector = torch.where(
+            lattice1_det > lattice2_det, noise_vector1, noise_vector2
+        )
 
         # given the noisy_symmetric_vector, it needs to predict the noise vector
         # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
