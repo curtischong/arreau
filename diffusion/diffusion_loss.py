@@ -90,7 +90,7 @@ class DiffusionLoss(torch.nn.Module):
         )
         self.num_atomic_states = num_atomic_states
 
-        self.cost_coord_coeff = 1
+        self.cost_coord_coeff = 0.1
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
         # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
