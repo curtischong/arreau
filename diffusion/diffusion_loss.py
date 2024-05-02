@@ -179,7 +179,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_edge_distance_score,
         ) = model(batch)
 
-        pred_noisy_symmetric_matrix = self.edge_score_to_symmetric_lattice(
+        pred_symmetric_matrix = self.edge_score_to_symmetric_lattice(
             inter_atom_distance,
             neighbor_direction,
             pred_edge_distance_score,
@@ -191,7 +191,7 @@ class DiffusionLoss(torch.nn.Module):
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            pred_noisy_symmetric_matrix,
+            pred_symmetric_matrix,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -247,11 +247,11 @@ class DiffusionLoss(torch.nn.Module):
             noisy_lattice,
             noisy_symmetric_vector,
             symmetric_vector_noise,
-            symmetric_lattice_matrix,
+            symmetric_matrix,
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_noisy_symmetric_matrix) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_symmetric_matrix) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
@@ -263,7 +263,10 @@ class DiffusionLoss(torch.nn.Module):
             t_emb_weights,
         )
 
-        pred_symmetric_vector = symmetric_matrix_to_vector(pred_noisy_symmetric_matrix)
+        pred_symmetric_matrix_noise = noisy_lattice - pred_symmetric_matrix
+        pred_symmetric_vector_noise = symmetric_matrix_to_vector(
+            pred_symmetric_matrix_noise
+        )
 
         # Compute the error.
         error_x = self.compute_error(
@@ -277,9 +280,9 @@ class DiffusionLoss(torch.nn.Module):
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         error_l = F.mse_loss(
-            pred_symmetric_vector, symmetric_vector_noise
+            pred_symmetric_vector_noise, symmetric_vector_noise
         ) + vector_length_mse_loss(
-            pred_noisy_symmetric_matrix, symmetric_lattice_matrix
+            pred_symmetric_matrix, symmetric_matrix
         )  # calculate this loss using the symmetric matrix to make it more equivariant?
 
         loss = (
