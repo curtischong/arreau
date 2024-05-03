@@ -41,7 +41,8 @@ class VE_pbc(nn.Module):
 
     def forward(self, frac_x0, t, lattice, num_atoms, **kwargs):
         used_sigmas = self.sigmas[t].view(-1, 1)
-        eps_x = torch.randn_like(frac_x0) * used_sigmas
+        # eps_x = torch.randn_like(frac_x0) * used_sigmas
+        eps_x = torch.randn_like(frac_x0) * 0
         frac_noisy = (frac_x0 + eps_x) % 1
         cart_noisy = frac_to_cart_coords(frac_noisy, lattice, num_atoms)
         cart_p = frac_to_cart_coords(frac_x0, lattice, num_atoms)

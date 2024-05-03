@@ -52,7 +52,7 @@ def main():
         [
             "python",
             "main_diffusion.py",
-            "--num_timesteps=10",
+            "--num_timesteps=1000",
             "--epochs=1000",
             "--gpus=0",
             "--radius=5",
