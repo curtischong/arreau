@@ -91,8 +91,8 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         default="alexandria",
-        metavar="N",
-        help="nbody_small, nbody",
+        # metavar="N",
+        # help="nbody_small, nbody",
     )
 
     # Graph connectivity settings
@@ -150,12 +150,6 @@ if __name__ == "__main__":
         help="the maximum number of other atoms an atom can be directly influenced by",
     )
     parser.add_argument(
-        "--is_local_dev",
-        type=bool,
-        default=False,
-        help="set to true if you are training on your local machine",
-    )
-    parser.add_argument(
         "--experiment_name", type=str, help="the number of diffusion timesteps"
     )
     parser.add_argument(
@@ -199,7 +193,7 @@ if __name__ == "__main__":
         else:
             return torch.device("cpu")
 
-    if args.is_local_dev:
+    if args.dataset == "alexandria-dev":
         print("Using dev dataset")
         dataset = CrystalDataset(
             [
@@ -209,6 +203,19 @@ if __name__ == "__main__":
         train_dataset = dataset
         valid_dataset = dataset
         test_dataset = dataset
+        z_table = train_dataset.z_table
+    elif args.dataset == "eval-equivariance":
+        train_dataset = CrystalDataset(
+            [
+                "datasets/alexandria_hdf5/alexandria_ps_000_take1.h5",
+            ]
+        )
+        valid_dataset = CrystalDataset(
+            [
+                "datasets/alexandria_hdf5/alexandria_ps_000_take1_rotated.h5",
+            ]
+        )
+        test_dataset = valid_dataset
         z_table = train_dataset.z_table
     else:
         dataset = CrystalDataset(
@@ -269,7 +276,7 @@ if __name__ == "__main__":
         if not args.experiment_name:
             raise ValueError("You need to specify an experiment name")
         logger = pl.loggers.WandbLogger(
-            project="PONITA-" + args.dataset,
+            project="PONITA-alexandria",
             name=args.experiment_name,
             config=args,
             save_dir="logs",
