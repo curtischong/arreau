@@ -291,8 +291,12 @@ if __name__ == "__main__":
     pl.seed_everything(args.seed, workers=True)
 
     # Pytorch lightning call backs
-    callbacks = [
-        EMA(0.99),
+    callbacks = []
+    if args.dataset != "eval-equivariance":
+        callbacks.append(
+            EMA(0.99)
+        )  # disable this for eval-equivariance so the train and validation loss matches
+    callbacks += [
         pl.callbacks.ModelCheckpoint(
             dirpath="checkpoints",
             filename="model-{epoch:02d}-{valid_loss:.2f}",
