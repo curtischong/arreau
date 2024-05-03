@@ -413,7 +413,7 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, predicted_symmetric_vector_noise = self.phi(
+            score_x, score_h, predicted_symmetric_vector_noise, _ = self.phi(
                 frac_x,
                 F.one_hot(h, num_atomic_states).float(),
                 t,
@@ -444,7 +444,7 @@ class DiffusionLoss(torch.nn.Module):
             if (timestep != self.T - 1) and (
                 (
                     visualization_setting == VisualizationSetting.ALL
-                    and (timestep % 100 == 0)
+                    and (timestep % 10 == 0)
                 )
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
