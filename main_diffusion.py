@@ -191,6 +191,7 @@ if __name__ == "__main__":
         else:
             return torch.device("cpu")
 
+    # TODO: remove this if statement and put it all into a config
     if args.dataset == "alexandria-dev":
         print("Using dev dataset")
         dataset = CrystalDataset(
