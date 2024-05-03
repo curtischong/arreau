@@ -61,6 +61,10 @@ def prep_data_and_save_hdf5(filename, take_max_num_examples=None):
         lattice_matrices[idx] = structure.lattice.matrix
         frac_coords_arrays.append(structure.frac_coords)
 
+    save_dataset(filename, atomic_number_vectors, lattice_matrices, frac_coords_arrays)
+
+
+def save_dataset(filename, atomic_number_vectors, lattice_matrices, frac_coords_arrays):
     # Save the data to an HDF5 file
     os.makedirs(OUT_DIR, exist_ok=True)
     with h5py.File(f"{OUT_DIR}/{filename}.h5", "w") as f:
@@ -75,11 +79,16 @@ def prep_data_and_save_hdf5(filename, take_max_num_examples=None):
             frac_coords_group.create_dataset(str(i), data=array)
 
 
+def prep_1_example():
+    prep_data_and_save_hdf5("alexandria_ps_000", take_max_num_examples=1)
+
+
 def prep_10_examples():
     prep_data_and_save_hdf5("alexandria_ps_000", take_max_num_examples=10)
 
 
 def main():
+    prep_1_example()
     prep_10_examples()  # this prepares a small sample dataset so when we train locally, it's fast.
 
     NUM_FILES = 5

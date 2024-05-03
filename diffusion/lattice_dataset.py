@@ -57,7 +57,7 @@ def load_dataset(file_path) -> list[Configuration]:
     return dataset
 
 
-def parallelize_configs(config_paths):
+def parallelize_loading_configs(config_paths):
     with multiprocessing.Pool() as pool:
         configs = pool.map(load_dataset, config_paths)
         return [item for sublist in configs for item in sublist]
@@ -73,7 +73,7 @@ def parallelize_configs(config_paths):
 class CrystalDataset(Dataset):
     def __init__(self, config_paths: list[str], cutoff: int = 5.0):
         self.unique_atomic_numbers = set()
-        configs = parallelize_configs(config_paths)
+        configs = parallelize_loading_configs(config_paths)
         for config in configs:
             self.unique_atomic_numbers.update(set(config.atomic_numbers))
         self.configs = configs

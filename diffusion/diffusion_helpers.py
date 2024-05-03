@@ -201,7 +201,7 @@ def frac_to_cart_coords(
     return pos
 
 
-def cart_to_frac_coords(
+def cart_to_frac_coords_without_mod(
     cart_coords,
     lattice,
     num_atoms,
@@ -210,6 +210,15 @@ def cart_to_frac_coords(
     inv_lattice = torch.linalg.pinv(lattice)
     inv_lattice_nodes = torch.repeat_interleave(inv_lattice, num_atoms, dim=0)
     frac_coords = torch.einsum("bi,bij->bj", cart_coords, inv_lattice_nodes)
+    return frac_coords
+
+
+def cart_to_frac_coords(
+    cart_coords,
+    lattice,
+    num_atoms,
+):
+    frac_coords = cart_to_frac_coords_without_mod(cart_coords, lattice, num_atoms)
     return frac_coords % 1.0
 
 

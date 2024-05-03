@@ -16,7 +16,7 @@
                 "--gpus=0", // force it to use cpu (for development)
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
-                "--is_local_dev=true",
+                "--dataset=alexandria-dev",
                 "--max_neighbors=8", // more neighbors = more messages. But since the number of neighbors explodes, we need to limit this number
             ],
         },
@@ -102,11 +102,21 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
-        },{
+        },
+        {
             "name": "largest system in dataset",
             "type": "python",
             "request": "launch",
             "program": "exploration/largest_system_in_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
+        },
+        {
+            "name": "verify model is equivariant",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/verify_model_is_equivariant.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
