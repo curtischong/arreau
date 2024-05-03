@@ -53,7 +53,7 @@ def main():
             "python",
             "main_diffusion.py",
             "--num_timesteps=10",
-            "--epochs=100",
+            "--epochs=1000",
             "--gpus=0",
             "--radius=5",
             "--num_workers=-1",

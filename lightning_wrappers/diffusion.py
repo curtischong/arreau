@@ -38,6 +38,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
                 z_table.zs, dtype=torch.int64
             ),  # we need to store this, so when we save the model, we can reference it back to encode/decode the atomic types
         )
+        self.dataset = args.dataset
         num_atomic_states = len(z_table)
 
         # Store some of the relevant args
@@ -119,7 +120,10 @@ class PONITA_DIFFUSION(pl.LightningModule):
         )
 
     def validation_step(self, graph, batch_idx):
-        loss = self.diffusion_loss(self, graph, self.t_emb)
+        validation_time = None
+        if self.dataset == "eval-equivariance":
+            validation_time = 5
+        loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.valid_metric.update(loss, graph)
 
     def on_validation_epoch_end(self):
