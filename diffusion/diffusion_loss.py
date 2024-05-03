@@ -275,9 +275,9 @@ class DiffusionLoss(torch.nn.Module):
         error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
 
         loss = (
-            # self.cost_coord_coeff * error_x
-            # self.cost_type_coeff * error_h
-            self.lattice_coeff * error_l
+            self.cost_coord_coeff * error_x
+            + self.cost_type_coeff * error_h
+            + self.lattice_coeff * error_l
         )
         return loss.mean()
 
@@ -330,7 +330,9 @@ class DiffusionLoss(torch.nn.Module):
             # Not sure if there's a way to avoid the for loop when performing the matmul for each distinct batch
             layer_scores_per_batch = []
             for batch_idx in range(batch_size):
-                batch_start_idx = num_edges[:batch_idx].sum()
+                batch_start_idx = num_edges[
+                    :batch_idx
+                ].sum()  # PERF: use a prefix sum array
                 batch_end_idx = batch_start_idx + num_edges[batch_idx]
 
                 symmetric_matrix_for_batch = torch.matmul(
