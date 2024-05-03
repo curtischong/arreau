@@ -1,4 +1,4 @@
-from diffusion.inference.visualize_lattice import visualize_lattice
+from diffusion.inference.visualize_lattice import visualize_and_save_lattice
 from diffusion.lattice_dataset import CrystalDataset
 import os
 
@@ -18,7 +18,7 @@ def main():
     os.makedirs(LATTICE_EDA_OUT_DIR, exist_ok=True)
     for i in range(50):
         data = dataset[i]
-        visualize_lattice(data.L0, f"{LATTICE_EDA_OUT_DIR}/{i}.png")
+        visualize_and_save_lattice(data.L0, f"{LATTICE_EDA_OUT_DIR}/{i}.png")
 
 
 if __name__ == "__main__":

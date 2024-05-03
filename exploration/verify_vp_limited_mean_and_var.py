@@ -8,7 +8,7 @@ from diffusion.diffusion_helpers import (
 import torch
 import os
 
-from diffusion.inference.visualize_lattice import visualize_lattice
+from diffusion.inference.visualize_lattice import visualize_and_save_lattice
 
 OUT_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../out/vp_limited_mean_and_var"
 
@@ -34,7 +34,7 @@ def main():
         noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
         noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
 
-        visualize_lattice(noisy_lattice, f"{OUT_DIR}/{i}.png")
+        visualize_and_save_lattice(noisy_lattice, f"{OUT_DIR}/{i}.png")
         print(
             f"noisy_symmetric_vector: {noisy_symmetric_vector} noisy_symmetric_matrix: {noisy_symmetric_matrix}"
         )
