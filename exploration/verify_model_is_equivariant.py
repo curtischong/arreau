@@ -46,8 +46,7 @@ def prep_rotated_datasets():
 
 
 def main():
-    prep_rotated_datasets()
-    return
+    # prep_rotated_datasets()
     start_time = time.time()
     subprocess.run(
         [
@@ -60,7 +59,7 @@ def main():
             "--num_workers=-1",
             "--max_neighbors=8",
             "--batch_size=10",
-            "--is_local_dev=true",
+            "--dataset=eval-equivariance",
         ]
     )
     end_time = time.time()

@@ -91,8 +91,6 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         default="alexandria",
-        # metavar="N",
-        # help="nbody_small, nbody",
     )
 
     # Graph connectivity settings
@@ -269,8 +267,10 @@ if __name__ == "__main__":
 
     if args.experiment_name is None:
         args.experiment_name = get_active_branch_name()
-        if args.is_local_dev:
+        if args.dataset == "alexandria-dev":
             args.experiment_name = "local-" + args.experiment_name
+        elif args.dataset == "eval-equivariance":
+            args.experiment_name = "eval-equivariance-" + args.experiment_name
 
     if args.log:
         if not args.experiment_name:

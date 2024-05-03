@@ -16,7 +16,7 @@
                 "--gpus=0", // force it to use cpu (for development)
                 "--radius=5", // cutoff distance 
                 "--num_workers=-1", // number of workers to load the dataset
-                "--is_local_dev=true",
+                "--dataset=alexandria-dev",
                 "--max_neighbors=8", // more neighbors = more messages. But since the number of neighbors explodes, we need to limit this number
             ],
         },
