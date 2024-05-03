@@ -23,6 +23,7 @@ fourier_scale = 16
 t_emb_dim = 64
 OUT_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../out"
 DIFFUSION_DIR = f"{OUT_DIR}/diffusion"
+EVAL_EQUIVARIANCE_TIMESTEP = 5
 
 
 class PONITA_DIFFUSION(pl.LightningModule):
@@ -106,7 +107,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
             graph.L0 = graph.L0.view(-1, 3, 3)
             graph = self.rotation_transform(graph)
 
-        validation_time = None if self.dataset != "eval-equivariance" else 5
+        validation_time = (
+            None if self.dataset != "eval-equivariance" else EVAL_EQUIVARIANCE_TIMESTEP
+        )
         loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.train_metric.update(loss, graph)
         return loss
@@ -121,7 +124,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
         )
 
     def validation_step(self, graph, batch_idx):
-        validation_time = None if self.dataset != "eval-equivariance" else 5
+        validation_time = (
+            None if self.dataset != "eval-equivariance" else EVAL_EQUIVARIANCE_TIMESTEP
+        )
         loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.valid_metric.update(loss, graph)
 

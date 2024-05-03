@@ -12,6 +12,7 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
+    cart_to_frac_coords,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -123,7 +124,7 @@ class DiffusionLoss(torch.nn.Module):
         h_t: torch.Tensor,
         t_int: torch.Tensor,
         num_atoms: torch.Tensor,
-        lattice: torch.Tensor,
+        noisy_lattice: torch.Tensor,
         noisy_symmetric_vector: torch.Tensor,
         model,
         batch: Batch,
@@ -137,9 +138,9 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector_feat], dim=1)
-        cart_x_t = frac_to_cart_coords(frac_x_t, lattice, num_atoms)
+        cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
 
-        lattice_feat = torch.repeat_interleave(lattice, num_atoms, dim=0)
+        lattice_feat = torch.repeat_interleave(noisy_lattice, num_atoms, dim=0)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
@@ -154,7 +155,7 @@ class DiffusionLoss(torch.nn.Module):
         edge_index, cell_offsets, neighbors, inter_atom_distance, neighbor_direction = (
             radius_graph_pbc(
                 cart_x_t,
-                lattice,
+                noisy_lattice,
                 batch.num_atoms,
                 self.cutoff,
                 self.max_neighbors,
@@ -165,7 +166,7 @@ class DiffusionLoss(torch.nn.Module):
         batch.edge_index = edge_index
         batch.dists = inter_atom_distance  # TODO: rename dists to inter_atom_distance
         batch.inter_atom_direction = neighbor_direction
-        batch.lattice = lattice
+        batch.lattice = noisy_lattice
 
         batch.batch_of_edge = batch.batch[batch.edge_index[0]]
 
@@ -274,8 +275,9 @@ class DiffusionLoss(torch.nn.Module):
         error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
 
         loss = (
-            self.cost_coord_coeff * error_x + self.cost_type_coeff * error_h
-            # self.lattice_coeff * error_l
+            # self.cost_coord_coeff * error_x
+            # self.cost_type_coeff * error_h
+            self.lattice_coeff * error_l
         )
         return loss.mean()
 
@@ -293,11 +295,11 @@ class DiffusionLoss(torch.nn.Module):
         # we need to use minlength since some batches may not have edges (atoms are too far)
         num_edges = torch.bincount(batch.batch_of_edge, minlength=batch_size)
 
-        num_edges_for_ith_edge = num_edges.repeat_interleave(num_edges, dim=0)
+        num_edges_for_ith_graph = num_edges.repeat_interleave(num_edges, dim=0)
 
         pred_edge_distance_score = [
             score.squeeze(1) for score in pred_edge_distance_score
-        ]
+        ]  # [num_layers]
 
         # In the paper, for equation (A32), delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice?
         # The edge score is the amount to multiply by the rate of change of this edge length
@@ -305,11 +307,14 @@ class DiffusionLoss(torch.nn.Module):
         # equation (A35) in the paper
         layer_scores = []
         num_layers = len(pred_edge_distance_score)
+        inter_atom_distance_frac = cart_to_frac_coords(
+            neighbor_direction, batch.lattice, num_edges
+        ).norm(dim=1)
         for i in range(num_layers):
             scores_for_layer = pred_edge_distance_score[i]
 
             normalized_scores = scores_for_layer / (
-                num_edges_for_ith_edge * (inter_atom_distance**2)
+                num_edges_for_ith_graph * (inter_atom_distance_frac**2)
             )
 
             # By multiplying each row of neighbor_direction by normalized_scores (via a braodcasting operation)
