@@ -87,14 +87,6 @@ if __name__ == "__main__":
         help="whether or not to use random rotations during training",
     )
 
-    # nbody Dataset
-    parser.add_argument(
-        "--max_training_samples",
-        type=int,
-        default=3000,
-        metavar="N",
-        help="maximum amount of training samples",
-    )
     parser.add_argument(
         "--dataset",
         type=str,
