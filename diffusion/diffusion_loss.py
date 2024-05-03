@@ -12,7 +12,7 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
-    cart_to_frac_coords,
+    cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
@@ -307,9 +307,11 @@ class DiffusionLoss(torch.nn.Module):
         # equation (A35) in the paper
         layer_scores = []
         num_layers = len(pred_edge_distance_score)
-        inter_atom_distance_frac = cart_to_frac_coords(
-            neighbor_direction, batch.lattice, num_edges
-        ).norm(dim=1)
+        inter_atom_distance_frac = (
+            cart_to_frac_coords_without_mod(  # I think this works?
+                neighbor_direction, batch.lattice, num_edges
+            ).norm(dim=1)
+        )
         for i in range(num_layers):
             scores_for_layer = pred_edge_distance_score[i]
 
