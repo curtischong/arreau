@@ -274,8 +274,8 @@ class DiffusionLoss(torch.nn.Module):
         error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
 
         loss = (
-            # self.cost_coord_coeff * error_x
-            +self.cost_type_coeff * error_h
+            # self.cost_coord_coeff * error_x +
+            self.cost_type_coeff * error_h
             # + self.lattice_coeff * error_l
         )
         return loss.mean()

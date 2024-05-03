@@ -106,7 +106,8 @@ class PONITA_DIFFUSION(pl.LightningModule):
             graph.L0 = graph.L0.view(-1, 3, 3)
             graph = self.rotation_transform(graph)
 
-        loss = self.diffusion_loss(self, graph, self.t_emb)
+        validation_time = None if self.dataset != "eval-equivariance" else 5
+        loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.train_metric.update(loss, graph)
         return loss
 
@@ -120,9 +121,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         )
 
     def validation_step(self, graph, batch_idx):
-        validation_time = None
-        if self.dataset == "eval-equivariance":
-            validation_time = 5
+        validation_time = None if self.dataset != "eval-equivariance" else 5
         loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.valid_metric.update(loss, graph)
 
