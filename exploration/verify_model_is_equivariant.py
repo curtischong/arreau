@@ -27,7 +27,7 @@ def prep_rotated_datasets():
             "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
         ]
     )
-    ith_sample = 1
+    ith_sample = 0
     lattice = dataset[ith_sample].L0
     frac_x = dataset[ith_sample].X0
     atomic_numbers = dataset[ith_sample].A0
