@@ -98,9 +98,12 @@ class DiffusionLoss(torch.nn.Module):
         # self.norm_h = 10.
 
     def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, batch):
+        # Clamping between 0-1 is really important to avoid problems from numerical instabilities
         distance_abs_diff = torch.clamp(
             (pred_frac_eps_x - target_frac_eps_x).abs(), min=0, max=1
         )
+
+        # This is the key thing: when working in mod 1, the distance between 0.1 and 0.9 is NOT 0.8. It's 0.2
         distance_wrapped_diff = torch.min(distance_abs_diff, 1 - distance_abs_diff)
 
         # the squared euclidean distance between each point
