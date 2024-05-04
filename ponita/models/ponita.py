@@ -81,6 +81,7 @@ class PonitaFiberBundle(nn.Module):
             if multiple_readouts or i == (num_layers - 1):
                 self.read_out_layers.append(nn.Linear(hidden_dim, output_dim + output_dim_vec + output_dim_global_scalar + output_dim_global_vec))
                 self.edge_readout_layers.append(nn.Linear(hidden_dim + 4, output_dim_edge_scalar)) # + 4 for the distance and cosine similarity
+                # self.edge_readout_layers.append(nn.Linear(hidden_dim + 1, output_dim_edge_scalar)) # + 1 for the distance
             else:
                 self.read_out_layers.append(None)
                 self.edge_readout_layers.append(None)

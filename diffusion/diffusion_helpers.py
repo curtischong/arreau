@@ -6,6 +6,8 @@ from torch_scatter import scatter
 import copy
 from torch.nn import functional as F
 
+from diffusion.lattice_helpers import matrix_to_params
+
 SUPERCELLS = torch.DoubleTensor(list(itertools.product((-1, 0, 1), repeat=3)))
 EPSILON = 1e-8
 
@@ -602,20 +604,58 @@ def vector_to_symmetric_matrix(vector: torch.Tensor):
     return matrix
 
 
-def vector_length_mse_loss(
-    input_matrices: torch.Tensor, target_matrices: torch.Tensor
-) -> torch.Tensor:
-    # Calculate the lengths of the vectors in each matrix
-    input_lengths = torch.norm(input_matrices, dim=2)  # Shape: (batch_size, 3)
-    target_lengths = torch.norm(target_matrices, dim=2)  # Shape: (batch_size, 3)
+def get_vector_norm(matrices: torch.Tensor):
+    lengths = torch.norm(matrices, dim=2)  # Shape: (batch_size, 3)
+    return lengths
+    # sorting makes the loss discontinuous
+    # sorted_tensor, _ = torch.sort(lengths, dim=1)
+    # return sorted_tensor
 
-    # Calculate the MSE loss between the vector lengths
-    vector_length_loss = F.mse_loss(input_lengths, target_lengths)
-    cubic_score_loss = F.mse_loss(
-        cubic_score(input_lengths), cubic_score(target_lengths)
+
+def calculate_angle_loss(pred_angles, target_angles):
+    max_angle = 2 * torch.pi
+    distance_abs_diff = torch.clamp(
+        (pred_angles - target_angles).abs(), min=0, max=max_angle
     )
 
-    return vector_length_loss + cubic_score_loss
+    # This is the key thing: when working in mod 2pi, distances are wrapped around the circle
+    distance_wrapped_diff = torch.min(distance_abs_diff, max_angle - distance_abs_diff)
+    return torch.mean(distance_wrapped_diff**2)
+
+
+def vector_length_mse_loss(
+    pred_matrices: torch.Tensor,
+    target_matrices: torch.Tensor,
+    noisy_lattice: torch.Tensor,
+) -> torch.Tensor:
+    # Calculate the lengths of the vectors in each matrix
+    # input_lengths = get_vector_norm(input_matrices)
+    # target_lengths = get_vector_norm(target_matrices)
+    pred_lengths, pred_angles = matrix_to_params(pred_matrices)
+    target_lengths, target_angles = matrix_to_params(target_matrices)
+
+    # Calculate the MSE loss between the vector lengths
+    vector_length_loss = F.mse_loss(pred_lengths, target_lengths)
+    angle_loss = calculate_angle_loss(pred_angles, target_angles)
+    # cubic_score_loss = F.mse_loss(
+    #     cubic_score(input_lengths), cubic_score(target_lengths)
+    # )
+
+    # volume_diff_loss = F.mse_loss(
+    #     volume(pred_matrices)
+    #     / (
+    #         volume(noisy_lattice) + 1e-6
+    #     ),  # dividing tells us the scale of the volume change
+    #     volume(target_matrices) / (volume(noisy_lattice) + 1e-6),
+    #     # volume(lattice_t, lattice_0), volume_diff(pred_lattice_t, lattice_0)
+    # )
+
+    # return vector_length_loss + cubic_score_loss
+    return vector_length_loss + angle_loss
+
+
+def volume(matrices: torch.Tensor):
+    return torch.det(matrices).abs()
 
 
 def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
