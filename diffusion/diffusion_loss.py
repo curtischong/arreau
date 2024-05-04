@@ -8,6 +8,7 @@ import torchmetrics
 from tqdm import tqdm
 import numpy as np
 from diffusion.d3pm import D3PM
+from torch_scatter import scatter_add
 
 from diffusion.diffusion_helpers import (
     VE_pbc,
@@ -173,7 +174,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_edge_distance_score,
         ) = model(batch)
 
-        pred_symmetric_vector_noise = self.edge_score_to_symmetric_lattice(
+        pred_symmetric_vector_noise = self.edge_score_to_symmetric_lattice2(
             inter_atom_distance,
             neighbor_direction,
             pred_edge_distance_score,
@@ -274,6 +275,30 @@ class DiffusionLoss(torch.nn.Module):
             + self.lattice_coeff * error_l
         )
         return loss.mean()
+
+    def edge_score_to_symmetric_lattice2(
+        self,
+        inter_atom_distance: torch.Tensor,
+        neighbor_direction: torch.Tensor,
+        pred_edge_distance_score: list[torch.Tensor],
+        batch: Batch,
+    ):
+        # calculate the number of edges for each graph in the batch
+        # we need to use minlength since some batches may not have edges (atoms are too far)
+        batch_size = batch.num_atoms.shape[0]
+        num_edges_in_batch = torch.bincount(batch.batch_of_edge, minlength=batch_size)
+        lattice_for_edge = torch.repeat_interleave(
+            batch.lattice, num_edges_in_batch, dim=0
+        )
+        pred_original_edge_length = pred_edge_distance_score * neighbor_direction
+        pred_lattice_0_per_edge = (
+            lattice_for_edge * pred_original_edge_length.unsqueeze(-1)
+        )
+        pred_lattice_0 = scatter_add(
+            pred_lattice_0_per_edge, batch.batch_of_edge, dim=0
+        )
+        rot, pred_lattice_0_symmetric_matrix = polar_decomposition(pred_lattice_0)
+        return symmetric_matrix_to_vector(pred_lattice_0_symmetric_matrix)
 
     def edge_score_to_symmetric_lattice(
         self,

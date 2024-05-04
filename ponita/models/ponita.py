@@ -116,8 +116,9 @@ class PonitaFiberBundle(nn.Module):
         global_output_scalar = self.global_scalar_readout_fn(readout_global_scalar, graph.batch)
         global_output_vector = self.global_vec_readout_fn(readout_global_vec, graph.ori_grid, graph.batch)
 
-        # Note: Do not sum. we want edge readouts per-layer
         edge_output_scalar = [self.edge_scalar_readout_fn(edge_readout) for edge_readout in edge_readouts]
+        edge_output_scalar = torch.stack(edge_output_scalar)
+        edge_output_scalar = edge_output_scalar.sum(dim=0)
 
         # Return predictions
         return output_scalar, output_vector, global_output_scalar, global_output_vector, edge_output_scalar
