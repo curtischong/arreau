@@ -96,6 +96,8 @@ class D3PM(nn.Module):
         fact1 = self._at(self.q_one_step_transposed, t, x_t)
 
         softmaxed = torch.softmax(x_0_logits, dim=-1)  # bs, ..., num_classes
+        if t.dim() == 0:
+            t = t.unsqueeze(0)
         qmats2 = self.q_mats[t - 2]  # bs, num_classes, num_classes
         fact2 = torch.einsum("b...c,bcd->b...d", softmaxed, qmats2)
 
