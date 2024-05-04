@@ -317,9 +317,8 @@ class DiffusionLoss(torch.nn.Module):
             # We avoid creating a costly diagonal matrix and doing a costly matrix multiplication
             # NOTE: we do NOT need to do this for every batch since a broadcasting operation is just a scalar multiplication
             # so this operation can be done outside the for loop below
-            left_diagonal_multiplication_result = (
-                neighbor_direction.T * normalized_scores
-            )
+            cart_distance = neighbor_direction.abs()
+            left_diagonal_multiplication_result = cart_distance.T * normalized_scores
 
             # Not sure if there's a way to avoid the for loop when performing the matmul for each distinct batch
             layer_scores_per_batch = []
@@ -333,7 +332,7 @@ class DiffusionLoss(torch.nn.Module):
                     left_diagonal_multiplication_result[
                         :, batch_start_idx:batch_end_idx
                     ],
-                    neighbor_direction[batch_start_idx:batch_end_idx, :],
+                    cart_distance[batch_start_idx:batch_end_idx, :],
                 )
                 layer_scores_per_batch.append(symmetric_matrix_for_batch)
 
