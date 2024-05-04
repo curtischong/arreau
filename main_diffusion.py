@@ -204,6 +204,11 @@ if __name__ == "__main__":
         test_dataset = dataset
         z_table = train_dataset.z_table
     elif args.dataset == "eval-equivariance":
+        original_dataset = CrystalDataset(  # needed to get the z_table
+            [
+                "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
+            ]
+        )
         train_dataset = CrystalDataset(
             [
                 "datasets/alexandria_hdf5/alexandria_ps_000_take1.h5",
@@ -211,11 +216,11 @@ if __name__ == "__main__":
         )
         valid_dataset = CrystalDataset(
             [
-                "datasets/alexandria_hdf5/alexandria_ps_000_take1_rotated.h5",
+                "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
             ]
         )
         test_dataset = valid_dataset
-        z_table = train_dataset.z_table
+        z_table = original_dataset.z_table
     else:
         dataset = CrystalDataset(
             [
