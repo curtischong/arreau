@@ -97,26 +97,20 @@ class DiffusionLoss(torch.nn.Module):
         # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
         # self.norm_h = 10.
 
-    def compute_error_for_global_vec(self, pred_eps, eps, weights=None):
-        """Computes error, i.e. the most likely prediction of x."""
-        error = (eps - pred_eps) ** 2
-        if weights is not None:
-            error *= weights
-        if len(error.shape) > 1:
-            error = error.sum()
-        return error
+    def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, batch):
+        # Clamping between 0-1 is really important to avoid problems from numerical instabilities
+        distance_abs_diff = torch.clamp(
+            (pred_frac_eps_x - target_frac_eps_x).abs(), min=0, max=1
+        )
 
-    def compute_error(self, pred_eps, eps, batch, weights=None):
-        """Computes error, i.e. the most likely prediction of x."""
-        if weights is None:
-            error = scatter(((eps - pred_eps) ** 2), batch.batch, dim=0, reduce="mean")
-        else:
-            error = scatter(
-                weights * ((eps - pred_eps) ** 2), batch.batch, dim=0, reduce="mean"
-            )
-        if len(error.shape) > 1:
-            error = error.sum(-1)
-        return error
+        # This is the key thing: when working in mod 1, the distance between 0.1 and 0.9 is NOT 0.8. It's 0.2
+        distance_wrapped_diff = torch.min(distance_abs_diff, 1 - distance_abs_diff)
+
+        # the squared euclidean distance between each point
+        distance_wrapped_diff_squared = distance_wrapped_diff**2
+        squared_euclidean_dist = torch.sum(distance_wrapped_diff_squared, dim=1)
+
+        return scatter(squared_euclidean_dist, batch.batch, dim=0, reduce="mean")
 
     def phi(
         self,
@@ -262,7 +256,7 @@ class DiffusionLoss(torch.nn.Module):
         )
 
         # Compute the error.
-        error_x = self.compute_error(
+        error_x = self.compute_frac_x_error(
             pred_frac_eps_x,
             target_frac_eps_x,
             batch,
