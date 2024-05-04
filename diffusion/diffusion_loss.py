@@ -179,14 +179,26 @@ class DiffusionLoss(torch.nn.Module):
         #     pred_edge_distance_score,
         #     batch,
         # )
+        pred_lattice_noise = self.pred_lattice_noise(
+            global_output_vector, noisy_lattice
+        )
 
         return (
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            global_output_vector,
+            pred_lattice_noise,
         )
+
+    def pred_lattice_noise(self, global_output_vector, noisy_lattice):
+        pred_original_lattice = torch.transpose(
+            torch.transpose(noisy_lattice, 1, 2) * global_output_vector, 1, 2
+        )
+        noise = noisy_lattice - pred_original_lattice
+        _rot, symmetric_matrix = polar_decomposition(noise)
+        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
+        return symmetric_vector
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
@@ -243,7 +255,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_lattice) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_symmetric_vector_noise) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
@@ -266,7 +278,7 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(pred_lattice, lattice)
+        error_l = F.mse_loss(pred_symmetric_vector_noise, symmetric_vector_noise)
 
         loss = (
             self.cost_coord_coeff * error_x
