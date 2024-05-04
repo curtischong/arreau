@@ -52,7 +52,7 @@ def prep_rotated_datasets():
 
 
 def main():
-    prep_rotated_datasets()
+    # prep_rotated_datasets()
     # return
     start_time = time.time()
     subprocess.run(
