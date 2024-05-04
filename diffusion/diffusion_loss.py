@@ -270,9 +270,9 @@ class DiffusionLoss(torch.nn.Module):
         error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
 
         loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
+            # self.cost_coord_coeff * error_x
+            # + self.cost_type_coeff * error_h
+            self.lattice_coeff * error_l
         )
         return loss.mean()
 
@@ -290,7 +290,13 @@ class DiffusionLoss(torch.nn.Module):
         lattice_for_edge = torch.repeat_interleave(
             batch.lattice, num_edges_in_batch, dim=0
         )
-        pred_original_edge_length = pred_edge_distance_score * neighbor_direction
+        pred_original_edge_length = (
+            pred_edge_distance_score
+            * neighbor_direction
+            / inter_atom_distance.unsqueeze(
+                -1
+            )  # divide by the inter-atom distance for normalization
+        )
         pred_lattice_0_per_edge = (
             lattice_for_edge * pred_original_edge_length.unsqueeze(-1)
         )
