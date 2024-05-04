@@ -77,6 +77,7 @@ def visualize_and_save_crystal(
     fig = plot_crystal(atomic_numbers, raw_lattice, frac_x, show_bonds)
     # Save the plot as a PNG file
     fig.write_image(name + ".png")
+    return fig
 
 
 def plot_crystal(
