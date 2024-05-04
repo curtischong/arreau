@@ -24,10 +24,10 @@ def prep_rotated_datasets():
     # dataset = "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5"
     dataset = CrystalDataset(
         [
-            "datasets/alexandria_hdf5/alexandria_ps_000_take1.h5",
+            "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
         ]
     )
-    ith_sample = 0
+    ith_sample = 1
     lattice = dataset[ith_sample].L0
     frac_x = dataset[ith_sample].X0
     atomic_numbers = dataset[ith_sample].A0
@@ -38,6 +38,12 @@ def prep_rotated_datasets():
     # fig = plot_crystal(atomic_numbers, rotated_lattice, frac_x, show_bonds=False)
     # fig.show()
     save_dataset(
+        "alexandria_ps_000_take1",
+        [atomic_numbers],
+        np.expand_dims(lattice, axis=0),
+        [frac_x],
+    )
+    save_dataset(
         "alexandria_ps_000_take1_rotated",
         [atomic_numbers],
         np.expand_dims(rotated_lattice, axis=0),
@@ -46,7 +52,8 @@ def prep_rotated_datasets():
 
 
 def main():
-    # prep_rotated_datasets()
+    prep_rotated_datasets()
+    return
     start_time = time.time()
     subprocess.run(
         [
