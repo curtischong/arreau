@@ -141,6 +141,7 @@ class DiffusionLoss(torch.nn.Module):
         batch.x = scalar_feats
         batch.pos = cart_x_t
         batch.vec = torch.cat([frac_x_t.unsqueeze(1), lattice_feat], dim=1)
+        # batch.vec = torch.cat([frac_x_t.unsqueeze(1)], dim=1)
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
@@ -179,17 +180,17 @@ class DiffusionLoss(torch.nn.Module):
         #     pred_edge_distance_score,
         #     batch,
         # )
-        # pred_lattice_noise = self.pred_lattice_noise(
-        #     global_output_vector, noisy_lattice
-        # )
+        pred_lattice_noise = self.pred_lattice_noise(
+            global_output_vector, noisy_lattice
+        )
 
         return (
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            # pred_lattice_noise,
-            global_output_vector,
+            pred_lattice_noise,
+            # global_output_vector,
         )
 
     def pred_lattice_noise(self, global_output_vector, noisy_lattice):
@@ -256,7 +257,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_lattice) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_lattice_noise) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
@@ -279,12 +280,12 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(pred_lattice, lattice)
+        error_l = F.mse_loss(pred_lattice_noise, symmetric_vector_noise)
 
         loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
+            # self.cost_coord_coeff * error_x
+            # + self.cost_type_coeff * error_h
+            +self.lattice_coeff * error_l
         )
         return loss.mean()
 
