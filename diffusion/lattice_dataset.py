@@ -94,6 +94,7 @@ class CrystalDataset(Dataset):
         return len(self.configs)
 
     def __getitem__(self, idx: int):
+        default_dtype = torch.float64  # for some reason, the default dtype is float32 in this subprocess. so I set it explicitly
         config = self.configs[idx]
         A0 = atomic_numbers_to_indices(self.z_table, config.atomic_numbers)
         X0 = config.X0
@@ -101,12 +102,12 @@ class CrystalDataset(Dataset):
 
         X0_cart = torch.tensor(
             X0 @ L0,
-            dtype=torch.get_default_dtype(),
+            dtype=default_dtype,
         )
         return Data(
             pos=X0_cart,  # we need to have a pos field so the datalolader generates the batch atribute for each batch
-            X0=torch.tensor(X0, dtype=torch.get_default_dtype()),
+            X0=torch.tensor(X0, dtype=default_dtype),
             A0=A0,
-            L0=torch.tensor(L0, dtype=torch.get_default_dtype()),
+            L0=torch.tensor(L0, dtype=default_dtype),
             num_atoms=len(config.atomic_numbers),
         )

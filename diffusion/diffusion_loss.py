@@ -235,7 +235,7 @@ class DiffusionLoss(torch.nn.Module):
         )
         h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
 
-        h_t_onehot = F.one_hot(h_t, self.num_atomic_states).float()
+        h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
         (
             noisy_lattice,
             noisy_symmetric_vector,
@@ -395,7 +395,7 @@ class DiffusionLoss(torch.nn.Module):
 
             score_x, score_h, predicted_symmetric_vector_noise = self.phi(
                 frac_x,
-                F.one_hot(h, num_atomic_states).float(),
+                F.one_hot(h, num_atomic_states),
                 t,
                 num_atoms,
                 lattice,
