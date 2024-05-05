@@ -602,21 +602,28 @@ def vector_to_symmetric_matrix(vector: torch.Tensor):
     return matrix
 
 
+def get_vector_norm(matrices: torch.Tensor):
+    lengths = torch.norm(matrices, dim=2)  # Shape: (batch_size, 3)
+    sorted_tensor, _ = torch.sort(lengths, dim=1)
+    return sorted_tensor
+
+
 def vector_length_mse_loss(
     input_matrices: torch.Tensor, target_matrices: torch.Tensor
 ) -> torch.Tensor:
     # Calculate the lengths of the vectors in each matrix
-    input_lengths = torch.norm(input_matrices, dim=2)  # Shape: (batch_size, 3)
-    target_lengths = torch.norm(target_matrices, dim=2)  # Shape: (batch_size, 3)
+    input_lengths = get_vector_norm(input_matrices)
+    target_lengths = get_vector_norm(target_matrices)
 
     # Calculate the MSE loss between the vector lengths
-    # vector_length_loss = F.mse_loss(input_lengths, target_lengths)
-    cubic_score_loss = F.mse_loss(
-        cubic_score(input_lengths), cubic_score(target_lengths)
-    )
+    vector_length_loss = F.mse_loss(input_lengths, target_lengths)
+    # cubic_score_loss = F.mse_loss(
+    #     cubic_score(input_lengths), cubic_score(target_lengths)
+    # )
 
     # return vector_length_loss + cubic_score_loss
-    return cubic_score_loss
+    return vector_length_loss
+    # return cubic_score_loss
 
 
 def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
