@@ -82,7 +82,8 @@ class SEnInvariantAttributes(BaseTransform):
                     angle_diff_0 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 0, :]) # note: cos is an even function, so the order we subtract doesn't matter
                     angle_diff_1 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 1, :])
                     angle_diff_2 = self.cosine_similarity(graph.inter_atom_direction, lattice_for_edge[:, 2, :])
-                    graph.edge_scalar_features = scalar_to_sphere(torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1), graph.ori_grid)
+                    # graph.edge_scalar_features = scalar_to_sphere(torch.stack([graph.dists, angle_diff_0, angle_diff_1, angle_diff_2], dim=-1), graph.ori_grid)
+                    graph.edge_scalar_features = scalar_to_sphere(torch.stack([graph.dists], dim=-1), graph.ori_grid)
 
                     graph.attr = torch.cat([r3s2_attr, graph.edge_scalar_features], dim=-1)
 

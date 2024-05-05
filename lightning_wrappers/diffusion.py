@@ -69,10 +69,12 @@ class PONITA_DIFFUSION(pl.LightningModule):
         in_channels_scalar = (
             num_atomic_states
             + 64  # the time embedding (from GaussianFourierProjection)
-            + 6  # 6 noisy_symmetric_vector params
+            # + 6  # 6 noisy_symmetric_vector params
         )
 
-        in_channels_vec = 4  # the fractional coords (1), the lattice (3)
+        in_channels_vec = (
+            1 + 3 + 3
+        )  # the fractional coords (1), the lattice (3), the noisy_symmetric_matrix (3)
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
         out_channels_global_scalar = 0

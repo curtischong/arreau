@@ -17,6 +17,7 @@ from diffusion.diffusion_helpers import (
     polar_decomposition,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
+    vector_length_mse_loss,
     vector_to_symmetric_matrix,
 )
 from diffusion.tools.atomic_number_table import (
@@ -119,7 +120,7 @@ class DiffusionLoss(torch.nn.Module):
         t_int: torch.Tensor,
         num_atoms: torch.Tensor,
         noisy_lattice: torch.Tensor,
-        noisy_symmetric_vector: torch.Tensor,
+        noisy_symmetric_matrix: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -127,20 +128,21 @@ class DiffusionLoss(torch.nn.Module):
         t = self.lattice_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
 
-        noisy_symmetric_vector_feat = torch.repeat_interleave(
-            noisy_symmetric_vector, num_atoms, dim=0
-        )
-
-        scalar_feats = torch.cat([h_t, t_emb, noisy_symmetric_vector_feat], dim=1)
+        scalar_feats = torch.cat([h_t, t_emb], dim=1)
         cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
 
         lattice_feat = torch.repeat_interleave(noisy_lattice, num_atoms, dim=0)
+        noisy_symmetric_matrix_feat = torch.repeat_interleave(
+            noisy_symmetric_matrix, num_atoms, dim=0
+        )
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = scalar_feats
         batch.pos = cart_x_t
-        batch.vec = torch.cat([frac_x_t.unsqueeze(1), lattice_feat], dim=1)
+        batch.vec = torch.cat(
+            [frac_x_t.unsqueeze(1), lattice_feat, noisy_symmetric_matrix_feat], dim=1
+        )
         # batch.vec = torch.cat([frac_x_t.unsqueeze(1)], dim=1)
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
@@ -180,9 +182,9 @@ class DiffusionLoss(torch.nn.Module):
         #     pred_edge_distance_score,
         #     batch,
         # )
-        pred_lattice_noise = self.pred_lattice_noise(
-            global_output_vector, noisy_lattice
-        )
+        # pred_lattice_noise = self.pred_lattice_noise(
+        #     global_output_vector, noisy_lattice
+        # )
 
         return (
             pred_frac_eps_x.squeeze(
@@ -219,7 +221,7 @@ class DiffusionLoss(torch.nn.Module):
         # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
         return (
             noisy_lattice,
-            noisy_symmetric_vector,
+            noisy_symmetric_matrix,
             noise_vector,
         )
 
@@ -252,18 +254,18 @@ class DiffusionLoss(torch.nn.Module):
         h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
         (
             noisy_lattice,
-            noisy_symmetric_vector,
+            noisy_symmetric_matrix,
             symmetric_vector_noise,
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_lattice_noise) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_lattice) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
             num_atoms,
             noisy_lattice,
-            noisy_symmetric_vector,
+            noisy_symmetric_matrix,
             model,
             batch,
             t_emb_weights,
@@ -280,7 +282,9 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(pred_lattice_noise, lattice)
+        error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
+            pred_lattice, lattice
+        )
 
         loss = (
             # self.cost_coord_coeff * error_x
