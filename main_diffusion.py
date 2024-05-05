@@ -181,6 +181,7 @@ if __name__ == "__main__":
         devices = "auto"
     if args.num_workers == -1:
         args.num_workers = os.cpu_count()
+    torch.set_default_dtype(torch.float64)
 
     # ------------------------ Dataset
 
