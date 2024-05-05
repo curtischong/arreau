@@ -284,7 +284,7 @@ class DiffusionLoss(torch.nn.Module):
 
         loss = (
             # self.cost_coord_coeff * error_x
-            # + self.cost_type_coeff * error_h
+            # self.cost_type_coeff * error_h
             +self.lattice_coeff * error_l
         )
         return loss.mean()
