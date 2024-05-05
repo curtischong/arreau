@@ -604,8 +604,10 @@ def vector_to_symmetric_matrix(vector: torch.Tensor):
 
 def get_vector_norm(matrices: torch.Tensor):
     lengths = torch.norm(matrices, dim=2)  # Shape: (batch_size, 3)
-    sorted_tensor, _ = torch.sort(lengths, dim=1)
-    return sorted_tensor
+    return lengths
+    # sorting makes the loss discontinuous
+    # sorted_tensor, _ = torch.sort(lengths, dim=1)
+    # return sorted_tensor
 
 
 def vector_length_mse_loss(
