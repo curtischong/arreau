@@ -180,9 +180,9 @@ class DiffusionLoss(torch.nn.Module):
         #     pred_edge_distance_score,
         #     batch,
         # )
-        pred_lattice_noise = self.pred_lattice_noise(
-            global_output_vector, noisy_lattice
-        )
+        # pred_lattice_noise = self.pred_lattice_noise(
+        #     global_output_vector, noisy_lattice
+        # )
 
         return (
             pred_frac_eps_x.squeeze(
@@ -257,7 +257,7 @@ class DiffusionLoss(torch.nn.Module):
         ) = self.diffuse_lattice_params(lattice, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_lattice_noise) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_lattice) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
@@ -280,7 +280,7 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(pred_lattice_noise, lattice)
+        error_l = F.mse_loss(pred_lattice, lattice)
 
         loss = (
             # self.cost_coord_coeff * error_x
@@ -407,7 +407,7 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, predicted_symmetric_vector_noise = self.phi(
+            score_x, score_h, pred_lattice = self.phi(
                 frac_x,
                 F.one_hot(h, num_atomic_states),
                 t,
@@ -423,12 +423,13 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            next_symmetric_vector = self.lattice_diffusion.reverse(
-                symmetric_vector, predicted_symmetric_vector_noise, timestep_vec
-            )
+            pred_lattice_noise = lattice - pred_lattice
+            lattice = self.lattice_diffusion.reverse(
+                lattice.view(-1, 9), pred_lattice_noise.view(-1, 9), timestep_vec
+            ).view(-1, 3, 3)
 
-            next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
-            lattice = rotation_matrix @ next_symmetric_matrix
+            # next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
+            # lattice = rotation_matrix @ next_symmetric_matrix
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
