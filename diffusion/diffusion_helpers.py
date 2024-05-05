@@ -610,12 +610,13 @@ def vector_length_mse_loss(
     target_lengths = torch.norm(target_matrices, dim=2)  # Shape: (batch_size, 3)
 
     # Calculate the MSE loss between the vector lengths
-    vector_length_loss = F.mse_loss(input_lengths, target_lengths)
+    # vector_length_loss = F.mse_loss(input_lengths, target_lengths)
     cubic_score_loss = F.mse_loss(
         cubic_score(input_lengths), cubic_score(target_lengths)
     )
 
-    return vector_length_loss + cubic_score_loss
+    # return vector_length_loss + cubic_score_loss
+    return cubic_score_loss
 
 
 def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
