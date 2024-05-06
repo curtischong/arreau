@@ -402,6 +402,8 @@ class DiffusionLoss(torch.nn.Module):
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
+        prev_pred_lattice = None
+
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
@@ -409,7 +411,7 @@ class DiffusionLoss(torch.nn.Module):
             rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
             symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
-            score_x, score_h, predicted_lattice = self.phi(
+            score_x, score_h, pred_lattice = self.phi(
                 frac_x,
                 F.one_hot(h, num_atomic_states),
                 t,
@@ -425,7 +427,13 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            predicted_lattice_noise = lattice - predicted_lattice
+            if prev_pred_lattice is not None:
+                pred_lattice = (0.5 * pred_lattice) + (
+                    0.5 * prev_pred_lattice
+                )  # bellman update
+            prev_pred_lattice = pred_lattice
+
+            predicted_lattice_noise = lattice - pred_lattice
             lattice = self.lattice_diffusion.reverse(
                 lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
             ).view(-1, 3, 3)
