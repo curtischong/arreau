@@ -281,7 +281,7 @@ class DiffusionLoss(torch.nn.Module):
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
-            pred_lattice, lattice
+            pred_lattice, lattice, noisy_lattice
         )
 
         loss = (

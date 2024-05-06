@@ -611,7 +611,9 @@ def get_vector_norm(matrices: torch.Tensor):
 
 
 def vector_length_mse_loss(
-    input_matrices: torch.Tensor, target_matrices: torch.Tensor
+    input_matrices: torch.Tensor,
+    target_matrices: torch.Tensor,
+    noisy_lattice: torch.Tensor,
 ) -> torch.Tensor:
     # Calculate the lengths of the vectors in each matrix
     input_lengths = get_vector_norm(input_matrices)
@@ -623,9 +625,19 @@ def vector_length_mse_loss(
     #     cubic_score(input_lengths), cubic_score(target_lengths)
     # )
 
+    volume_diff_loss = F.mse_loss(
+        volume(input_matrices) / volume(noisy_lattice)
+        + 1e-6,  # dividing tells us the scale of the volume change
+        volume(target_matrices) / volume(noisy_lattice) + 1e-6,
+        # volume(lattice_t, lattice_0), volume_diff(pred_lattice_t, lattice_0)
+    )
+
     # return vector_length_loss + cubic_score_loss
-    return vector_length_loss
-    # return cubic_score_loss
+    return vector_length_loss + volume_diff_loss
+
+
+def volume(matrices: torch.Tensor):
+    return torch.det(matrices).abs()
 
 
 def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
