@@ -626,9 +626,8 @@ def vector_length_mse_loss(
     # )
 
     volume_diff_loss = F.mse_loss(
-        volume(input_matrices) / volume(noisy_lattice)
-        + 1e-6,  # dividing tells us the scale of the volume change
-        volume(target_matrices) / volume(noisy_lattice) + 1e-6,
+        volume(input_matrices) / (volume(noisy_lattice) + 1e-6),  # dividing tells us the scale of the volume change
+        volume(target_matrices) / (volume(noisy_lattice) + 1e-6),
         # volume(lattice_t, lattice_0), volume_diff(pred_lattice_t, lattice_0)
     )
 
