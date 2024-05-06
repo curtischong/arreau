@@ -218,6 +218,7 @@ class DiffusionLoss(torch.nn.Module):
         # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
         return (
             noisy_lattice,
+            symmetric_matrix,
             noisy_symmetric_matrix,
             noise_vector,
         )
@@ -251,6 +252,7 @@ class DiffusionLoss(torch.nn.Module):
         h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
         (
             noisy_lattice,
+            symmetric_matrix,
             noisy_symmetric_matrix,
             symmetric_vector_noise,
         ) = self.diffuse_lattice_params(lattice, t_int)
@@ -279,8 +281,9 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
+        _rot, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice)
         error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
-            pred_lattice, lattice, noisy_lattice
+            pred_lattice_symmetric_matrix, symmetric_matrix, noisy_symmetric_matrix
         )
 
         loss = (
