@@ -209,7 +209,12 @@ class DiffusionLoss(torch.nn.Module):
         # symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
 
         noisy_lengths, lengths_noise = self.lattice_diffusion(lengths, t_int)
-        noisy_angles, angles_noise = self.lattice_diffusion(angles, t_int)
+        noisy_angles, angles_noise = self.lattice_diffusion(
+            angles * 180 / torch.pi, t_int
+        )
+        noisy_angles = noisy_angles * torch.pi / 180
+        angles_noise = angles_noise * torch.pi / 180
+
         noisy_angles = noisy_angles % (2 * torch.pi)
         angles_noise = angles_noise % (2 * torch.pi)
 
