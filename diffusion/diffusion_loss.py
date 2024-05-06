@@ -11,14 +11,17 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
+    calculate_angle_loss,
     cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
     polar_decomposition,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
-    vector_length_mse_loss,
-    vector_to_symmetric_matrix,
 )
+from diffusion.inference.visualize_lattice import (
+    visualize_lattice,
+)
+from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
     atomic_number_indexes_to_atomic_numbers,
@@ -119,7 +122,8 @@ class DiffusionLoss(torch.nn.Module):
         t_int: torch.Tensor,
         num_atoms: torch.Tensor,
         noisy_lattice: torch.Tensor,
-        noisy_symmetric_matrix: torch.Tensor,
+        noisy_lengths: torch.Tensor,
+        noisy_angles: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -131,7 +135,9 @@ class DiffusionLoss(torch.nn.Module):
             -1
         )
 
-        scalar_feats = torch.cat([h_t, t_emb, num_atoms_feat], dim=1)
+        scalar_feats = torch.cat(
+            [h_t, t_emb, num_atoms_feat, noisy_lengths, noisy_angles], dim=1
+        )
         cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
 
         lattice_feat = torch.repeat_interleave(noisy_lattice, num_atoms, dim=0)
@@ -172,28 +178,20 @@ class DiffusionLoss(torch.nn.Module):
         (
             predicted_h0_logits,
             pred_frac_eps_x,
-            _global_output_scalar,
+            global_output_scalar,
             global_output_vector,
             pred_edge_distance_score,
         ) = model(batch)
 
-        # pred_symmetric_vector_noise = self.edge_score_to_symmetric_lattice(
-        #     inter_atom_distance,
-        #     neighbor_direction,
-        #     pred_edge_distance_score,
-        #     batch,
-        # )
-        # pred_lattice_noise = self.pred_lattice_noise(
-        #     global_output_vector, noisy_lattice
-        # )
+        pred_lengths, pred_angles = torch.split(global_output_scalar, dim=-1)
 
         return (
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            # pred_lattice_noise,
-            global_output_vector,
+            pred_lengths,
+            pred_angles,
         )
 
     def pred_lattice_noise(self, global_output_vector, noisy_lattice):
@@ -206,25 +204,18 @@ class DiffusionLoss(torch.nn.Module):
         return symmetric_vector
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
-        # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
-        # This is so the model can use vector features for the equivariance
+        lengths, angles = matrix_to_params(lattice)
 
-        rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
-        symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
-
-        noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
-            symmetric_matrix_vector, t_int
+        noisy_lengths, lengths_noise = self.lattice_diffusion(lengths, t_int)
+        noisy_angles, angles_noise = self.lattice_diffusion(
+            angles * 180 / torch.pi, t_int
         )
-        noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
-        noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
+        noisy_angles = noisy_angles * torch.pi / 180
+        angles_noise = angles_noise * torch.pi / 180
+        noisy_angles = noisy_angles % (2 * torch.pi)
+        angles_noise = angles_noise % (2 * torch.pi)
 
-        # given the noisy_symmetric_vector, it needs to predict the noise vector
-        # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
-        return (
-            noisy_lattice,
-            noisy_symmetric_matrix,
-            noise_vector,
-        )
+        return (noisy_lengths, lengths, noisy_angles, angles)
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         frac_x_0 = batch.X0
@@ -253,20 +244,24 @@ class DiffusionLoss(torch.nn.Module):
         h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
 
         h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
-        (
-            noisy_lattice,
-            noisy_symmetric_matrix,
-            symmetric_vector_noise,
-        ) = self.diffuse_lattice_params(lattice, t_int)
+        (noisy_lengths, lengths, noisy_angles, angles) = self.diffuse_lattice_params(
+            lattice, t_int
+        )
+        noisy_lattice = lattice_from_params(noisy_lengths, noisy_angles)
+        fig = visualize_lattice(lattice)
+        fig.show()
+        fig = visualize_lattice(noisy_lattice)
+        fig.show()
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_lattice) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_lengths, pred_angles) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
             num_atoms,
             noisy_lattice,
-            noisy_symmetric_matrix,
+            noisy_lengths,
+            noisy_angles,
             model,
             batch,
             t_emb_weights,
@@ -286,7 +281,10 @@ class DiffusionLoss(torch.nn.Module):
         # error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
         #     pred_lattice, lattice, noisy_lattice
         # )
-        error_l = vector_length_mse_loss(pred_lattice, lattice, noisy_lattice)
+        target_lengths = (lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        error_l = F.mse_loss(pred_lengths, target_lengths) + calculate_angle_loss(
+            pred_angles, angles
+        )
 
         loss = (
             self.cost_coord_coeff * error_x
