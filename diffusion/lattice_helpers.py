@@ -32,7 +32,7 @@ def matrix_to_params(matrix: torch.Tensor) -> torch.Tensor:
             )
         )
     # angles = angles * 180.0 / torch.pi # convert radians to degrees
-    return torch.cat([lengths, angles], dim=1)
+    return lengths, angles
 
 
 def abs_cap(val, max_abs_val=1):

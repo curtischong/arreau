@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Optional
 import torch
 
-from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
@@ -111,7 +110,7 @@ class DiffusionLoss(torch.nn.Module):
         distance_wrapped_diff_squared = distance_wrapped_diff**2
         squared_euclidean_dist = torch.sum(distance_wrapped_diff_squared, dim=1)
 
-        return scatter(squared_euclidean_dist, batch.batch, dim=0, reduce="mean")
+        return torch.mean(squared_euclidean_dist)
 
     def phi(
         self,
