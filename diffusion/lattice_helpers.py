@@ -53,7 +53,8 @@ def abs_cap(val, max_abs_val=1):
 
 # https://github.com/materialsproject/pymatgen/blob/b789d74639aa851d7e5ee427a765d9fd5a8d1079/pymatgen/core/lattice.py#L311
 def lattice_from_params(
-    params: torch.Tensor,
+    lengths: torch.Tensor,
+    angles: torch.Tensor,
 ):
     """
     Create a Lattice using unit cell lengths and angles (in degrees).
@@ -65,7 +66,8 @@ def lattice_from_params(
     Returns:
         Lattice with the specified lattice parameters.
     """
-    a, b, c, alpha, beta, gamma = params.unbind(-1)
+    a, b, c = lengths.unbind(-1)
+    alpha, beta, gamma = angles.unbind(-1)
     # beta = torch.deg2rad(beta)
     # gamma = torch.deg2rad(gamma)
     # alpha = torch.deg2rad(alpha)

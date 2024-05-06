@@ -18,9 +18,6 @@ from diffusion.diffusion_helpers import (
     radius_graph_pbc,
     symmetric_matrix_to_vector,
 )
-from diffusion.inference.visualize_lattice import (
-    visualize_lattice,
-)
 from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
@@ -134,9 +131,11 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
+        lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
+        angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
 
         scalar_feats = torch.cat(
-            [h_t, t_emb, num_atoms_feat, noisy_lengths, noisy_angles], dim=1
+            [h_t, t_emb, num_atoms_feat, lengths_feat, angles_feat], dim=1
         )
         cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
 
@@ -183,7 +182,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_edge_distance_score,
         ) = model(batch)
 
-        pred_lengths, pred_angles = torch.split(global_output_scalar, dim=-1)
+        pred_lengths, pred_angles = torch.split(global_output_scalar, [3, 3], dim=-1)
 
         return (
             pred_frac_eps_x.squeeze(
@@ -247,11 +246,12 @@ class DiffusionLoss(torch.nn.Module):
         (noisy_lengths, lengths, noisy_angles, angles) = self.diffuse_lattice_params(
             lattice, t_int
         )
+        # print(noisy_angles)
         noisy_lattice = lattice_from_params(noisy_lengths, noisy_angles)
-        fig = visualize_lattice(lattice)
-        fig.show()
-        fig = visualize_lattice(noisy_lattice)
-        fig.show()
+        # fig = visualize_lattice(lattice[0])
+        # fig.show()
+        # fig = visualize_lattice(noisy_lattice[0])
+        # fig.show()
 
         # Compute the prediction.
         (pred_frac_eps_x, predicted_h0_logits, pred_lengths, pred_angles) = self.phi(
