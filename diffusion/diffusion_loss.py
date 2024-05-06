@@ -282,7 +282,10 @@ class DiffusionLoss(torch.nn.Module):
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
         _rot, pred_lattice_symmetric_matrix = polar_decomposition(pred_lattice)
-        error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
+        # error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
+        #     pred_lattice_symmetric_matrix, symmetric_matrix, noisy_symmetric_matrix
+        # )
+        error_l = vector_length_mse_loss(
             pred_lattice_symmetric_matrix, symmetric_matrix, noisy_symmetric_matrix
         )
 

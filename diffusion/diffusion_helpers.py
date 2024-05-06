@@ -641,17 +641,18 @@ def vector_length_mse_loss(
     #     cubic_score(input_lengths), cubic_score(target_lengths)
     # )
 
-    volume_diff_loss = F.mse_loss(
-        volume(pred_matrices)
-        / (
-            volume(noisy_lattice) + 1e-6
-        ),  # dividing tells us the scale of the volume change
-        volume(target_matrices) / (volume(noisy_lattice) + 1e-6),
-        # volume(lattice_t, lattice_0), volume_diff(pred_lattice_t, lattice_0)
-    )
+    # volume_diff_loss = F.mse_loss(
+    #     volume(pred_matrices)
+    #     / (
+    #         volume(noisy_lattice) + 1e-6
+    #     ),  # dividing tells us the scale of the volume change
+    #     volume(target_matrices) / (volume(noisy_lattice) + 1e-6),
+    #     # volume(lattice_t, lattice_0), volume_diff(pred_lattice_t, lattice_0)
+    # )
 
     # return vector_length_loss + cubic_score_loss
-    return vector_length_loss + volume_diff_loss + angle_loss
+    # return vector_length_loss + volume_diff_loss + angle_loss
+    return vector_length_loss + angle_loss
 
 
 def volume(matrices: torch.Tensor):
