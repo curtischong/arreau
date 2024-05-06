@@ -28,7 +28,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/simplest-predict-l0-2.ckpt",
+                "--model_path=models/prevent-squished-lattice-with-length-loss.ckpt",
             ],
         },
         {
