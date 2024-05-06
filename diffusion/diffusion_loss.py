@@ -280,7 +280,8 @@ class DiffusionLoss(torch.nn.Module):
         # error_l = vector_length_mse_loss(pred_lattice, lattice, noisy_lattice)
         pred_lengths, pred_angles = matrix_to_params(pred_lattice)
         lengths, angles = matrix_to_params(lattice)
-        error_l = F.mse_loss(pred_lengths, lengths) + calculate_angle_loss(
+        target_lengths = (lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        error_l = F.mse_loss(pred_lengths, target_lengths) + calculate_angle_loss(
             pred_angles, angles
         )
 
