@@ -69,6 +69,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         in_channels_scalar = (
             num_atomic_states
             + 64  # the time embedding (from GaussianFourierProjection)
+            + 1  # the number of atoms
             + 6  # 6 noisy_symmetric_vector params
         )
 
