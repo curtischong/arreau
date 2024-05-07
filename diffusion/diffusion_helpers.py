@@ -182,6 +182,17 @@ class VP_lattice(nn.Module):
             * predicted_symmetric_vector_noise
         ) + sigma * z
 
+    def reverse_without_noise(self, lt, predicted_symmetric_vector_noise, t):
+        alpha = 1 - self.betas[t]
+        alpha = alpha.clamp_min(1 - self.betas[-2])
+        alpha_bar = self.alpha_bars[t]
+
+        return (1.0 / torch.sqrt(alpha + EPSILON)).view(-1, 1) * (
+            lt
+            - ((1 - alpha) / torch.sqrt(1 - alpha_bar + EPSILON)).view(-1, 1)
+            * predicted_symmetric_vector_noise
+        )
+
     # def normalizing_mean_constant(self, n: torch.Tensor):
     #     avg_density_of_dataset = 0.05539856385043283
     #     c = 1 / avg_density_of_dataset
@@ -621,6 +632,36 @@ def calculate_angle_loss(pred_angles, target_angles):
     # This is the key thing: when working in mod 2pi, distances are wrapped around the circle
     distance_wrapped_diff = torch.min(distance_abs_diff, max_angle - distance_abs_diff)
     return torch.mean(distance_wrapped_diff**2)
+
+
+def get_angle_beyond_threshold(angles, threshold=120):
+    return torch.where(angles > threshold, angles - threshold, torch.zeros_like(angles))
+
+
+def calculate_quadratic_angle_loss(
+    lattice_diffusion: VP_lattice, angles_t, pred_angles_0, t_int
+):
+    pred_angles_0 = pred_angles_0 % (2 * torch.pi)
+    pred_angles_noise = angles_t - pred_angles_0
+    next_angles = lattice_diffusion.reverse_without_noise(
+        angles_t, pred_angles_noise, t_int
+    )
+    next_angles = next_angles % (2 * torch.pi)
+    next_angles = next_angles * 180 / torch.pi
+    # return calculate_angle_loss(next_angles, angles_t)
+    upper_bound = 120
+    diff_upper_bound = torch.where(
+        next_angles > upper_bound,
+        next_angles - upper_bound,
+        torch.zeros_like(next_angles),
+    )
+    lower_bound = 60
+    diff_lower_bound = torch.where(
+        next_angles < lower_bound,
+        next_angles - lower_bound,
+        torch.zeros_like(next_angles),
+    )
+    return torch.mean((0.1 * diff_upper_bound) ** 2 + (0.1 * diff_lower_bound) ** 2)
 
 
 def vector_length_mse_loss(
