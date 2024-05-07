@@ -415,16 +415,12 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
-            symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
-
             score_x, score_h, pred_lattice = self.phi(
                 frac_x,
                 F.one_hot(h, num_atomic_states),
                 t,
                 num_atoms,
                 lattice,
-                symmetric_vector,
                 model,
                 Batch(
                     num_atoms=num_atoms,
@@ -434,6 +430,10 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
+            lengths, angles = matrix_to_params(lattice)
+            scaled_lengths = (lengths ** (1 / 3)) * num_atoms.unsqueeze(-1)
+            lattice = lattice_from_params(scaled_lengths, angles)
+
             if prev_pred_lattice is not None:
                 pred_lattice = ((1 - weigh_prev_lattice) * pred_lattice) + (
                     weigh_prev_lattice * prev_pred_lattice
