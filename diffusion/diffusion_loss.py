@@ -132,9 +132,9 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
-        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)).abs() ** (
-            1 / 3
-        )  # take the abs to prevent imaginary numbers
+        scaled_lengths = (
+            noisy_lengths / num_atoms.unsqueeze(-1)
+        ).abs()  # take the abs to prevent imaginary numbers
         lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
         angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
         scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
@@ -282,7 +282,7 @@ class DiffusionLoss(torch.nn.Module):
         # error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
         #     pred_lattice, lattice, noisy_lattice
         # )
-        target_lengths = (lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        target_lengths = lengths / num_atoms.unsqueeze(-1)
         error_l = (
             F.mse_loss(pred_lengths, target_lengths)
             + calculate_angle_loss(pred_angles, angles)
@@ -437,7 +437,7 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            scaled_lengths = (pred_lengths**3) * num_atoms.unsqueeze(-1)
+            scaled_lengths = (pred_lengths) * num_atoms.unsqueeze(-1)
             pred_angles = pred_angles % (2 * torch.pi)
             pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
