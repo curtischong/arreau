@@ -103,13 +103,13 @@ if __name__ == "__main__":
     if use_constant_atomic_symbols is not None:
         num_atoms = len(use_constant_atomic_symbols)
 
-    generate_single_crystal(
-        num_atoms=num_atoms,
-        visualization_setting=VisualizationSetting.ALL_DETAILED,
-        use_constant_atomic_symbols=use_constant_atomic_symbols,
-    )
-    # generate_n_crystals(
-    #     num_crystals=10,
-    #     num_atoms_per_sample=num_atoms,
+    # generate_single_crystal(
+    #     num_atoms=num_atoms,
+    #     visualization_setting=VisualizationSetting.ALL_DETAILED,
     #     use_constant_atomic_symbols=use_constant_atomic_symbols,
     # )
+    generate_n_crystals(
+        num_crystals=10,
+        num_atoms_per_sample=num_atoms,
+        use_constant_atomic_symbols=use_constant_atomic_symbols,
+    )

@@ -410,7 +410,7 @@ class DiffusionLoss(torch.nn.Module):
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
-        weigh_prev_lattice = 0
+        weigh_prev_lattice = 0.8
         prev_pred_lattice = None
 
         for timestep in tqdm(reversed(range(1, self.T))):
