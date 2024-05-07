@@ -12,7 +12,6 @@ from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
     calculate_angle_loss,
-    calculate_quadratic_angle_loss,
     cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
     polar_decomposition,
@@ -132,7 +131,10 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
-        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        clamped_noisy_lengths = torch.clamp(
+            noisy_lengths, min=0
+        )  # to prevent NaN when cube rooting
+        scaled_lengths = (clamped_noisy_lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
         lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
         angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
         scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
@@ -216,7 +218,6 @@ class DiffusionLoss(torch.nn.Module):
         noisy_angles, angles_noise = self.lattice_diffusion(
             angles * 180 / torch.pi, t_int
         )
-        noisy_lengths = torch.clamp(noisy_lengths, min=0)
         noisy_angles = noisy_angles * torch.pi / 180
         angles_noise = angles_noise * torch.pi / 180
         noisy_angles = noisy_angles % (2 * torch.pi)
@@ -293,9 +294,10 @@ class DiffusionLoss(torch.nn.Module):
         error_l = (
             F.mse_loss(pred_lengths, target_lengths)
             + calculate_angle_loss(pred_angles, angles)
-            + calculate_quadratic_angle_loss(
-                self.lattice_diffusion, noisy_angles, pred_angles, t_int
-            )
+            # adding the quadratic angle loss makes the loss spiky
+            # + calculate_quadratic_angle_loss(
+            #     self.lattice_diffusion, noisy_angles, pred_angles, t_int
+            # )
         )
 
         loss = (
