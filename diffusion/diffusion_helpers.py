@@ -615,7 +615,9 @@ def get_vector_norm(matrices: torch.Tensor):
 def calculate_angle_loss(pred_angles, target_angles):
     max_angle = 2 * torch.pi
     distance_abs_diff = torch.clamp(
-        (pred_angles - target_angles).abs(), min=0, max=max_angle
+        torch.remainder((pred_angles - target_angles).abs(), max_angle),
+        min=0,
+        max=max_angle,
     )
 
     # This is the key thing: when working in mod 2pi, distances are wrapped around the circle
