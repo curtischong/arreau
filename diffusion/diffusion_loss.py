@@ -14,7 +14,6 @@ from diffusion.diffusion_helpers import (
     calculate_angle_loss,
     cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
-    polar_decomposition,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
 )
@@ -131,10 +130,9 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
-        # clamped_noisy_lengths = torch.clamp(
-        #     noisy_lengths, min=0
-        # )  # to prevent NaN when cube rooting
-        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)).abs() ** (1 / 3)
+        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)).abs() ** (
+            1 / 3
+        )  # take the abs to prevent imaginary numbers
         lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
         angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
         scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
@@ -187,8 +185,8 @@ class DiffusionLoss(torch.nn.Module):
             predicted_h0_logits,
             pred_frac_eps_x,
             global_output_scalar,
-            global_output_vector,
-            pred_edge_distance_score,
+            _global_output_vector,
+            _pred_edge_distance_score,
         ) = model(batch)
 
         pred_lengths, pred_angles = torch.split(global_output_scalar, [3, 3], dim=-1)
@@ -202,15 +200,6 @@ class DiffusionLoss(torch.nn.Module):
             pred_angles,
         )
 
-    def pred_lattice_noise(self, global_output_vector, noisy_lattice):
-        pred_original_lattice = torch.transpose(
-            torch.transpose(noisy_lattice, 1, 2) * global_output_vector, 1, 2
-        )
-        noise = noisy_lattice - pred_original_lattice
-        _rot, symmetric_matrix = polar_decomposition(noise)
-        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
-        return symmetric_vector
-
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         lengths, angles = matrix_to_params(lattice)
 
@@ -222,6 +211,7 @@ class DiffusionLoss(torch.nn.Module):
         angles_noise = angles_noise * torch.pi / 180
         noisy_angles = noisy_angles % (2 * torch.pi)
         angles_noise = angles_noise % (2 * torch.pi)
+        # TODO: should we clamp the angles to be in the range of [0, 2pi]?
 
         return (noisy_lengths, lengths, noisy_angles, angles)
 
