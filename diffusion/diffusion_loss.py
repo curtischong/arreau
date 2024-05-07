@@ -131,10 +131,10 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
-        clamped_noisy_lengths = torch.clamp(
-            noisy_lengths, min=0
-        )  # to prevent NaN when cube rooting
-        scaled_lengths = (clamped_noisy_lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        # clamped_noisy_lengths = torch.clamp(
+        #     noisy_lengths, min=0
+        # )  # to prevent NaN when cube rooting
+        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)).abs() ** (1 / 3)
         lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
         angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
         scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
