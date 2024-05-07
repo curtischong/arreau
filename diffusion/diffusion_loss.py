@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Optional
 import torch
 
-from torch_scatter import scatter
 from torch_geometric.data import Batch
 import torchmetrics
 from tqdm import tqdm
@@ -12,13 +11,13 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
+    calculate_angle_loss,
     cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
-    polar_decomposition,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
-    vector_to_symmetric_matrix,
 )
+from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
     atomic_number_indexes_to_atomic_numbers,
@@ -110,7 +109,7 @@ class DiffusionLoss(torch.nn.Module):
         distance_wrapped_diff_squared = distance_wrapped_diff**2
         squared_euclidean_dist = torch.sum(distance_wrapped_diff_squared, dim=1)
 
-        return scatter(squared_euclidean_dist, batch.batch, dim=0, reduce="mean")
+        return torch.mean(squared_euclidean_dist)
 
     def phi(
         self,
@@ -119,7 +118,8 @@ class DiffusionLoss(torch.nn.Module):
         t_int: torch.Tensor,
         num_atoms: torch.Tensor,
         noisy_lattice: torch.Tensor,
-        noisy_symmetric_vector: torch.Tensor,
+        noisy_lengths: torch.Tensor,
+        noisy_angles: torch.Tensor,
         model,
         batch: Batch,
         t_emb_weights,
@@ -127,15 +127,26 @@ class DiffusionLoss(torch.nn.Module):
         t = self.lattice_diffusion.betas[t_int].view(-1, 1)
         t_emb = t_emb_weights(t)
 
-        noisy_symmetric_vector_feat = torch.repeat_interleave(
-            noisy_symmetric_vector, num_atoms, dim=0
-        )
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
+        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)).abs() ** (
+            1 / 3
+        )  # take the abs to prevent imaginary numbers
+        lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
+        angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
+        scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
 
         scalar_feats = torch.cat(
-            [h_t, t_emb, num_atoms_feat, noisy_symmetric_vector_feat], dim=1
+            [
+                h_t,
+                t_emb,
+                num_atoms_feat,
+                lengths_feat,
+                angles_feat,
+                scaled_lengths_feat,
+            ],
+            dim=1,
         )
         cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
 
@@ -173,46 +184,36 @@ class DiffusionLoss(torch.nn.Module):
         (
             predicted_h0_logits,
             pred_frac_eps_x,
-            _global_output_scalar,
+            global_output_scalar,
             _global_output_vector,
-            pred_edge_distance_score,
+            _pred_edge_distance_score,
         ) = model(batch)
 
-        pred_symmetric_vector_noise = self.edge_score_to_symmetric_lattice(
-            inter_atom_distance,
-            neighbor_direction,
-            pred_edge_distance_score,
-            batch,
-        )
+        pred_lengths, pred_angles = torch.split(global_output_scalar, [3, 3], dim=-1)
 
         return (
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
             predicted_h0_logits,
-            pred_symmetric_vector_noise,
+            pred_lengths,
+            pred_angles,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
-        # the diffusion happens on the symmetric positive-definite matrix part, but we will pass in vectors and receive vectors out from the model.
-        # This is so the model can use vector features for the equivariance
+        lengths, angles = matrix_to_params(lattice)
 
-        rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
-        symmetric_matrix_vector = symmetric_matrix_to_vector(symmetric_matrix)
-
-        noisy_symmetric_vector, noise_vector = self.lattice_diffusion(
-            symmetric_matrix_vector, t_int
+        noisy_lengths, lengths_noise = self.lattice_diffusion(lengths, t_int)
+        noisy_angles, angles_noise = self.lattice_diffusion(
+            angles * 180 / torch.pi, t_int
         )
-        noisy_symmetric_matrix = vector_to_symmetric_matrix(noisy_symmetric_vector)
-        noisy_lattice = rotation_matrix @ noisy_symmetric_matrix
+        noisy_angles = noisy_angles * torch.pi / 180
+        angles_noise = angles_noise * torch.pi / 180
+        noisy_angles = noisy_angles % (2 * torch.pi)
+        angles_noise = angles_noise % (2 * torch.pi)
+        # TODO: should we clamp the angles to be in the range of [0, 2pi]?
 
-        # given the noisy_symmetric_vector, it needs to predict the noise vector
-        # when sampling, we get take hte predicted noise vector to get the unnoised symmetric vecotr, which we can convert into a symmetric matrix, which is the lattice
-        return (
-            noisy_lattice,
-            noisy_symmetric_vector,
-            noise_vector,
-        )
+        return (noisy_lengths, lengths, noisy_angles, angles)
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         frac_x_0 = batch.X0
@@ -241,20 +242,25 @@ class DiffusionLoss(torch.nn.Module):
         h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
 
         h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
-        (
-            noisy_lattice,
-            noisy_symmetric_vector,
-            symmetric_vector_noise,
-        ) = self.diffuse_lattice_params(lattice, t_int)
+        (noisy_lengths, lengths, noisy_angles, angles) = self.diffuse_lattice_params(
+            lattice, t_int
+        )
+        # print(noisy_angles)
+        noisy_lattice = lattice_from_params(noisy_lengths, noisy_angles)
+        # fig = visualize_lattice(lattice[0])
+        # fig.show()
+        # fig = visualize_lattice(noisy_lattice[0])
+        # fig.show()
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_symmetric_vector) = self.phi(
+        (pred_frac_eps_x, predicted_h0_logits, pred_lengths, pred_angles) = self.phi(
             frac_x_t,
             h_t_onehot,
             t_int_atoms,
             num_atoms,
             noisy_lattice,
-            noisy_symmetric_vector,
+            noisy_lengths,
+            noisy_angles,
             model,
             batch,
             t_emb_weights,
@@ -271,7 +277,18 @@ class DiffusionLoss(torch.nn.Module):
         error_h = self.d3pm.calculate_loss(
             h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
         )
-        error_l = F.mse_loss(pred_symmetric_vector, symmetric_vector_noise)
+        # error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
+        #     pred_lattice, lattice, noisy_lattice
+        # )
+        target_lengths = (lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        error_l = (
+            F.mse_loss(pred_lengths, target_lengths)
+            + calculate_angle_loss(pred_angles, angles)
+            # adding the quadratic angle loss makes the loss spiky
+            # + calculate_quadratic_angle_loss(
+            #     self.lattice_diffusion, noisy_angles, pred_angles, t_int
+            # )
+        )
 
         loss = (
             self.cost_coord_coeff * error_x
@@ -391,20 +408,24 @@ class DiffusionLoss(torch.nn.Module):
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
+        weigh_prev_lattice = 0
+        prev_pred_lattice = None
+
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            rotation_matrix, symmetric_matrix = polar_decomposition(lattice)
-            symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
+            lengths, angles = matrix_to_params(lattice)
+            angles = angles % (2 * torch.pi)
 
-            score_x, score_h, predicted_symmetric_vector_noise = self.phi(
+            score_x, score_h, pred_lengths, pred_angles = self.phi(
                 frac_x,
                 F.one_hot(h, num_atomic_states),
                 t,
                 num_atoms,
                 lattice,
-                symmetric_vector,
+                lengths,
+                angles,
                 model,
                 Batch(
                     num_atoms=num_atoms,
@@ -414,12 +435,20 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            next_symmetric_vector = self.lattice_diffusion.reverse(
-                symmetric_vector, predicted_symmetric_vector_noise, timestep_vec
-            )
+            scaled_lengths = (pred_lengths ** (1 / 3)) * num_atoms.unsqueeze(-1)
+            pred_angles = pred_angles % (2 * torch.pi)
+            pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
-            next_symmetric_matrix = vector_to_symmetric_matrix(next_symmetric_vector)
-            lattice = rotation_matrix @ next_symmetric_matrix
+            if prev_pred_lattice is not None:
+                pred_lattice = ((1 - weigh_prev_lattice) * pred_lattice) + (
+                    weigh_prev_lattice * prev_pred_lattice
+                )  # bellman update
+            prev_pred_lattice = pred_lattice
+
+            predicted_lattice_noise = lattice - pred_lattice
+            lattice = self.lattice_diffusion.reverse(
+                lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
+            ).view(-1, 3, 3)
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
@@ -433,9 +462,10 @@ class DiffusionLoss(torch.nn.Module):
                 )
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
-                vis_crystal_during_sampling(
+                fig = vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
+                # fig.show()
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(

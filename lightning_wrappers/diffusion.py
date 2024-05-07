@@ -70,15 +70,17 @@ class PONITA_DIFFUSION(pl.LightningModule):
             num_atomic_states
             + 64  # the time embedding (from GaussianFourierProjection)
             + 1  # the number of atoms
-            + 6  # 6 noisy_symmetric_vector params
+            + 3  # the noisy lattice lengths
+            + 3  # the noisy lattice angles
+            + 3  # the scaled noisylattice lengths
         )
 
-        in_channels_vec = 4  # the fractional coords (1), the lattice (3)
+        in_channels_vec = 1 + 3  # the fractional coords (1), the lattice (3)
         out_channels_scalar = num_atomic_states  # atomic_number
         out_channels_vec = 1  # The cartesian_pos score (gradient of where the atom should be in the next step)
-        out_channels_global_scalar = 0
+        out_channels_global_scalar = 6
         out_channels_global_vector = 0
-        output_dim_edge_scalar = 1  # How much we should scale the edge length. This score helps us determine the predicted lattice noise
+        output_dim_edge_scalar = 0  # How much we should scale the edge length. This score helps us determine the predicted lattice noise
 
         # Make the model
         self.model = PonitaFiberBundle(

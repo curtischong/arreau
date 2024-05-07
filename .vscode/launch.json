@@ -28,7 +28,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/mattergen-params.ckpt",
+                "--model_path=models/scaling-norm-feat.ckpt",
             ],
         },
         {
