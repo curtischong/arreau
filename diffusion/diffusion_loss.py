@@ -434,9 +434,9 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            lengths, angles = matrix_to_params(lattice)
-            scaled_lengths = (lengths ** (1 / 3)) * num_atoms.unsqueeze(-1)
-            lattice = lattice_from_params(scaled_lengths, angles)
+            lengths, angles = matrix_to_params(pred_lattice)
+            scaled_lengths = (lengths**3) * num_atoms.unsqueeze(-1)
+            pred_lattice = lattice_from_params(scaled_lengths, angles)
 
             if prev_pred_lattice is not None:
                 pred_lattice = ((1 - weigh_prev_lattice) * pred_lattice) + (
@@ -445,9 +445,20 @@ class DiffusionLoss(torch.nn.Module):
             prev_pred_lattice = pred_lattice
 
             predicted_lattice_noise = lattice - pred_lattice
-            lattice = self.lattice_diffusion.reverse(
-                lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
-            ).view(-1, 3, 3)
+            noisy_lengths, noisy_angles = matrix_to_params(predicted_lattice_noise)
+            next_lengths = self.lattice_diffusion.reverse(
+                lengths.view(-1, 3), noisy_lengths.view(-1, 3), timestep_vec
+            ).view(-1, 3)
+            next_angles = self.lattice_diffusion.reverse(
+                angles.view(-1, 3), noisy_angles.view(-1, 3), timestep_vec
+            ).view(-1, 3)
+
+            # lattice = self.lattice_diffusion.reverse(
+            #     lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
+            # ).view(-1, 3, 3)
+            lattice = lattice_from_params(next_lengths, next_angles)
+            if lattice[0][0][0].isnan():
+                print("lattice is nan")
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
