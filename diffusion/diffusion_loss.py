@@ -437,7 +437,9 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            scaled_lengths = (pred_lengths ** (1 / 3)) * num_atoms.unsqueeze(-1)
+            scaled_lengths = (
+                torch.clip(pred_lengths, min=0) ** (1 / 3)
+            ) * num_atoms.unsqueeze(-1)
             pred_angles = pred_angles % (2 * torch.pi)
             pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
