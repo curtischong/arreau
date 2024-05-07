@@ -72,6 +72,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
             + 1  # the number of atoms
             + 3  # the noisy lattice lengths
             + 3  # the noisy lattice angles
+            + 3  # the scaled noisylattice lengths
         )
 
         in_channels_vec = 1 + 3  # the fractional coords (1), the lattice (3)

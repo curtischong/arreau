@@ -131,11 +131,21 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
+        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
         lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
         angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
+        scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
 
         scalar_feats = torch.cat(
-            [h_t, t_emb, num_atoms_feat, lengths_feat, angles_feat], dim=1
+            [
+                h_t,
+                t_emb,
+                num_atoms_feat,
+                lengths_feat,
+                angles_feat,
+                scaled_lengths_feat,
+            ],
+            dim=1,
         )
         cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
 
