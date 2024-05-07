@@ -434,9 +434,9 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            lengths, angles = matrix_to_params(pred_lattice)
-            scaled_lengths = (lengths**3) * num_atoms.unsqueeze(-1)
-            pred_lattice = lattice_from_params(scaled_lengths, angles)
+            pred_lengths, pred_angles = matrix_to_params(pred_lattice)
+            scaled_lengths = (pred_lengths**3) * num_atoms.unsqueeze(-1)
+            pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
             if prev_pred_lattice is not None:
                 pred_lattice = ((1 - weigh_prev_lattice) * pred_lattice) + (
@@ -444,14 +444,20 @@ class DiffusionLoss(torch.nn.Module):
                 )  # bellman update
             prev_pred_lattice = pred_lattice
 
-            predicted_lattice_noise = lattice - pred_lattice
-            noisy_lengths, noisy_angles = matrix_to_params(predicted_lattice_noise)
+            lattice_lengths, lattice_angles = matrix_to_params(lattice)
+            pred_lengths_0, pred_angles_0 = matrix_to_params(pred_lattice)
+
+            noisy_lengths = lattice_lengths - pred_lengths_0
+            noisy_angles = (lattice_angles - pred_angles_0) % (2 * torch.pi)
+            noisy_angles = noisy_angles * (180 / torch.pi)
+
             next_lengths = self.lattice_diffusion.reverse(
-                lengths.view(-1, 3), noisy_lengths.view(-1, 3), timestep_vec
+                lattice_lengths.view(-1, 3), noisy_lengths.view(-1, 3), timestep_vec
             ).view(-1, 3)
             next_angles = self.lattice_diffusion.reverse(
-                angles.view(-1, 3), noisy_angles.view(-1, 3), timestep_vec
+                lattice_angles.view(-1, 3), noisy_angles.view(-1, 3), timestep_vec
             ).view(-1, 3)
+            next_angles = next_angles * (torch.pi / 180)
 
             # lattice = self.lattice_diffusion.reverse(
             #     lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
