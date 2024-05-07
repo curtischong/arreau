@@ -131,9 +131,7 @@ class DiffusionLoss(torch.nn.Module):
 
         lattice_feat = torch.repeat_interleave(noisy_lattice, num_atoms, dim=0)
 
-        scaled_lattice = (
-            (noisy_lattice / num_atoms.unsqueeze(-1).unsqueeze(-1)).abs()
-        ) ** (1 / 3)
+        scaled_lattice = (noisy_lattice / num_atoms.unsqueeze(-1).unsqueeze(-1)).abs()
         scaled_lattice_feat = torch.repeat_interleave(scaled_lattice, num_atoms, dim=0)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
@@ -289,7 +287,7 @@ class DiffusionLoss(torch.nn.Module):
         # error_l = vector_length_mse_loss(pred_lattice, lattice, noisy_lattice)
         pred_lengths, pred_angles = matrix_to_params(pred_lattice)
         lengths, angles = matrix_to_params(lattice)
-        target_lengths = (lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        target_lengths = lengths / num_atoms.unsqueeze(-1)
         error_l = F.mse_loss(pred_lengths, target_lengths) + calculate_angle_loss(
             pred_angles, angles
         )
@@ -435,7 +433,7 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
             )
             pred_lengths, pred_angles = matrix_to_params(pred_lattice)
-            scaled_lengths = (pred_lengths**3) * num_atoms.unsqueeze(-1)
+            scaled_lengths = pred_lengths * num_atoms.unsqueeze(-1)
             pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
             if prev_pred_lattice is not None:
