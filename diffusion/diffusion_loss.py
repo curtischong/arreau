@@ -437,9 +437,7 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            scaled_lengths = (
-                torch.clip(pred_lengths, min=0) ** (1 / 3)
-            ) * num_atoms.unsqueeze(-1)
+            scaled_lengths = (pred_lengths**3) * num_atoms.unsqueeze(-1)
             pred_angles = pred_angles % (2 * torch.pi)
             pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
@@ -453,6 +451,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_lattice_lengths, pred_lattice_angle = matrix_to_params(pred_lattice)
             pred_lattice_length_noise = pred_lattice_lengths - lattice_lengths
             pred_lattice_angle_noise = pred_lattice_angle - lattice_angle
+            pred_lattice_angle_noise = pred_lattice_angle_noise % (2 * torch.pi)
 
             next_lattice_length = self.lattice_diffusion.reverse(
                 lattice_lengths.view(-1, 3),
@@ -461,9 +460,11 @@ class DiffusionLoss(torch.nn.Module):
             )
             next_lattice_angle = self.lattice_diffusion.reverse(
                 lattice_angle.view(-1, 3),
-                pred_lattice_angle_noise.view(-1, 3),
+                pred_lattice_angle_noise.view(-1, 3) * 180 / torch.pi,
                 timestep_vec,
             )
+            next_lattice_angle = next_lattice_angle * torch.pi / 180
+            next_lattice_angle = next_lattice_angle % (2 * torch.pi)
             lattice = lattice_from_params(next_lattice_length, next_lattice_angle)
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
