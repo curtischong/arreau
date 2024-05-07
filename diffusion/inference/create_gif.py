@@ -6,7 +6,7 @@ from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def generate_gif(src_img_dir: str, output_file: str, duration_ms: int = 100):
+def generate_gif(src_img_dir: str, output_file: str, duration_ms: int = 75):
     image_files = glob.glob(os.path.join(src_img_dir, "*.png"))
 
     # Sort the image files by creation time (ascending order)

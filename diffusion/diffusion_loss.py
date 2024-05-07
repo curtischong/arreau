@@ -453,7 +453,7 @@ class DiffusionLoss(torch.nn.Module):
             if (timestep != self.T - 1) and (
                 (
                     visualization_setting == VisualizationSetting.ALL
-                    and (timestep % 100 == 0)
+                    and (timestep % 50 == 0)
                 )
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
