@@ -418,7 +418,7 @@ class DiffusionLoss(torch.nn.Module):
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
-        weigh_prev_lattice = 0.9
+        weigh_prev_lattice = 0
         prev_pred_lattice = None
 
         for timestep in tqdm(reversed(range(1, self.T))):
@@ -475,7 +475,7 @@ class DiffusionLoss(torch.nn.Module):
                 fig = vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
-                fig.show()
+                # fig.show()
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
