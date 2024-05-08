@@ -90,7 +90,7 @@ class DiffusionLoss(torch.nn.Module):
         )
         self.num_atomic_states = num_atomic_states
 
-        self.cost_coord_coeff = 1
+        self.cost_coord_coeff = 3
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
         # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
@@ -284,7 +284,7 @@ class DiffusionLoss(torch.nn.Module):
         # )
         target_lengths = lengths / num_atoms.unsqueeze(-1)
         error_l = (
-            F.mse_loss(pred_lengths, target_lengths)
+            2 * F.mse_loss(pred_lengths, target_lengths)
             + (5 * calculate_angle_loss(pred_angles, angles))
             # adding the quadratic angle loss makes the loss spiky
             # + calculate_quadratic_angle_loss(
