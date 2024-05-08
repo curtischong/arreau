@@ -182,6 +182,24 @@ class VP_lattice(nn.Module):
             * predicted_symmetric_vector_noise
         ) + sigma * z
 
+        # https://arxiv.org/pdf/2102.09672 - 2.2 training in practice
+
+    def reverse_given_x0(self, xt, pred_x0, t):
+        denominator = 1 - self.alpha_bars[t]
+        alpha_t = 1 - self.betas[t]
+        x0_term = torch.sqrt(self.alpha_bars[t - 1]) * self.betas[t] * pred_x0
+        xt_term = torch.sqrt(alpha_t) * (1 - self.alpha_bars[t - 1]) * xt
+        mean = (x0_term + xt_term) / denominator
+        variance = (1 - self.alpha_bars[t - 1]) * self.betas[t] / denominator
+
+        z = torch.where(
+            (t > 1)[:, None].expand_as(xt),
+            torch.randn_like(xt),
+            torch.zeros_like(xt),
+        )
+
+        return mean + variance * z
+
     # def normalizing_mean_constant(self, n: torch.Tensor):
     #     avg_density_of_dataset = 0.05539856385043283
     #     c = 1 / avg_density_of_dataset

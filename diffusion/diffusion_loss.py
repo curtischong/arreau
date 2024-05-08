@@ -447,15 +447,15 @@ class DiffusionLoss(torch.nn.Module):
             lattice_lengths, lattice_angles = matrix_to_params(lattice)
             pred_lengths_0, pred_angles_0 = matrix_to_params(pred_lattice)
 
-            noisy_lengths = lattice_lengths - pred_lengths_0
-            noisy_angles = (lattice_angles - pred_angles_0) % (2 * torch.pi)
-            noisy_angles = noisy_angles * (180 / torch.pi)
+            # noisy_lengths = lattice_lengths - pred_lengths_0
+            # noisy_angles = (lattice_angles - pred_angles_0) % (2 * torch.pi)
+            # noisy_angles = noisy_angles * (180 / torch.pi)
 
-            next_lengths = self.lattice_diffusion.reverse(
-                lattice_lengths.view(-1, 3), noisy_lengths.view(-1, 3), timestep_vec
+            next_lengths = self.lattice_diffusion.reverse_given_x0(
+                lattice_lengths.view(-1, 3), pred_lengths_0.view(-1, 3), timestep_vec
             ).view(-1, 3)
-            next_angles = self.lattice_diffusion.reverse(
-                lattice_angles.view(-1, 3), noisy_angles.view(-1, 3), timestep_vec
+            next_angles = self.lattice_diffusion.reverse_given_x0(
+                lattice_angles.view(-1, 3), pred_angles_0.view(-1, 3), timestep_vec
             ).view(-1, 3)
             next_angles = next_angles * (torch.pi / 180)
 
