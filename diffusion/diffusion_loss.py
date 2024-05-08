@@ -285,7 +285,7 @@ class DiffusionLoss(torch.nn.Module):
         target_lengths = lengths / num_atoms.unsqueeze(-1)
         error_l = (
             F.mse_loss(pred_lengths, target_lengths)
-            + calculate_angle_loss(pred_angles, angles)
+            + (5 * calculate_angle_loss(pred_angles, angles))
             # adding the quadratic angle loss makes the loss spiky
             # + calculate_quadratic_angle_loss(
             #     self.lattice_diffusion, noisy_angles, pred_angles, t_int
@@ -410,7 +410,7 @@ class DiffusionLoss(torch.nn.Module):
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
-        weigh_prev_lattice = 0.8
+        weigh_prev_lattice = 0
         prev_pred_lattice = None
 
         for timestep in tqdm(reversed(range(1, self.T))):
