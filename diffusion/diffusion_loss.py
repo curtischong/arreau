@@ -457,14 +457,12 @@ class DiffusionLoss(torch.nn.Module):
             next_angles = self.lattice_diffusion.reverse_given_x0(
                 lattice_angles.view(-1, 3), pred_angles_0.view(-1, 3), timestep_vec
             ).view(-1, 3)
-            next_angles = next_angles * (torch.pi / 180)
+            # next_angles = next_angles * (torch.pi / 180)
 
             # lattice = self.lattice_diffusion.reverse(
             #     lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
             # ).view(-1, 3, 3)
             lattice = lattice_from_params(next_lengths, next_angles)
-            if lattice[0][0][0].isnan():
-                print("lattice is nan")
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
