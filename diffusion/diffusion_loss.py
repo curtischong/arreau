@@ -447,9 +447,18 @@ class DiffusionLoss(torch.nn.Module):
                 )  # bellman update
             prev_pred_lattice = pred_lattice
 
-            lattice = self.lattice_diffusion.reverse_given_x0(
-                lattice.view(-1, 9), pred_lattice.view(-1, 9), timestep_vec
-            ).view(-1, 3, 3)
+            pred_lengths, pred_angles = matrix_to_params(pred_lattice)
+            next_lengths = self.lattice_diffusion.reverse_given_x0(
+                lengths, pred_lengths, timestep_vec
+            )
+            next_angles = self.lattice_diffusion.reverse_given_x0(
+                angles, pred_angles, timestep_vec
+            )
+            lattice = lattice_from_params(next_lengths, next_angles)
+
+            # lattice = self.lattice_diffusion.reverse_given_x0(
+            #     lattice.view(-1, 9), pred_lattice.view(-1, 9), timestep_vec
+            # ).view(-1, 3, 3)
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
