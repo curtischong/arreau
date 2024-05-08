@@ -90,7 +90,7 @@ class DiffusionLoss(torch.nn.Module):
         )
         self.num_atomic_states = num_atomic_states
 
-        self.cost_coord_coeff = 0.1
+        self.cost_coord_coeff = 1
         self.cost_type_coeff = 1
         self.lattice_coeff = 1
         # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
@@ -99,7 +99,9 @@ class DiffusionLoss(torch.nn.Module):
     def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, batch):
         # Clamping between 0-1 is really important to avoid problems from numerical instabilities
         distance_abs_diff = torch.clamp(
-            (pred_frac_eps_x - target_frac_eps_x).abs(), min=0, max=1
+            torch.remainder((pred_frac_eps_x - target_frac_eps_x).abs(), 1),
+            min=0,
+            max=1,
         )
 
         # This is the key thing: when working in mod 1, the distance between 0.1 and 0.9 is NOT 0.8. It's 0.2
@@ -130,9 +132,9 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
             -1
         )
-        scaled_lengths = (noisy_lengths / num_atoms.unsqueeze(-1)).abs() ** (
-            1 / 3
-        )  # take the abs to prevent imaginary numbers
+        scaled_lengths = (
+            noisy_lengths / num_atoms.unsqueeze(-1)
+        ).abs()  # take the abs to prevent imaginary numbers
         lengths_feat = torch.repeat_interleave(noisy_lengths, num_atoms, dim=0)
         angles_feat = torch.repeat_interleave(noisy_angles, num_atoms, dim=0)
         scaled_lengths_feat = torch.repeat_interleave(scaled_lengths, num_atoms, dim=0)
@@ -280,10 +282,10 @@ class DiffusionLoss(torch.nn.Module):
         # error_l = F.mse_loss(pred_lattice, lattice) + vector_length_mse_loss(
         #     pred_lattice, lattice, noisy_lattice
         # )
-        target_lengths = (lengths / num_atoms.unsqueeze(-1)) ** (1 / 3)
+        target_lengths = lengths / num_atoms.unsqueeze(-1)
         error_l = (
             F.mse_loss(pred_lengths, target_lengths)
-            + calculate_angle_loss(pred_angles, angles)
+            + (5 * calculate_angle_loss(pred_angles, angles))
             # adding the quadratic angle loss makes the loss spiky
             # + calculate_quadratic_angle_loss(
             #     self.lattice_diffusion, noisy_angles, pred_angles, t_int
@@ -435,7 +437,7 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            scaled_lengths = (pred_lengths ** (1 / 3)) * num_atoms.unsqueeze(-1)
+            scaled_lengths = (pred_lengths) * num_atoms.unsqueeze(-1)
             pred_angles = pred_angles % (2 * torch.pi)
             pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
 
@@ -445,10 +447,18 @@ class DiffusionLoss(torch.nn.Module):
                 )  # bellman update
             prev_pred_lattice = pred_lattice
 
-            predicted_lattice_noise = lattice - pred_lattice
-            lattice = self.lattice_diffusion.reverse(
-                lattice.view(-1, 9), predicted_lattice_noise.view(-1, 9), timestep_vec
-            ).view(-1, 3, 3)
+            pred_lengths, pred_angles = matrix_to_params(pred_lattice)
+            next_lengths = self.lattice_diffusion.reverse_given_x0(
+                lengths, pred_lengths, timestep_vec
+            )
+            next_angles = self.lattice_diffusion.reverse_given_x0(
+                angles, pred_angles, timestep_vec
+            )
+            lattice = lattice_from_params(next_lengths, next_angles)
+
+            # lattice = self.lattice_diffusion.reverse_given_x0(
+            #     lattice.view(-1, 9), pred_lattice.view(-1, 9), timestep_vec
+            # ).view(-1, 3, 3)
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
