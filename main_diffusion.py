@@ -7,7 +7,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
-from lightning_wrappers.callbacks import EMA, EpochTimer
+from lightning_wrappers.callbacks import EpochTimer
 import torch
 from pytorch_lightning.profilers import PyTorchProfiler
 
@@ -293,10 +293,10 @@ if __name__ == "__main__":
 
     # Pytorch lightning call backs
     callbacks = []
-    if args.dataset != "eval-equivariance":
-        callbacks.append(
-            EMA(0.99)
-        )  # disable this for eval-equivariance so the train and validation loss matches
+    # if args.dataset != "eval-equivariance":
+    #     callbacks.append(
+    #         EMA(0.99)
+    #     )  # disable this for eval-equivariance so the train and validation loss matches
     callbacks += [
         pl.callbacks.ModelCheckpoint(
             dirpath="checkpoints",
