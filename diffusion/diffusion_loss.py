@@ -217,10 +217,13 @@ class DiffusionLoss(torch.nn.Module):
 
     def num_ghost_atoms_to_add(self, batch: Batch) -> torch.Tensor:
         num_atoms = batch.num_atoms
-        diff = (avg_num_atoms_plus_ghost_atoms - num_atoms).to(num_atoms.device)
+        diff = avg_num_atoms_plus_ghost_atoms - num_atoms
+        print(diff.device)
 
         # Generate random values from a normal distribution with mean=diff and std=8
-        normal_values = torch.round(torch.randn(diff.shape[0]) * 8 + diff).int()
+        normal_values = torch.round(
+            torch.randn(diff.shape[0], device=diff.device) * 8 + diff
+        ).int()
 
         # we never want to add less than 5 ghost atoms
         num_ghost_atoms = torch.max(torch.tensor(5), normal_values)
