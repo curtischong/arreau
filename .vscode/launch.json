@@ -28,7 +28,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/fix-minor-lattice-bugs3.ckpt",
+                "--model_path=models/only-diffuse-lattice-length.ckpt",
             ],
         },
         {
