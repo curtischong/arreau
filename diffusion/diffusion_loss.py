@@ -35,7 +35,7 @@ lattice_power = 2
 type_clipmax = 0.999
 lattice_clipmax = 0.999
 
-avg_num_atoms_plus_ghost_atoms = 35
+avg_num_atoms_plus_ghost_atoms = 20
 
 
 @dataclass
