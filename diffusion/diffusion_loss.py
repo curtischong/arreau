@@ -65,8 +65,9 @@ class DiffusionLossMetric(torchmetrics.Metric):
 
 
 class DiffusionLoss(torch.nn.Module):
-    def __init__(self, args, num_atomic_states: int):
+    def __init__(self, args, z_table: AtomicNumberTable):
         super().__init__()
+        num_atomic_states = len(z_table)
         self.cutoff = args.radius
         self.max_neighbors = args.max_neighbors
         self.T = args.num_timesteps
@@ -91,15 +92,20 @@ class DiffusionLoss(torch.nn.Module):
         self.coord_loss_weight = 1
         self.atom_type_loss_weight = 1
         self.lattice_loss_weight = 1
+        self.ghost_atom_index = z_table.z_to_index(
+            AtomicNumberTable.GHOST_ATOMIC_NUMBER
+        )
 
-    def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, is_ghost_atom):
+    def compute_frac_x_error(
+        self, pred_frac_eps_x, target_frac_eps_x, ghost_atom_indices
+    ):
         # Clamping between 0-1 is really important to avoid problems from numerical instabilities
         distance_abs_diff = torch.clamp(
             torch.remainder((pred_frac_eps_x - target_frac_eps_x).abs(), 1),
             min=0,
             max=1,
         )
-        distance_abs_diff[is_ghost_atom] = (
+        distance_abs_diff[ghost_atom_indices] = (
             0  # ghost atoms should not contribute to the loss since their positions are arbitrary
         )
 
@@ -306,16 +312,18 @@ class DiffusionLoss(torch.nn.Module):
         new_atom_type_0[atom_indices] = batch.A0
         new_atom_type_0[ghost_atom_indices] = torch.full(
             (total_num_ghost_atoms,),
-            AtomicNumberTable.z_to_index(AtomicNumberTable.GHOST_ATOMIC_NUMBER),
+            self.ghost_atom_index,
             dtype=torch.long,
         )
 
-        return new_num_atoms, new_frac_x_0, new_atom_type_0
+        return new_num_atoms, new_frac_x_0, new_atom_type_0, ghost_atom_indices
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         lattice_0 = batch.L0
         lattice_0 = lattice_0.view(-1, 3, 3)
-        num_atoms, frac_x_0, atom_type_0 = self.add_ghost_atoms(batch)
+        num_atoms, frac_x_0, atom_type_0, ghost_atom_indices = self.add_ghost_atoms(
+            batch
+        )
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
@@ -361,6 +369,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_frac_eps_x,
             target_frac_eps_x,
             batch,
+            ghost_atom_indices,
             # 0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
 
