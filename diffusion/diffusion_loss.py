@@ -221,6 +221,32 @@ class DiffusionLoss(torch.nn.Module):
 
         return new_num_atoms, num_ghost_atoms
 
+    def sample_and_concat(self, A, B):
+        # Step 1: Compute cumulative sums
+        cumsum_A = torch.cumsum(A, dim=0)
+
+        # Step 2: Generate indices for each segment
+        indices = torch.arange(
+            cumsum_A[-1]
+        )  # Generate all possible indices up to the last element of cumsum_A
+        segment_starts = cumsum_A - A  # Compute the starting index for each segment
+
+        # Use broadcasting to compare each index with segment starts and cumsums to find valid indices
+        valid_indices = (indices[:, None] >= segment_starts[None, :]) & (
+            indices[:, None] < cumsum_A[None, :]
+        )
+        valid_indices = valid_indices.to(
+            torch.int64
+        )  # Convert boolean mask to integers for multiplication
+
+        # Flatten the valid indices to get the actual indices into B
+        indices = (valid_indices * (indices[:, None] + 1)).sum(dim=0) - 1
+
+        # Step 3: Index B using the valid indices
+        sampled_elements = B[indices]
+
+        return sampled_elements
+
     # TODO: move these helper functions into a separate file in a new directory
     def add_ghost_atoms(self, batch: Batch):
         # should the positions of the ghost atoms be accounted for in the frac_x loss?
@@ -230,33 +256,40 @@ class DiffusionLoss(torch.nn.Module):
         new_num_atoms = num_atoms + num_ghost_atoms
         total_num_atoms = new_num_atoms.sum()
 
-        # Prepend 0
-        new_num_atoms_cumsum = torch.cat([torch.tensor([0]), new_num_atoms.cumsum(0)])
-
-        # Calculate the lengths of each section
-        lengths = num_atoms
-        # Create a flat index array using repeat_interleave and arange
-        flat_indices = torch.arange(lengths.sum())
-        # Adjust each index by the start position of its respective batch
-        new_indexes = flat_indices + torch.repeat_interleave(
-            new_num_atoms_cumsum[:-1], lengths
+        num_atom_starts = torch.cat([torch.tensor([0]), num_atoms[:-1].cumsum(dim=0)])
+        new_num_atom_starts = torch.cat(
+            [torch.tensor([0]), new_num_atoms[:-1].cumsum(dim=0)]
         )
 
+        # Calculate the indexes of the atoms / ghost atoms in the new array
+        # Note: we cannot just "append the ghost atoms to the end of the array" since we assume that num_atoms is consecutive
+        num_atoms_before = torch.repeat_interleave(num_atom_starts, num_atoms)
+        new_num_atoms_before = torch.repeat_interleave(new_num_atom_starts, num_atoms)
+        all_indices = torch.arange(num_atoms.sum())
+        original_index_in_batch = all_indices - num_atoms_before
+        atom_indices = original_index_in_batch + new_num_atoms_before
+
+        num_ghost_atoms_before = torch.cat(
+            [torch.tensor([0]), num_ghost_atoms[:-1].cumsum(0)]
+        )
+        all_ghost_indices = torch.arange(
+            num_ghost_atoms.sum()
+        ) - torch.repeat_interleave(num_ghost_atoms_before, num_ghost_atoms)
+        ghost_atom_starts = new_num_atom_starts + num_atoms
+        ghost_atom_offset = torch.repeat_interleave(ghost_atom_starts, num_ghost_atoms)
+        ghost_atom_indices = all_ghost_indices + ghost_atom_offset
+
+        # now populate the new arrays
         frac_x_0 = batch.X0
-
-        # now populate the final array
-
-        final_atoms = torch.zeros((total_num_atoms, 3), dtype=torch.int64)
-        new_frac_x_0 = frac_x_0[new_indexes]
-
-        # I can attach the ghost atom coords to the end. I just need to make sure that they are in the correct batch
-        # no. this won't work. since we assume that num_atoms is consecutive
+        new_frac_x_0 = torch.zeros((total_num_atoms, 3), dtype=torch.int64)
+        new_frac_x_0[atom_indices] = frac_x_0
+        new_frac_x_0[ghost_atom_indices] = torch.randn((num_ghost_atoms, 3))
 
         # frac_x_0 = batch.X0
         atom_type_0 = batch.A0
         num_atoms = batch.num_atoms
 
-        return final_atoms
+        return new_frac_x_0
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         lattice_0 = batch.L0
