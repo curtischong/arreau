@@ -259,8 +259,7 @@ class DiffusionLoss(torch.nn.Module):
             pred_frac_eps_x,
             frac_x_noise,
             batch,
-            # 0.5 * used_sigmas_x**2,
-        )  # likelihood reweighting
+        )
 
         error_atomic_type = self.d3pm.calculate_loss(
             atom_type_0,
