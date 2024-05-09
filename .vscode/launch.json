@@ -120,6 +120,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
+        },
+        {
+            "name": "histogram of num atoms in dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/histogram_of_num_atoms_in_dataset.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
         }
     ]
 }
