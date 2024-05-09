@@ -35,6 +35,8 @@ lattice_power = 2
 type_clipmax = 0.999
 lattice_clipmax = 0.999
 
+avg_num_atoms_plus_ghost_atoms = 35
+
 
 @dataclass
 class SampleResult:
@@ -215,45 +217,16 @@ class DiffusionLoss(torch.nn.Module):
 
     def num_ghost_atoms_to_add(self, batch: Batch) -> torch.Tensor:
         num_atoms = batch.num_atoms
-        # Calculate 35 - A[i] for each index i
-        diff = 35 - num_atoms
+        diff = avg_num_atoms_plus_ghost_atoms - num_atoms
 
         # Generate random values from a normal distribution with mean=diff and std=8
         normal_values = torch.round(torch.randn(diff.shape[0]) * 8 + diff).int()
 
-        # Take the maximum between 5 and the normal values
+        # we never want to add less than 5 ghost atoms
         num_ghost_atoms = torch.max(torch.tensor(5), normal_values)
 
-        # ._scatter
-        # Add the maximum values to each index of A
         new_num_atoms = num_atoms + num_ghost_atoms
         return num_atoms, num_ghost_atoms, new_num_atoms
-
-    def sample_and_concat(self, A, B):
-        # Step 1: Compute cumulative sums
-        cumsum_A = torch.cumsum(A, dim=0)
-
-        # Step 2: Generate indices for each segment
-        indices = torch.arange(
-            cumsum_A[-1]
-        )  # Generate all possible indices up to the last element of cumsum_A
-        segment_starts = cumsum_A - A  # Compute the starting index for each segment
-
-        # Use broadcasting to compare each index with segment starts and cumsums to find valid indices
-        valid_indices = (indices[:, None] >= segment_starts[None, :]) & (
-            indices[:, None] < cumsum_A[None, :]
-        )
-        valid_indices = valid_indices.to(
-            torch.int64
-        )  # Convert boolean mask to integers for multiplication
-
-        # Flatten the valid indices to get the actual indices into B
-        indices = (valid_indices * (indices[:, None] + 1)).sum(dim=0) - 1
-
-        # Step 3: Index B using the valid indices
-        sampled_elements = B[indices]
-
-        return sampled_elements
 
     def get_atom_and_ghost_atom_indices(
         self,
