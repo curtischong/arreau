@@ -202,17 +202,7 @@ class DiffusionLoss(torch.nn.Module):
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
         lengths, angles = matrix_to_params(lattice)
-
-        noisy_lengths, lengths_noise = self.lattice_diffusion(lengths, t_int)
-        # noisy_angles, angles_noise = self.lattice_diffusion(
-        #     angles * 180 / torch.pi, t_int
-        # )
-        # noisy_angles = noisy_angles * torch.pi / 180
-        # angles_noise = angles_noise * torch.pi / 180
-        # noisy_angles = noisy_angles % (2 * torch.pi)
-        # angles_noise = angles_noise % (2 * torch.pi)
-        # TODO: should we clamp the angles to be in the range of [0, 2pi]?
-
+        noisy_lengths, _lengths_noise = self.lattice_diffusion(lengths, t_int)
         return (noisy_lengths, lengths, angles)
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
@@ -370,13 +360,9 @@ class DiffusionLoss(torch.nn.Module):
     ) -> SampleResult:
         num_atomic_states = len(z_table)
 
-        # get angles
-        # I got the appropriate mean and variance using this page https://homepage.divms.uiowa.edu/~mbognar/applets/normal.html
-        # angles = torch.randn([num_samples_in_batch, 3]) * 12 + 90
-        # angles = angles * torch.pi / 180
-        # angles = angles % (2 * torch.pi)
+        # tip: use this page to see what variance to use in your normal distributions https://homepage.divms.uiowa.edu/~mbognar/applets/normal.html
         angles = torch.tensor(
-            [sample_bravais_angles("hexagonal") for _ in range(num_samples_in_batch)]
+            [sample_bravais_angles("monoclinic") for _ in range(num_samples_in_batch)]
         )
         lengths = torch.randn([num_samples_in_batch, 3])
 
@@ -419,9 +405,9 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            scaled_lengths = (pred_lengths) * num_atoms.unsqueeze(-1)
+            pred_lengths_scaled = (pred_lengths) * num_atoms.unsqueeze(-1)
             lengths = self.lattice_diffusion.reverse_given_x0(
-                lengths, scaled_lengths, timestep_vec
+                lengths, pred_lengths_scaled, timestep_vec
             )
             lattice = lattice_from_params(lengths, angles)
 
