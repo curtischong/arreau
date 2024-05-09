@@ -92,12 +92,15 @@ class DiffusionLoss(torch.nn.Module):
         self.atom_type_loss_weight = 1
         self.lattice_loss_weight = 1
 
-    def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, batch):
+    def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, is_ghost_atom):
         # Clamping between 0-1 is really important to avoid problems from numerical instabilities
         distance_abs_diff = torch.clamp(
             torch.remainder((pred_frac_eps_x - target_frac_eps_x).abs(), 1),
             min=0,
             max=1,
+        )
+        distance_abs_diff[is_ghost_atom] = (
+            0  # ghost atoms should not contribute to the loss since their positions are arbitrary
         )
 
         # This is the key thing: when working in mod 1, the distance between 0.1 and 0.9 is NOT 0.8. It's 0.2
@@ -201,12 +204,48 @@ class DiffusionLoss(torch.nn.Module):
         noisy_lengths, _lengths_noise = self.lattice_diffusion(lengths, t_int)
         return (noisy_lengths, lengths, angles)
 
+    def num_ghost_atoms_to_add(self, batch: Batch) -> torch.Tensor:
+        num_atoms = batch.num_atoms
+        # Calculate 35 - A[i] for each index i
+        diff = 35 - num_atoms
+
+        # Generate random values from a normal distribution with mean=diff and std=8
+        normal_values = torch.normal(mean=diff, std=8)
+
+        # Take the maximum between 5 and the normal values
+        num_ghost_atoms = torch.max(torch.tensor(5.0), normal_values)
+
+        # ._scatter
+        # Add the maximum values to each index of A
+        new_num_atoms = num_atoms + num_ghost_atoms
+
+        return new_num_atoms, num_ghost_atoms
+
+    def add_ghost_atoms(self, batch: Batch):
+        # should the positions of the ghost atoms be accounted for in the frac_x loss?
+        # I don't think so since their positions are arbitrary.
+        # this means that it's really important to predict the original atomic type. since that determines the ghost atom's affect on the loss??
+        num_atoms, num_ghost_atoms = self.num_ghost_atoms_to_add(batch)
+        total_num_atoms = num_atoms + num_ghost_atoms
+
+        final_atoms = torch.zeros(total_num_atoms, dtype=torch.int64)
+        new_index_of_atoms = total_num_atoms.cumsum(0)
+        new_frac_x = torch.zeros(total_num_atoms, 3)
+        new_frac_x[new_index_of_atoms[:-1]] = batch.X0
+
+        # I can attach the ghost atom coords to the end. I just need to make sure that they are in the correct batch
+        # no. this won't work. since we assume that num_atoms is consecutive
+
+        # frac_x_0 = batch.X0
+        atom_type_0 = batch.A0
+        num_atoms = batch.num_atoms
+
+        return final_atoms
+
     def __call__(self, model, batch, t_emb_weights, t_int=None):
-        frac_x_0 = batch.X0
-        atom_type_0 = batch.A0  # "_0" means: "at time=0"
         lattice_0 = batch.L0
         lattice_0 = lattice_0.view(-1, 3, 3)
-        num_atoms = batch.num_atoms
+        num_atoms, frac_x_0, atom_type_0 = self.add_ghost_atoms(batch)
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
@@ -244,6 +283,8 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
             )
         )
+        # TODO: we softmaxed = torch.softmax(x_0_logits, dim=-1)  # bs, ..., num_classes
+        # or we just argmax. but either way, we get the atomic type of the ghost atoms
 
         # Compute the error.
         error_frac_x = self.compute_frac_x_error(
@@ -266,7 +307,12 @@ class DiffusionLoss(torch.nn.Module):
 
         loss = (
             self.coord_loss_weight * error_frac_x
-            + self.atom_type_loss_weight * error_atomic_type
+            + (
+                (
+                    self.atom_type_loss_weight + self.coord_loss_weight
+                )  # we need to add the coord loss since the type loss can eliminate the coord loss by predicting all ghost types
+                * error_atomic_type
+            )
             + self.lattice_loss_weight * error_lattice
         )
         return loss.mean()
