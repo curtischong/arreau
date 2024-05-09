@@ -230,19 +230,24 @@ class DiffusionLoss(torch.nn.Module):
         new_num_atoms = num_atoms + num_ghost_atoms
         total_num_atoms = new_num_atoms.sum()
 
-        final_atoms = torch.zeros(total_num_atoms, dtype=torch.int64)
+        # Prepend 0
+        new_num_atoms_cumsum = torch.cat([torch.tensor([0]), new_num_atoms.cumsum(0)])
 
-        num_atoms_prepend_0 = num_atoms.prepend(0)
-        new_num_atoms_cumsum = new_num_atoms.cumsum(0)
-        new_index_of_atoms = new_num_atoms_cumsum.prepend(0)
-        # new_frac_x[new_index_of_atoms[:-1]] = batch.X0
-        new_indexes = torch.zeros(num_atoms.sum(), dtype=torch.int64)
-        for batch_idx in range(batch.num_atoms.shape[0]):
-            num_atom_arange = torch.arange(0, num_atoms[batch_idx])
-            num_atom_arange += new_index_of_atoms[batch_idx]
-            new_indexes[num_atoms_prepend_0[batch_idx] : num_atoms[batch_idx]] = (
-                num_atom_arange
-            )
+        # Calculate the lengths of each section
+        lengths = num_atoms
+        # Create a flat index array using repeat_interleave and arange
+        flat_indices = torch.arange(lengths.sum())
+        # Adjust each index by the start position of its respective batch
+        new_indexes = flat_indices + torch.repeat_interleave(
+            new_num_atoms_cumsum[:-1], lengths
+        )
+
+        frac_x_0 = batch.X0
+
+        # now populate the final array
+
+        final_atoms = torch.zeros((total_num_atoms, 3), dtype=torch.int64)
+        new_frac_x_0 = frac_x_0[new_indexes]
 
         # I can attach the ghost atom coords to the end. I just need to make sure that they are in the correct batch
         # no. this won't work. since we assume that num_atoms is consecutive
