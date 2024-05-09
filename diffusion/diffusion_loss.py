@@ -384,7 +384,7 @@ class DiffusionLoss(torch.nn.Module):
             + (
                 (
                     self.atom_type_loss_weight + self.coord_loss_weight
-                )  # we need to add the coord loss since the type loss can eliminate the coord loss by predicting all ghost types
+                )  # we need to add the coord loss weight since the type loss can eliminate the coord loss by predicting all ghost types
                 * error_atomic_type
             )
             + self.lattice_loss_weight * error_lattice
