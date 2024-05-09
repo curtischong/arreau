@@ -113,7 +113,7 @@ class DiffusionLoss(torch.nn.Module):
         self,
         noisy_frac_x: torch.Tensor,
         noisy_atom_types: torch.Tensor,
-        t_int: torch.Tensor,
+        t_feat: torch.Tensor,
         num_atoms: torch.Tensor,
         noisy_lengths: torch.Tensor,
         angles: torch.Tensor,
@@ -123,7 +123,7 @@ class DiffusionLoss(torch.nn.Module):
     ):
         noisy_lattice = lattice_from_params(noisy_lengths, angles)
 
-        t = self.lattice_diffusion.betas[t_int].view(-1, 1)
+        t = self.lattice_diffusion.betas[t_feat].view(-1, 1)
         t_emb = t_emb_weights(t)
 
         num_atoms_feat = torch.repeat_interleave(num_atoms, num_atoms, dim=0).unsqueeze(
@@ -201,7 +201,7 @@ class DiffusionLoss(torch.nn.Module):
         noisy_lengths, _lengths_noise = self.lattice_diffusion(lengths, t_int)
         return (noisy_lengths, lengths, angles)
 
-    def __call__(self, model, batch, t_emb_weights, t_int=None):
+    def __call__(self, model, batch, t_emb_weights, timestep=None):
         frac_x_0 = batch.X0
         atom_type_0 = batch.A0  # "_0" means: "at time=0"
         lattice_0 = batch.L0
@@ -210,32 +210,34 @@ class DiffusionLoss(torch.nn.Module):
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
-        if t_int is None:
-            t_int = torch.randint(
+        if timestep is None:
+            timestep = torch.randint(
                 1, self.T + 1, size=(num_atoms.size(0), 1), device=frac_x_0.device
             ).long()
         else:
-            t_int = (
+            timestep = (
                 torch.ones((batch.num_atoms.size(0), 1), device=frac_x_0.device).long()
-                * t_int
+                * timestep
             )
-        noisy_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
+        t_feat = timestep.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
         noisy_frac_x, target_frac_eps_x, used_sigmas_x = self.pos_diffusion(
-            frac_x_0, noisy_int_atoms, lattice_0, num_atoms
+            frac_x_0, t_feat, lattice_0, num_atoms
         )
-        noisy_atom_type = self.d3pm.get_xt(atom_type_0, noisy_int_atoms.squeeze())
+        noisy_atom_type = self.d3pm.get_xt(atom_type_0, t_feat.squeeze())
 
         noisy_atom_type_onehot = F.one_hot(noisy_atom_type, self.num_atomic_states)
-        (noisy_lengths, lengths, angles) = self.diffuse_lattice_params(lattice_0, t_int)
+        (noisy_lengths, lengths, angles) = self.diffuse_lattice_params(
+            lattice_0, timestep
+        )
 
         # Compute the prediction.
         (pred_frac_eps_x, predicted_atom_type_0_logits, pred_lengths) = (
             self.predict_scores(
                 noisy_frac_x,
                 noisy_atom_type_onehot,
-                noisy_int_atoms,
+                t_feat,
                 num_atoms,
                 noisy_lengths,
                 angles,
@@ -257,7 +259,7 @@ class DiffusionLoss(torch.nn.Module):
             atom_type_0,
             predicted_atom_type_0_logits,
             noisy_atom_type,
-            noisy_int_atoms.squeeze(),
+            t_feat.squeeze(),
         )
         target_lengths = (
             lengths / num_atoms.unsqueeze(-1)
