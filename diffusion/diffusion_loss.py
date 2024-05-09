@@ -109,7 +109,7 @@ class DiffusionLoss(torch.nn.Module):
 
         return torch.mean(squared_euclidean_dist)
 
-    def phi(
+    def predict_scores(
         self,
         noisy_frac_x: torch.Tensor,
         noisy_atom_types: torch.Tensor,
@@ -203,7 +203,7 @@ class DiffusionLoss(torch.nn.Module):
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         frac_x_0 = batch.X0
-        atom_type_0 = batch.A0
+        atom_type_0 = batch.A0  # "_0" means: "at time=0"
         lattice_0 = batch.L0
         lattice_0 = lattice_0.view(-1, 3, 3)
         num_atoms = batch.num_atoms
@@ -231,16 +231,18 @@ class DiffusionLoss(torch.nn.Module):
         (noisy_lengths, lengths, angles) = self.diffuse_lattice_params(lattice_0, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_atom_type_0_logits, pred_lengths) = self.phi(
-            noisy_frac_x,
-            noisy_atom_type_onehot,
-            noisy_int_atoms,
-            num_atoms,
-            noisy_lengths,
-            angles,
-            model,
-            batch,
-            t_emb_weights,
+        (pred_frac_eps_x, predicted_atom_type_0_logits, pred_lengths) = (
+            self.predict_scores(
+                noisy_frac_x,
+                noisy_atom_type_onehot,
+                noisy_int_atoms,
+                num_atoms,
+                noisy_lengths,
+                angles,
+                model,
+                batch,
+                t_emb_weights,
+            )
         )
 
         # Compute the error.
@@ -315,7 +317,7 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_frac_x, score_atom_types, pred_lengths_0 = self.phi(
+            score_frac_x, score_atom_types, pred_lengths_0 = self.predict_scores(
                 frac_x,
                 F.one_hot(atom_types, num_atomic_states),
                 t,

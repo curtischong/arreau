@@ -4,8 +4,6 @@ from pathlib import Path
 from diffusion.lattice_dataset import CrystalDataset
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data
-from torch_geometric.transforms import RadiusGraph
 import pytorch_lightning as pl
 from lightning_wrappers.callbacks import EpochTimer
 import torch
@@ -13,24 +11,6 @@ from pytorch_lightning.profilers import PyTorchProfiler
 
 
 # ------------------------ Function to convert the nbody dataset to a dataloader for pytorch geometric graphs
-
-
-def make_pyg_loader(dataset, batch_size, shuffle, num_workers, radius, loop):
-    data_list = []
-    radius = radius or 1000.0
-    radius_graph = RadiusGraph(radius, loop=loop, max_num_neighbors=1000)
-    for data in dataset:
-        loc, vel, edge_attr, charges, loc_end = data
-        x = charges
-        vec = vel[:, None, :]  # [num_pts, num_channels=1, 3]
-        # Build the graph
-        graph = Data(pos=loc, x=x, vec=vec, y=loc_end)
-        graph = radius_graph(graph)
-        # Append to the database list
-        data_list.append(graph)
-    return DataLoader(
-        data_list, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers
-    )
 
 
 def get_active_branch_name():
@@ -236,18 +216,6 @@ if __name__ == "__main__":
         )
 
     datasets = {"train": train_dataset, "valid": valid_dataset, "test": test_dataset}
-
-    # TODO: look into using this make_pgy_loader, since it automatically attaches edges. We are not using it here since we purturb the location of the atoms later.
-    # if we are using it, we should use it there
-
-    # dataloaders = {
-    #     split: make_pyg_loader(dataset,
-    #                            batch_size=args.batch_size,
-    #                            shuffle=(split == 'train'),
-    #                            num_workers=args.num_workers,
-    #                            radius=args.radius,
-    #                            loop=args.loop)
-    #     for split, dataset in datasets.items()}
 
     # Make the dataloaders
     dataloaders = {
