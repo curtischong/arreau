@@ -218,7 +218,6 @@ class DiffusionLoss(torch.nn.Module):
     def num_ghost_atoms_to_add(self, batch: Batch) -> torch.Tensor:
         num_atoms = batch.num_atoms
         diff = avg_num_atoms_plus_ghost_atoms - num_atoms
-        print(diff.device)
 
         # Generate random values from a normal distribution with mean=diff and std=8
         normal_values = torch.round(
@@ -237,16 +236,15 @@ class DiffusionLoss(torch.nn.Module):
         new_num_atoms: torch.Tensor,
         num_ghost_atoms: torch.Tensor,
     ):
-        num_atom_starts = torch.cat([torch.tensor([0]), num_atoms[:-1].cumsum(dim=0)])
-        new_num_atom_starts = torch.cat(
-            [torch.tensor([0]), new_num_atoms[:-1].cumsum(dim=0)]
-        )
+        zero_tensor = torch.tensor([0], device=num_atoms.device)
+        num_atom_starts = torch.cat([zero_tensor, num_atoms[:-1].cumsum(dim=0)])
+        new_num_atom_starts = torch.cat([zero_tensor, new_num_atoms[:-1].cumsum(dim=0)])
 
         # Calculate the indexes of the atoms / ghost atoms in the new array
         # Note: we cannot just "append the ghost atoms to the end of the array" since we assume that the num_atoms (for each batch) is consecutive
         num_atoms_before = torch.repeat_interleave(num_atom_starts, num_atoms)
         new_num_atoms_before = torch.repeat_interleave(new_num_atom_starts, num_atoms)
-        all_indices = torch.arange(num_atoms.sum())
+        all_indices = torch.arange(num_atoms.sum(), device=num_atoms.device)
 
         # the main idea is here. we subtract each index by the cumulative number of atoms in the previous batch. this will give us the index of the atom in the current batch
         original_index_in_batch = all_indices - num_atoms_before
@@ -254,10 +252,10 @@ class DiffusionLoss(torch.nn.Module):
         atom_indices = original_index_in_batch + new_num_atoms_before
 
         num_ghost_atoms_before = torch.cat(
-            [torch.tensor([0]), num_ghost_atoms[:-1].cumsum(0)]
+            [zero_tensor, num_ghost_atoms[:-1].cumsum(0)]
         )
         all_ghost_indices = torch.arange(
-            num_ghost_atoms.sum()
+            num_ghost_atoms.sum(), device=num_atoms.device
         ) - torch.repeat_interleave(num_ghost_atoms_before, num_ghost_atoms)
         # the main idea is here. the ghost atoms just start "num_atoms" after the last REAL atom in the current batch
         ghost_atom_starts = new_num_atom_starts + num_atoms
@@ -280,27 +278,32 @@ class DiffusionLoss(torch.nn.Module):
 
         # now populate the new arrays
         new_frac_x_0 = torch.zeros(
-            (total_num_atoms, 3), dtype=torch.get_default_dtype()
+            (total_num_atoms, 3),
+            dtype=torch.get_default_dtype(),
+            device=num_atoms.device,
         )
         new_frac_x_0[atom_indices] = batch.X0
         new_frac_x_0[ghost_atom_indices] = (
             (
-                torch.randn(total_num_ghost_atoms, 3) * 10
+                torch.randn(total_num_ghost_atoms, 3, device=num_atoms.device) * 10
             )  # * 10 just to make sure it's more random
             % 1
         )
 
         # TODO: make this dtype an int? I think we eed to make batch.A0 an int
-        new_atom_type_0 = torch.zeros((total_num_atoms,), dtype=torch.long)
+        new_atom_type_0 = torch.zeros(
+            (total_num_atoms,), dtype=torch.long, device=num_atoms.device
+        )
         new_atom_type_0[atom_indices] = batch.A0
         new_atom_type_0[ghost_atom_indices] = torch.full(
             (total_num_ghost_atoms,),
             self.ghost_atom_index,
             dtype=torch.long,
+            device=num_atoms.device,
         )
 
         batch_identifiers = torch.repeat_interleave(
-            torch.arange(num_atoms.shape[0]), new_num_atoms
+            torch.arange(num_atoms.shape[0], device=num_atoms.device), new_num_atoms
         )
 
         return (

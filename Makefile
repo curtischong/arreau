@@ -5,6 +5,8 @@ prep-datasets:
 
 train:
 	python main_diffusion.py --num_timesteps=1000 --gpus=1 --radius=5 --num_workers=-1 --max_neighbors=8 --batch_size=270 --lr=0.0003 --hidden_dim=200
+
+# useful if you are getting device errors on the GPU
 train-gpu-test:
 	python main_diffusion.py --num_timesteps=1000 --gpus=1 --radius=5 --num_workers=-1 --max_neighbors=8 --batch_size=270 --lr=0.0003 --hidden_dim=200 --dataset=alexandria-dev
 
