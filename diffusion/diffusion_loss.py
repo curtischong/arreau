@@ -108,6 +108,9 @@ class DiffusionLoss(torch.nn.Module):
         distance_abs_diff[ghost_atom_indices] = (
             0  # ghost atoms should not contribute to the loss since their positions are arbitrary
         )
+        # PERF: maybe we can make this cheaper by doing this before the clamp (only get the remainder and clamp the indices that matter)
+        # but array lengths will be dynamic and execution time may be varied, which is harder for speculative execution maybe?
+        # There'll also be more allocations, so it may not be faster
 
         # This is the key thing: when working in mod 1, the distance between 0.1 and 0.9 is NOT 0.8. It's 0.2
         distance_wrapped_diff = torch.min(distance_abs_diff, 1 - distance_abs_diff)
