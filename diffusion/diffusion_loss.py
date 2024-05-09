@@ -227,12 +227,22 @@ class DiffusionLoss(torch.nn.Module):
         # I don't think so since their positions are arbitrary.
         # this means that it's really important to predict the original atomic type. since that determines the ghost atom's affect on the loss??
         num_atoms, num_ghost_atoms = self.num_ghost_atoms_to_add(batch)
-        total_num_atoms = num_atoms + num_ghost_atoms
+        new_num_atoms = num_atoms + num_ghost_atoms
+        total_num_atoms = new_num_atoms.sum()
 
-        final_atoms = torch.zeros(total_num_atoms.sum(), dtype=torch.int64)
-        new_index_of_atoms = total_num_atoms.cumsum(0)
-        new_frac_x = torch.zeros(total_num_atoms, 3)
-        new_frac_x[new_index_of_atoms[:-1]] = batch.X0
+        final_atoms = torch.zeros(total_num_atoms, dtype=torch.int64)
+
+        num_atoms_prepend_0 = num_atoms.prepend(0)
+        new_num_atoms_cumsum = new_num_atoms.cumsum(0)
+        new_index_of_atoms = new_num_atoms_cumsum.prepend(0)
+        # new_frac_x[new_index_of_atoms[:-1]] = batch.X0
+        new_indexes = torch.zeros(num_atoms.sum(), dtype=torch.int64)
+        for batch_idx in range(batch.num_atoms.shape[0]):
+            num_atom_arange = torch.arange(0, num_atoms[batch_idx])
+            num_atom_arange += new_index_of_atoms[batch_idx]
+            new_indexes[num_atoms_prepend_0[batch_idx] : num_atoms[batch_idx]] = (
+                num_atom_arange
+            )
 
         # I can attach the ghost atom coords to the end. I just need to make sure that they are in the correct batch
         # no. this won't work. since we assume that num_atoms is consecutive
