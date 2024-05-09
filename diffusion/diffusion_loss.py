@@ -9,15 +9,11 @@ import numpy as np
 from diffusion.d3pm import D3PM
 
 from diffusion.diffusion_helpers import (
-    VE_pbc,
-    VP,
     VP_coords,
     VP_lattice,
     frac_to_cart_coords,
     radius_graph_pbc,
     sample_bravais_angles,
-    symmetric_matrix_to_vector,
-    vector_to_symmetric_matrix,
 )
 from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
@@ -228,16 +224,17 @@ class DiffusionLoss(torch.nn.Module):
                 torch.ones((batch.num_atoms.size(0), 1), device=frac_x_0.device).long()
                 * t_int
             )
-        noisy_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
+        t_feat = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
         noisy_frac_x, frac_x_noise = self.pos_diffusion(
-            frac_x_0, noisy_int_atoms, lattice_0, num_atoms
+            frac_x_0,
+            t_feat,
         )
         noisy_frac_x = noisy_frac_x % 1
         frac_x_noise = frac_x_noise % 1
 
-        noisy_atom_type = self.d3pm.get_xt(atom_type_0, noisy_int_atoms.squeeze())
+        noisy_atom_type = self.d3pm.get_xt(atom_type_0, t_feat.squeeze())
 
         noisy_atom_type_onehot = F.one_hot(noisy_atom_type, self.num_atomic_states)
         (noisy_lengths, lengths, angles) = self.diffuse_lattice_params(lattice_0, t_int)
@@ -247,7 +244,7 @@ class DiffusionLoss(torch.nn.Module):
             self.predict_scores(
                 noisy_frac_x,
                 noisy_atom_type_onehot,
-                noisy_int_atoms,
+                t_feat,
                 num_atoms,
                 noisy_lengths,
                 angles,
@@ -269,7 +266,7 @@ class DiffusionLoss(torch.nn.Module):
             atom_type_0,
             predicted_atom_type_0_logits,
             noisy_atom_type,
-            noisy_int_atoms.squeeze(),
+            t_feat.squeeze(),
         )
         target_lengths = (
             lengths / num_atoms.unsqueeze(-1)
