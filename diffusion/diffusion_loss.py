@@ -316,13 +316,23 @@ class DiffusionLoss(torch.nn.Module):
             dtype=torch.long,
         )
 
-        return new_num_atoms, new_frac_x_0, new_atom_type_0, ghost_atom_indices
+        batch_identifiers = torch.repeat_interleave(
+            torch.arange(num_atoms.shape[0]), new_num_atoms
+        )
+
+        return (
+            new_num_atoms,
+            new_frac_x_0,
+            new_atom_type_0,
+            ghost_atom_indices,
+            batch_identifiers,
+        )
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         lattice_0 = batch.L0
         lattice_0 = lattice_0.view(-1, 3, 3)
-        num_atoms, frac_x_0, atom_type_0, ghost_atom_indices = self.add_ghost_atoms(
-            batch
+        num_atoms, frac_x_0, atom_type_0, ghost_atom_indices, batch.batch = (
+            self.add_ghost_atoms(batch)
         )
 
         # Sample a timestep t.
@@ -368,7 +378,6 @@ class DiffusionLoss(torch.nn.Module):
         error_frac_x = self.compute_frac_x_error(
             pred_frac_eps_x,
             target_frac_eps_x,
-            batch,
             ghost_atom_indices,
             # 0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
