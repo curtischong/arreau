@@ -210,10 +210,10 @@ class DiffusionLoss(torch.nn.Module):
         diff = 35 - num_atoms
 
         # Generate random values from a normal distribution with mean=diff and std=8
-        normal_values = torch.normal(mean=diff, std=8)
+        normal_values = torch.round(torch.randn(diff.shape[0]) * 8 + diff).int()
 
         # Take the maximum between 5 and the normal values
-        num_ghost_atoms = torch.max(torch.tensor(5.0), normal_values)
+        num_ghost_atoms = torch.max(torch.tensor(5), normal_values)
 
         # ._scatter
         # Add the maximum values to each index of A
@@ -221,6 +221,7 @@ class DiffusionLoss(torch.nn.Module):
 
         return new_num_atoms, num_ghost_atoms
 
+    # TODO: move these helper functions into a separate file in a new directory
     def add_ghost_atoms(self, batch: Batch):
         # should the positions of the ghost atoms be accounted for in the frac_x loss?
         # I don't think so since their positions are arbitrary.
@@ -228,7 +229,7 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms, num_ghost_atoms = self.num_ghost_atoms_to_add(batch)
         total_num_atoms = num_atoms + num_ghost_atoms
 
-        final_atoms = torch.zeros(total_num_atoms, dtype=torch.int64)
+        final_atoms = torch.zeros(total_num_atoms.sum(), dtype=torch.int64)
         new_index_of_atoms = total_num_atoms.cumsum(0)
         new_frac_x = torch.zeros(total_num_atoms, 3)
         new_frac_x[new_index_of_atoms[:-1]] = batch.X0
