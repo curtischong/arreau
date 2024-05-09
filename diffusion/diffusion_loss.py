@@ -374,7 +374,7 @@ class DiffusionLoss(torch.nn.Module):
         angles = torch.randn([num_samples_in_batch, 3]) * 12 + 90
         angles = angles * torch.pi / 180
         angles = angles % (2 * torch.pi)
-        # lattice = torch.randn([num_samples_in_batch, 3, 3])
+        lengths = torch.randn([num_samples_in_batch, 3])
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
@@ -395,22 +395,15 @@ class DiffusionLoss(torch.nn.Module):
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
-        weigh_prev_lattice = 0
-        prev_pred_lattice = None
-
         for timestep in tqdm(reversed(range(1, self.T))):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            lengths, angles = matrix_to_params(lattice)
-            angles = angles % (2 * torch.pi)
-
-            score_x, score_h, pred_lengths, pred_angles = self.phi(
+            score_x, score_h, pred_lengths = self.phi(
                 frac_x,
                 F.one_hot(h, num_atomic_states),
                 t,
                 num_atoms,
-                lattice,
                 lengths,
                 angles,
                 model,
@@ -423,27 +416,10 @@ class DiffusionLoss(torch.nn.Module):
                 t_emb_weights,
             )
             scaled_lengths = (pred_lengths) * num_atoms.unsqueeze(-1)
-            pred_angles = pred_angles % (2 * torch.pi)
-            pred_lattice = lattice_from_params(scaled_lengths, pred_angles)
-
-            if prev_pred_lattice is not None:
-                pred_lattice = ((1 - weigh_prev_lattice) * pred_lattice) + (
-                    weigh_prev_lattice * prev_pred_lattice
-                )  # bellman update
-            prev_pred_lattice = pred_lattice
-
-            pred_lengths, pred_angles = matrix_to_params(pred_lattice)
-            next_lengths = self.lattice_diffusion.reverse_given_x0(
-                lengths, pred_lengths, timestep_vec
+            lengths = self.lattice_diffusion.reverse_given_x0(
+                lengths, scaled_lengths, timestep_vec
             )
-            next_angles = self.lattice_diffusion.reverse_given_x0(
-                angles, pred_angles, timestep_vec
-            )
-            lattice = lattice_from_params(next_lengths, next_angles)
-
-            # lattice = self.lattice_diffusion.reverse_given_x0(
-            #     lattice.view(-1, 9), pred_lattice.view(-1, 9), timestep_vec
-            # ).view(-1, 3, 3)
+            lattice = lattice_from_params(lengths, angles)
 
             frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
             h = self.d3pm.reverse(h, score_h, t)
@@ -457,10 +433,9 @@ class DiffusionLoss(torch.nn.Module):
                 )
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
-                fig = vis_crystal_during_sampling(
+                vis_crystal_during_sampling(
                     z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
                 )
-                # fig.show()
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
