@@ -218,8 +218,7 @@ class DiffusionLoss(torch.nn.Module):
         # ._scatter
         # Add the maximum values to each index of A
         new_num_atoms = num_atoms + num_ghost_atoms
-
-        return new_num_atoms, num_ghost_atoms
+        return num_atoms, num_ghost_atoms, new_num_atoms
 
     def sample_and_concat(self, A, B):
         # Step 1: Compute cumulative sums
@@ -247,22 +246,19 @@ class DiffusionLoss(torch.nn.Module):
 
         return sampled_elements
 
-    # TODO: move these helper functions into a separate file in a new directory
-    def add_ghost_atoms(self, batch: Batch):
-        # should the positions of the ghost atoms be accounted for in the frac_x loss?
-        # I don't think so since their positions are arbitrary.
-        # this means that it's really important to predict the original atomic type. since that determines the ghost atom's affect on the loss??
-        num_atoms, num_ghost_atoms = self.num_ghost_atoms_to_add(batch)
-        new_num_atoms = num_atoms + num_ghost_atoms
-        total_num_atoms = new_num_atoms.sum()
-
+    def get_atom_and_ghost_atom_indices(
+        self,
+        num_atoms: torch.Tensor,
+        new_num_atoms: torch.Tensor,
+        num_ghost_atoms: torch.Tensor,
+    ):
         num_atom_starts = torch.cat([torch.tensor([0]), num_atoms[:-1].cumsum(dim=0)])
         new_num_atom_starts = torch.cat(
             [torch.tensor([0]), new_num_atoms[:-1].cumsum(dim=0)]
         )
 
         # Calculate the indexes of the atoms / ghost atoms in the new array
-        # Note: we cannot just "append the ghost atoms to the end of the array" since we assume that num_atoms is consecutive
+        # Note: we cannot just "append the ghost atoms to the end of the array" since we assume that the num_atoms (for each batch) is consecutive
         num_atoms_before = torch.repeat_interleave(num_atom_starts, num_atoms)
         new_num_atoms_before = torch.repeat_interleave(new_num_atom_starts, num_atoms)
         all_indices = torch.arange(num_atoms.sum())
@@ -278,18 +274,43 @@ class DiffusionLoss(torch.nn.Module):
         ghost_atom_starts = new_num_atom_starts + num_atoms
         ghost_atom_offset = torch.repeat_interleave(ghost_atom_starts, num_ghost_atoms)
         ghost_atom_indices = all_ghost_indices + ghost_atom_offset
+        return atom_indices, ghost_atom_indices
+
+    # TODO: move these helper functions into a separate file in a new directory
+    def add_ghost_atoms(self, batch: Batch):
+        # should the positions of the ghost atoms be accounted for in the frac_x loss?
+        # I don't think so since their positions are arbitrary.
+        # this means that it's really important to predict the original atomic type. since that determines the ghost atom's affect on the loss??
+        num_atoms, num_ghost_atoms, new_num_atoms = self.num_ghost_atoms_to_add(batch)
+        atom_indices, ghost_atom_indices = self.get_atom_and_ghost_atom_indices(
+            num_atoms, new_num_atoms, num_ghost_atoms
+        )
+
+        total_num_atoms = new_num_atoms.sum()
+        total_num_ghost_atoms = num_ghost_atoms.sum()
 
         # now populate the new arrays
-        frac_x_0 = batch.X0
-        new_frac_x_0 = torch.zeros((total_num_atoms, 3), dtype=torch.int64)
-        new_frac_x_0[atom_indices] = frac_x_0
-        new_frac_x_0[ghost_atom_indices] = torch.randn((num_ghost_atoms, 3))
+        new_frac_x_0 = torch.zeros(
+            (total_num_atoms, 3), dtype=torch.get_default_dtype()
+        )
+        new_frac_x_0[atom_indices] = batch.X0
+        new_frac_x_0[ghost_atom_indices] = (
+            (
+                torch.randn(total_num_ghost_atoms, 3) * 10
+            )  # * 10 just to make sure it's more random
+            % 1
+        )
 
-        # frac_x_0 = batch.X0
-        atom_type_0 = batch.A0
-        num_atoms = batch.num_atoms
+        # TODO: make this dtype an int? I think we eed to make batch.A0 an int
+        new_atom_type_0 = torch.zeros((total_num_atoms,), dtype=torch.long)
+        new_atom_type_0[atom_indices] = batch.A0
+        new_atom_type_0[ghost_atom_indices] = torch.full(
+            (total_num_ghost_atoms,),
+            AtomicNumberTable.z_to_index(AtomicNumberTable.GHOST_ATOMIC_NUMBER),
+            dtype=torch.long,
+        )
 
-        return new_frac_x_0
+        return new_num_atoms, new_frac_x_0, new_atom_type_0
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         lattice_0 = batch.L0
