@@ -244,7 +244,10 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms_before = torch.repeat_interleave(num_atom_starts, num_atoms)
         new_num_atoms_before = torch.repeat_interleave(new_num_atom_starts, num_atoms)
         all_indices = torch.arange(num_atoms.sum())
+
+        # the main idea is here. we subtract each index by the cumulative number of atoms in the previous batch. this will give us the index of the atom in the current batch
         original_index_in_batch = all_indices - num_atoms_before
+        # then we just offset each index by its new position in the new array
         atom_indices = original_index_in_batch + new_num_atoms_before
 
         num_ghost_atoms_before = torch.cat(
@@ -253,6 +256,7 @@ class DiffusionLoss(torch.nn.Module):
         all_ghost_indices = torch.arange(
             num_ghost_atoms.sum()
         ) - torch.repeat_interleave(num_ghost_atoms_before, num_ghost_atoms)
+        # the main idea is here. the ghost atoms just start "num_atoms" after the last REAL atom in the current batch
         ghost_atom_starts = new_num_atom_starts + num_atoms
         ghost_atom_offset = torch.repeat_interleave(ghost_atom_starts, num_ghost_atoms)
         ghost_atom_indices = all_ghost_indices + ghost_atom_offset
