@@ -14,6 +14,7 @@ from diffusion.diffusion_helpers import (
     cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
     radius_graph_pbc,
+    sample_bravais_angles,
     symmetric_matrix_to_vector,
 )
 from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
@@ -371,9 +372,12 @@ class DiffusionLoss(torch.nn.Module):
 
         # get angles
         # I got the appropriate mean and variance using this page https://homepage.divms.uiowa.edu/~mbognar/applets/normal.html
-        angles = torch.randn([num_samples_in_batch, 3]) * 12 + 90
-        angles = angles * torch.pi / 180
-        angles = angles % (2 * torch.pi)
+        # angles = torch.randn([num_samples_in_batch, 3]) * 12 + 90
+        # angles = angles * torch.pi / 180
+        # angles = angles % (2 * torch.pi)
+        angles = torch.tensor(
+            [sample_bravais_angles("hexagonal") for _ in range(num_samples_in_batch)]
+        )
         lengths = torch.randn([num_samples_in_batch, 3])
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
@@ -429,7 +433,7 @@ class DiffusionLoss(torch.nn.Module):
             if (timestep != self.T - 1) and (
                 (
                     visualization_setting == VisualizationSetting.ALL
-                    and (timestep % 100 == 0)
+                    and (timestep % 10 == 0)
                 )
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):

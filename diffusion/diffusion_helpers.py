@@ -744,3 +744,41 @@ def cubic_score(edge_lengths: torch.Tensor) -> torch.Tensor:
     cubic_score = 1 - normalized_diff
 
     return cubic_score
+
+
+def sample_bravais_angles(lattice_type: str):
+    if lattice_type == "cubic":
+        # Cubic lattice: alpha = beta = gamma = 90°
+        return np.array([90, 90, 90])
+
+    elif lattice_type == "tetragonal":
+        # Tetragonal lattice: alpha = beta = gamma = 90°
+        return np.array([90, 90, 90])
+
+    elif lattice_type == "orthorhombic":
+        # Orthorhombic lattice: alpha = beta = gamma = 90°
+        return np.array([90, 90, 90])
+
+    elif lattice_type == "monoclinic":
+        # Monoclinic lattice: alpha = gamma = 90°, beta != 90°
+        beta = np.random.uniform(90, 180)
+        return np.array([90, beta, 90])
+
+    elif lattice_type == "triclinic":
+        # Triclinic lattice: alpha != beta != gamma != 90°
+        alpha = np.random.uniform(60, 120)
+        beta = np.random.uniform(60, 120)
+        gamma = np.random.uniform(60, 120)
+        return np.array([alpha, beta, gamma])
+
+    elif lattice_type == "hexagonal":
+        # Hexagonal lattice: alpha = beta = 90°, gamma = 120°
+        return np.array([90, 90, 120])
+
+    elif lattice_type == "rhombohedral":
+        # Rhombohedral lattice: alpha = beta = gamma != 90°
+        angle = np.random.uniform(60, 120)
+        return np.array([angle, angle, angle])
+
+    else:
+        raise ValueError(f"Invalid lattice type: {lattice_type}")
