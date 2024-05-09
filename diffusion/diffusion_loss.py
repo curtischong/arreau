@@ -11,11 +11,9 @@ from diffusion.d3pm import D3PM
 from diffusion.diffusion_helpers import (
     VE_pbc,
     VP_lattice,
-    cart_to_frac_coords_without_mod,
     frac_to_cart_coords,
     radius_graph_pbc,
     sample_bravais_angles,
-    symmetric_matrix_to_vector,
 )
 from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
@@ -90,11 +88,9 @@ class DiffusionLoss(torch.nn.Module):
         )
         self.num_atomic_states = num_atomic_states
 
-        self.cost_coord_coeff = 1
-        self.cost_type_coeff = 1
-        self.lattice_coeff = 1
-        # self.norm_x = 10. # I'm not sure why mofdiff normalizes the coords and the atomic types.
-        # self.norm_h = 10.
+        self.coord_loss_weight = 1
+        self.atom_type_loss_weight = 1
+        self.lattice_loss_weight = 1
 
     def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, batch):
         # Clamping between 0-1 is really important to avoid problems from numerical instabilities
@@ -113,10 +109,10 @@ class DiffusionLoss(torch.nn.Module):
 
         return torch.mean(squared_euclidean_dist)
 
-    def phi(
+    def predict_scores(
         self,
-        frac_x_t: torch.Tensor,
-        h_t: torch.Tensor,
+        noisy_frac_x: torch.Tensor,
+        noisy_atom_types: torch.Tensor,
         t_int: torch.Tensor,
         num_atoms: torch.Tensor,
         noisy_lengths: torch.Tensor,
@@ -142,7 +138,7 @@ class DiffusionLoss(torch.nn.Module):
 
         scalar_feats = torch.cat(
             [
-                h_t,
+                noisy_atom_types,
                 t_emb,
                 num_atoms_feat,
                 lengths_feat,
@@ -151,15 +147,15 @@ class DiffusionLoss(torch.nn.Module):
             ],
             dim=1,
         )
-        cart_x_t = frac_to_cart_coords(frac_x_t, noisy_lattice, num_atoms)
+        noisy_cart_x = frac_to_cart_coords(noisy_frac_x, noisy_lattice, num_atoms)
 
         lattice_feat = torch.repeat_interleave(noisy_lattice, num_atoms, dim=0)
 
         # overwrite the batch with the new values. I'm not making a new batch object since I may miss some attributes.
         # If overwritting leads to problems, we'll need to make a new Batch object
         batch.x = scalar_feats
-        batch.pos = cart_x_t
-        batch.vec = torch.cat([frac_x_t.unsqueeze(1), lattice_feat], dim=1)
+        batch.pos = noisy_cart_x
+        batch.vec = torch.cat([noisy_frac_x.unsqueeze(1), lattice_feat], dim=1)
 
         # we need to overwrite the edge_index for the batch since when we add noise to the positions, some atoms may be
         # so far apart from each other they are no longer considered neighbors. So we need to recompute the neighbors.
@@ -167,12 +163,12 @@ class DiffusionLoss(torch.nn.Module):
         # I'm not sure how useful neighbors is. It's a count of how many neighbors each atom has
         edge_index, cell_offsets, neighbors, inter_atom_distance, neighbor_direction = (
             radius_graph_pbc(
-                cart_x_t,
+                noisy_cart_x,
                 noisy_lattice,
                 batch.num_atoms,
                 self.cutoff,
                 self.max_neighbors,
-                device=cart_x_t.device,
+                device=noisy_cart_x.device,
                 remove_self_edges=True,  # Removing self-loops since the embedding after message passing is also dependent on the embedding of the current node. see https://github.com/curtischong/arreau/pull/97 for details
             )
         )
@@ -185,9 +181,9 @@ class DiffusionLoss(torch.nn.Module):
 
         # compute the predictions
         (
-            predicted_h0_logits,
+            predicted_atom_type_0_logits,
             pred_frac_eps_x,
-            pred_lengths,
+            pred_lengths_0,
             _global_output_vector,
             _pred_edge_distance_score,
         ) = model(batch)
@@ -196,8 +192,8 @@ class DiffusionLoss(torch.nn.Module):
             pred_frac_eps_x.squeeze(
                 1
             ),  # squeeze 1 since the only per-node vector output is the frac coords, so there is a useless dimension.
-            predicted_h0_logits,
-            pred_lengths,
+            predicted_atom_type_0_logits,
+            pred_lengths_0,
         )
 
     def diffuse_lattice_params(self, lattice: torch.Tensor, t_int: torch.Tensor):
@@ -207,9 +203,9 @@ class DiffusionLoss(torch.nn.Module):
 
     def __call__(self, model, batch, t_emb_weights, t_int=None):
         frac_x_0 = batch.X0
-        h_0 = batch.A0
-        lattice = batch.L0
-        lattice = lattice.view(-1, 3, 3)
+        atom_type_0 = batch.A0  # "_0" means: "at time=0"
+        lattice_0 = batch.L0
+        lattice_0 = lattice_0.view(-1, 3, 3)
         num_atoms = batch.num_atoms
 
         # Sample a timestep t.
@@ -223,125 +219,57 @@ class DiffusionLoss(torch.nn.Module):
                 torch.ones((batch.num_atoms.size(0), 1), device=frac_x_0.device).long()
                 * t_int
             )
-        t_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
+        noisy_int_atoms = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
-        frac_x_t, target_frac_eps_x, used_sigmas_x = self.pos_diffusion(
-            frac_x_0, t_int_atoms, lattice, num_atoms
+        noisy_frac_x, target_frac_eps_x, used_sigmas_x = self.pos_diffusion(
+            frac_x_0, noisy_int_atoms, lattice_0, num_atoms
         )
-        h_t = self.d3pm.get_xt(h_0, t_int_atoms.squeeze())
+        noisy_atom_type = self.d3pm.get_xt(atom_type_0, noisy_int_atoms.squeeze())
 
-        h_t_onehot = F.one_hot(h_t, self.num_atomic_states)
-        (noisy_lengths, lengths, angles) = self.diffuse_lattice_params(lattice, t_int)
+        noisy_atom_type_onehot = F.one_hot(noisy_atom_type, self.num_atomic_states)
+        (noisy_lengths, lengths, angles) = self.diffuse_lattice_params(lattice_0, t_int)
 
         # Compute the prediction.
-        (pred_frac_eps_x, predicted_h0_logits, pred_lengths) = self.phi(
-            frac_x_t,
-            h_t_onehot,
-            t_int_atoms,
-            num_atoms,
-            noisy_lengths,
-            angles,
-            model,
-            batch,
-            t_emb_weights,
+        (pred_frac_eps_x, predicted_atom_type_0_logits, pred_lengths) = (
+            self.predict_scores(
+                noisy_frac_x,
+                noisy_atom_type_onehot,
+                noisy_int_atoms,
+                num_atoms,
+                noisy_lengths,
+                angles,
+                model,
+                batch,
+                t_emb_weights,
+            )
         )
 
         # Compute the error.
-        error_x = self.compute_frac_x_error(
+        error_frac_x = self.compute_frac_x_error(
             pred_frac_eps_x,
             target_frac_eps_x,
             batch,
             # 0.5 * used_sigmas_x**2,
         )  # likelihood reweighting
 
-        error_h = self.d3pm.calculate_loss(
-            h_0, predicted_h0_logits, h_t, t_int_atoms.squeeze()
+        error_atomic_type = self.d3pm.calculate_loss(
+            atom_type_0,
+            predicted_atom_type_0_logits,
+            noisy_atom_type,
+            noisy_int_atoms.squeeze(),
         )
         target_lengths = (
             lengths / num_atoms.unsqueeze(-1)
         )  # TODO: we don't want to divide by the num_atoms. we want to divide by the number of active atoms???
-        error_l = F.mse_loss(pred_lengths, target_lengths)
+        error_lattice = F.mse_loss(pred_lengths, target_lengths)
 
         loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
+            self.coord_loss_weight * error_frac_x
+            + self.atom_type_loss_weight * error_atomic_type
+            + self.lattice_loss_weight * error_lattice
         )
         return loss.mean()
-
-    def edge_score_to_symmetric_lattice(
-        self,
-        inter_atom_distance: torch.Tensor,
-        neighbor_direction: torch.Tensor,
-        pred_edge_distance_score: list[torch.Tensor],
-        batch: Batch,
-    ):
-        # we need to do this because different edges belong in different batches
-        batch_size = batch.num_atoms.shape[0]
-
-        # calculate the number of edges for each graph in the batch
-        # we need to use minlength since some batches may not have edges (atoms are too far)
-        num_edges = torch.bincount(batch.batch_of_edge, minlength=batch_size)
-
-        num_edges_for_ith_graph = num_edges.repeat_interleave(num_edges, dim=0)
-
-        pred_edge_distance_score = [
-            score.squeeze(1) for score in pred_edge_distance_score
-        ]  # [num_layers]
-
-        # In the paper, for equation (A32), delta_edge_length_over_delta_lattice means: what is the rate of change of this edge length with respect to the lattice?
-        # The edge score is the amount to multiply by the rate of change of this edge length
-
-        # equation (A35) in the paper
-        layer_scores = []
-        num_layers = len(pred_edge_distance_score)
-        inter_atom_distance_frac = (
-            cart_to_frac_coords_without_mod(  # I think this works?
-                neighbor_direction, batch.lattice, num_edges
-            ).norm(dim=1)
-        )
-        for i in range(num_layers):
-            scores_for_layer = pred_edge_distance_score[i]
-
-            normalized_scores = scores_for_layer / (
-                num_edges_for_ith_graph * (inter_atom_distance_frac**2)
-            )
-
-            # By multiplying each row of neighbor_direction by normalized_scores (via a braodcasting operation)
-            # We avoid creating a costly diagonal matrix and doing a costly matrix multiplication
-            # NOTE: we do NOT need to do this for every batch since a broadcasting operation is just a scalar multiplication
-            # so this operation can be done outside the for loop below
-            cart_distance = neighbor_direction.abs()
-            left_diagonal_multiplication_result = cart_distance.T * normalized_scores
-
-            # Not sure if there's a way to avoid the for loop when performing the matmul for each distinct batch
-            layer_scores_per_batch = []
-            for batch_idx in range(batch_size):
-                batch_start_idx = num_edges[
-                    :batch_idx
-                ].sum()  # PERF: use a prefix sum array
-                batch_end_idx = batch_start_idx + num_edges[batch_idx]
-
-                symmetric_matrix_for_batch = torch.matmul(
-                    left_diagonal_multiplication_result[
-                        :, batch_start_idx:batch_end_idx
-                    ],
-                    cart_distance[batch_start_idx:batch_end_idx, :],
-                )
-                layer_scores_per_batch.append(symmetric_matrix_for_batch)
-
-            layer_score = torch.stack(
-                layer_scores_per_batch, dim=0
-            )  # shape: [batch_size, 3, 3]
-            layer_scores.append(layer_score)
-
-        # equation (A36) in the paper: summing all the scores across the layers
-        all_scores = torch.stack(layer_scores, dim=0)  # [num_layers, batch_size, 3, 3]
-        symmetric_matrix = torch.sum(all_scores, dim=0)  # [batch_size, 3, 3]
-
-        symmetric_vector = symmetric_matrix_to_vector(symmetric_matrix)
-        return symmetric_vector
 
     @torch.no_grad()
     def sample(
@@ -378,10 +306,10 @@ class DiffusionLoss(torch.nn.Module):
         num_atoms = torch.full((num_samples_in_batch,), num_atoms_per_sample)
 
         if constant_atoms is not None:
-            h = constant_atoms
+            atom_types = constant_atoms
         else:
             # init as the mask state
-            h = torch.full(
+            atom_types = torch.full(
                 (num_samples_in_batch * num_atoms_per_sample,), num_atomic_states - 1
             )
 
@@ -389,9 +317,9 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_x, score_h, pred_lengths = self.phi(
+            score_frac_x, score_atom_types, pred_lengths_0 = self.predict_scores(
                 frac_x,
-                F.one_hot(h, num_atomic_states),
+                F.one_hot(atom_types, num_atomic_states),
                 t,
                 num_atoms,
                 lengths,
@@ -405,16 +333,18 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            pred_lengths_scaled = (pred_lengths) * num_atoms.unsqueeze(-1)
+            pred_lengths_scaled = pred_lengths_0 * num_atoms.unsqueeze(-1)
             lengths = self.lattice_diffusion.reverse_given_x0(
                 lengths, pred_lengths_scaled, timestep_vec
             )
             lattice = lattice_from_params(lengths, angles)
 
-            frac_x = self.pos_diffusion.reverse(frac_x, score_x, t, lattice, num_atoms)
-            h = self.d3pm.reverse(h, score_h, t)
+            frac_x = self.pos_diffusion.reverse(
+                frac_x, score_frac_x, t, lattice, num_atoms
+            )
+            atom_types = self.d3pm.reverse(atom_types, score_atom_types, t)
             if constant_atoms is not None:
-                h = constant_atoms
+                atom_types = constant_atoms
 
             if (timestep != self.T - 1) and (
                 (
@@ -424,14 +354,19 @@ class DiffusionLoss(torch.nn.Module):
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
                 vis_crystal_during_sampling(
-                    z_table, h, lattice, frac_x, vis_name + f"_{timestep}", show_bonds
+                    z_table,
+                    atom_types,
+                    lattice,
+                    frac_x,
+                    vis_name + f"_{timestep}",
+                    show_bonds,
                 )
 
         if visualization_setting != VisualizationSetting.NONE:
             vis_crystal_during_sampling(
-                z_table, h, lattice, frac_x, vis_name + "_final", show_bonds
+                z_table, atom_types, lattice, frac_x, vis_name + "_final", show_bonds
             )
-        atomic_numbers = atomic_number_indexes_to_atomic_numbers(z_table, h)
+        atomic_numbers = atomic_number_indexes_to_atomic_numbers(z_table, atom_types)
         return SampleResult(
             num_atoms=num_atoms.numpy(),
             frac_x=frac_x.numpy(),
