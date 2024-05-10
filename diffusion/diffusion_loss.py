@@ -97,10 +97,10 @@ class DiffusionLoss(torch.nn.Module):
         self.atom_type_loss_weight = 1
         self.lattice_loss_weight = 1
 
-    def compute_frac_x_error(self, pred_frac_eps_x, target_frac_eps_x, batch):
+    def compute_frac_x_error(self, pred_frac_eps_x, target_frac_x, batch):
         # Clamping between 0-1 is really important to avoid problems from numerical instabilities
         distance_abs_diff = torch.clamp(
-            torch.remainder((pred_frac_eps_x - target_frac_eps_x).abs(), 1),
+            torch.remainder((pred_frac_eps_x - target_frac_x).abs(), 1),
             min=0,
             max=1,
         )
@@ -227,12 +227,11 @@ class DiffusionLoss(torch.nn.Module):
         t_feat = t_int.repeat_interleave(num_atoms, dim=0)
 
         # Sample noise.
-        noisy_frac_x, frac_x_noise = self.pos_diffusion(
+        noisy_frac_x, _frac_x_noise = self.pos_diffusion(
             frac_x_0,
             t_feat,
         )
         noisy_frac_x = noisy_frac_x % 1
-        frac_x_noise = frac_x_noise % 1
 
         noisy_atom_type = self.d3pm.get_xt(atom_type_0, t_feat.squeeze())
 
@@ -257,7 +256,7 @@ class DiffusionLoss(torch.nn.Module):
         # Compute the error.
         error_frac_x = self.compute_frac_x_error(
             pred_frac_eps_x,
-            frac_x_noise,
+            frac_x_0,
             batch,
         )
 
