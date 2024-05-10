@@ -350,7 +350,7 @@ class DiffusionLoss(torch.nn.Module):
             frac_x = self.pos_diffusion.reverse_given_x0(
                 frac_x,
                 pred_frac_x_0,
-                t,
+                timestep_vec,
             )
             frac_x = frac_x % 1
             atom_types = self.d3pm.reverse(atom_types, score_atom_types, t)
