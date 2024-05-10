@@ -28,7 +28,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/ghost-atoms.ckpt",
+                "--model_path=models/ghost-atoms-2.ckpt",
             ],
         },
         {
