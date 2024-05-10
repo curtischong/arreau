@@ -407,6 +407,7 @@ class DiffusionLoss(torch.nn.Module):
         constant_atoms: Optional[torch.Tensor] = None,
     ) -> SampleResult:
         num_atomic_states = len(z_table)
+        num_samples_in_batch += 25
 
         # tip: use this page to see what variance to use in your normal distributions https://homepage.divms.uiowa.edu/~mbognar/applets/normal.html
         angles = torch.tensor(
