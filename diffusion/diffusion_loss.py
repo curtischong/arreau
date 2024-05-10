@@ -374,10 +374,8 @@ class DiffusionLoss(torch.nn.Module):
             noisy_atom_type,
             noisy_int_atoms.squeeze(),
         )
-        target_lengths = (
-            lengths / num_atoms.unsqueeze(-1)
-        )  # TODO: we don't want to divide by the num_atoms. we want to divide by the number of active atoms???
-        error_lattice = F.mse_loss(pred_lengths, target_lengths)
+        # do not divide lengths by num_atoms. since we do NOT know how many REAL atoms are in the system during inferencing
+        error_lattice = F.mse_loss(pred_lengths, lengths)
 
         loss = (
             self.coord_loss_weight * error_frac_x
@@ -453,9 +451,8 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            pred_lengths_scaled = pred_lengths_0 * num_atoms.unsqueeze(-1)
             lengths = self.lattice_diffusion.reverse_given_x0(
-                lengths, pred_lengths_scaled, timestep_vec
+                lengths, pred_lengths_0, timestep_vec
             )
             lattice = lattice_from_params(lengths, angles)
 
