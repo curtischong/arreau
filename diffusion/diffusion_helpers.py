@@ -163,14 +163,13 @@ class VP_coords(nn.Module):
         return ht, eps
 
     # This formula is from algorithm 2 sampling from https://arxiv.org/pdf/2006.11239.pdf
-    def reverse(self, ht, predicted_x0, t):
+    def reverse(self, ht, predicted_noise, t):
         alpha = 1 - self.betas[t]
         alpha = alpha.clamp_min(1 - self.betas[-2])
         alpha_bar = self.alpha_bars[t]
         sigma = self.sigmas[t].view(-1, 1)
 
         # predicted_noise = lt - predicted_l0
-        predicted_noise = ht - predicted_x0
 
         # This is noise we add so when we do the backwards sample, we don't collapse to one point
         z = torch.where(

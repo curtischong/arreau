@@ -346,10 +346,14 @@ class DiffusionLoss(torch.nn.Module):
                 lengths, pred_lengths_scaled, timestep_vec
             )
             lattice = lattice_from_params(lengths, angles)
+            score_frac_x = score_frac_x % 1
 
             frac_x = self.pos_diffusion.reverse(
-                frac_x, score_frac_x, t, lattice, num_atoms
+                frac_x,
+                score_frac_x,
+                t,
             )
+            frac_x = frac_x % 1
             atom_types = self.d3pm.reverse(atom_types, score_atom_types, t)
             if constant_atoms is not None:
                 atom_types = constant_atoms
