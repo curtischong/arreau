@@ -324,7 +324,7 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_frac_x, score_atom_types, pred_lengths_0 = self.predict_scores(
+            pred_frac_x_0, score_atom_types, pred_lengths_0 = self.predict_scores(
                 frac_x,
                 F.one_hot(atom_types, num_atomic_states),
                 t,
@@ -345,11 +345,11 @@ class DiffusionLoss(torch.nn.Module):
                 lengths, pred_lengths_scaled, timestep_vec
             )
             lattice = lattice_from_params(lengths, angles)
-            score_frac_x = score_frac_x % 1
+            pred_frac_x_0 = pred_frac_x_0 % 1
 
-            frac_x = self.pos_diffusion.reverse(
+            frac_x = self.pos_diffusion.reverse_given_x0(
                 frac_x,
-                score_frac_x,
+                pred_frac_x_0,
                 t,
             )
             frac_x = frac_x % 1
