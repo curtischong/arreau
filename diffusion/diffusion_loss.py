@@ -92,7 +92,7 @@ class DiffusionLoss(torch.nn.Module):
         self.num_atomic_states = num_atomic_states
 
         self.coord_loss_weight = 1
-        self.atom_type_loss_weight = 1
+        self.atom_type_loss_weight = 3
         self.lattice_loss_weight = 1
         self.ghost_atom_index = z_table.z_to_index(
             AtomicNumberTable.GHOST_ATOMIC_NUMBER
