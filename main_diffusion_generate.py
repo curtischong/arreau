@@ -3,7 +3,9 @@ from typing import Optional
 import torch
 from diffusion.diffusion_loss import SampleResult
 from diffusion.inference.create_gif import generate_gif
-from diffusion.inference.process_generated_crystals import save_sample_results_to_hdf5
+from diffusion.inference.process_generated_crystals import (
+    save_sample_results_to_hdf5,
+)
 from diffusion.inference.visualize_crystal import VisualizationSetting
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 import numpy as np
@@ -113,3 +115,5 @@ if __name__ == "__main__":
         num_atoms_per_sample=num_atoms,
         use_constant_atomic_symbols=use_constant_atomic_symbols,
     )
+
+    # load dataset

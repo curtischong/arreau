@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import pathlib
+import random
 from typing import Optional
 import torch
 
@@ -13,9 +15,8 @@ from diffusion.diffusion_helpers import (
     VP_lattice,
     frac_to_cart_coords,
     radius_graph_pbc,
-    sample_bravais_angles,
 )
-from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
+from diffusion.lattice_helpers import matrix_to_params
 from diffusion.tools.atomic_number_table import (
     AtomicNumberTable,
     atomic_number_indexes_to_atomic_numbers,
@@ -25,6 +26,9 @@ from diffusion.inference.visualize_crystal import (
     vis_crystal_during_sampling,
 )
 from torch.nn import functional as F
+import h5py
+
+DATA_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../datasets/alexandria_hdf5"
 
 
 pos_sigma_min = 0.001
@@ -36,6 +40,14 @@ type_clipmax = 0.999
 lattice_clipmax = 0.999
 
 avg_num_atoms_plus_ghost_atoms = 20
+
+
+def load_lattices_from_hdf5(
+    filepath: str,
+):
+    with h5py.File(filepath, "r") as file:
+        lattices = file["lattices"]["lattices"][:]
+    return lattices
 
 
 @dataclass
@@ -396,12 +408,11 @@ class DiffusionLoss(torch.nn.Module):
         constant_atoms: Optional[torch.Tensor] = None,
     ) -> SampleResult:
         num_atomic_states = len(z_table)
+        lattice = load_lattices_from_hdf5(DATA_DIR + "/known_lattices.h5")
+        indices = random.sample(range(lattice.shape[0]), num_samples_in_batch)
+        lattice = torch.from_numpy(lattice[indices])
 
         # tip: use this page to see what variance to use in your normal distributions https://homepage.divms.uiowa.edu/~mbognar/applets/normal.html
-        angles = torch.tensor(
-            [sample_bravais_angles("monoclinic") for _ in range(num_samples_in_batch)]
-        )
-        lengths = torch.randn([num_samples_in_batch, 3])
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
@@ -426,13 +437,12 @@ class DiffusionLoss(torch.nn.Module):
             t = torch.full((num_atoms.sum(),), fill_value=timestep)
             timestep_vec = torch.tensor([timestep])  # add a batch dimension
 
-            score_frac_x, score_atom_types, pred_lengths_0 = self.predict_scores(
+            score_frac_x, score_atom_types = self.predict_scores(
                 frac_x,
                 F.one_hot(atom_types, num_atomic_states),
                 t,
                 num_atoms,
-                lengths,
-                angles,
+                lattice,
                 model,
                 Batch(
                     num_atoms=num_atoms,
@@ -442,10 +452,6 @@ class DiffusionLoss(torch.nn.Module):
                 ),
                 t_emb_weights,
             )
-            lengths = self.lattice_diffusion.reverse_given_x0(
-                lengths, pred_lengths_0, timestep_vec
-            )
-            lattice = lattice_from_params(lengths, angles)
 
             frac_x = self.pos_diffusion.reverse(
                 frac_x, score_frac_x, t, lattice, num_atoms

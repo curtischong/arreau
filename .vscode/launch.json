@@ -28,7 +28,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--model_path=models/ghost-atoms-2.ckpt",
+                "--model_path=models/ghost-atoms-3.ckpt",
             ],
         },
         {
@@ -129,6 +129,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [],
-        }
+        },
+        {
+            "name": "prep known lattices",
+            "type": "python",
+            "request": "launch",
+            "program": "exploration/prep_known_lattices.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [],
+        },
     ]
 }
