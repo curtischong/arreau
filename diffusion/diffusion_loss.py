@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import pathlib
+import random
 from typing import Optional
 import torch
 
@@ -7,13 +9,13 @@ import torchmetrics
 from tqdm import tqdm
 import numpy as np
 from diffusion.d3pm import D3PM
+import h5py
 
 from diffusion.diffusion_helpers import (
     VP_coords,
     VP_lattice,
     frac_to_cart_coords,
     radius_graph_pbc,
-    sample_bravais_angles,
 )
 from diffusion.lattice_helpers import matrix_to_params
 from diffusion.tools.atomic_number_table import (
@@ -34,6 +36,16 @@ type_power = 2
 lattice_power = 2
 type_clipmax = 0.999
 lattice_clipmax = 0.999
+
+DATA_DIR = f"{pathlib.Path(__file__).parent.resolve()}/../datasets/alexandria_hdf5"
+
+
+def load_lattices_from_hdf5(
+    filepath: str,
+):
+    with h5py.File(filepath, "r") as file:
+        lattices = file["lattices"]["lattices"][:]
+    return lattices
 
 
 @dataclass
@@ -284,11 +296,9 @@ class DiffusionLoss(torch.nn.Module):
         num_atomic_states = len(z_table)
 
         # tip: use this page to see what variance to use in your normal distributions https://homepage.divms.uiowa.edu/~mbognar/applets/normal.html
-        angles = torch.tensor(
-            [sample_bravais_angles("monoclinic") for _ in range(num_samples_in_batch)]
-        )
-        lengths = torch.randn([num_samples_in_batch, 3])
-        # TODO: sample lattice
+        lattice = load_lattices_from_hdf5(DATA_DIR + "/known_lattices.h5")
+        indices = random.sample(range(lattice.shape[0]), num_samples_in_batch)
+        lattice = torch.from_numpy(lattice[indices])
 
         # TODO: verify that we are uing the GPU during inferencing (via nvidia smi)
         # I am not 100% sure that pytorch lightning is using the GPU during inferencing.
