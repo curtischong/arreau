@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 from typing import Optional
 import torch
 
@@ -207,6 +208,7 @@ class DiffusionLoss(torch.nn.Module):
         lattice_0 = batch.L0
         lattice_0 = lattice_0.view(-1, 3, 3)
         num_atoms = batch.num_atoms
+        timer_start = time.time()
 
         # Sample a timestep t.
         # TODO: can we simplify this? is t_int always None? Verification code may inconsistently pass in t_int vs train code
@@ -271,7 +273,8 @@ class DiffusionLoss(torch.nn.Module):
             + self.atom_type_loss_weight * error_atomic_type
             + self.lattice_loss_weight * error_lattice
         )
-        return loss.mean()
+        timer_end = time.time()
+        return loss.mean(), timer_end - timer_start
 
     @torch.no_grad()
     def sample(

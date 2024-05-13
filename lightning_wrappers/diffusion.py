@@ -63,6 +63,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         self.train_metric = DiffusionLossMetric()
         self.valid_metric = DiffusionLossMetric()
         self.test_metric = DiffusionLossMetric()
+        self.time_metric = DiffusionLossMetric()
         self.diffusion_loss = DiffusionLoss(args, num_atomic_states)
 
         # Input/output specifications:
@@ -103,7 +104,9 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # should we have lift_graph=True???
 
     def forward(self, graph):
-        return self.model(graph)
+        res, time_metric = self.model(graph)
+        self.time_metric.update(time_metric, graph)
+        return res
 
     def training_step(self, graph: Batch):
         if self.train_augm:
