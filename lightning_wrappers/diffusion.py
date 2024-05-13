@@ -104,9 +104,7 @@ class PONITA_DIFFUSION(pl.LightningModule):
         # should we have lift_graph=True???
 
     def forward(self, graph):
-        res, time_metric = self.model(graph)
-        self.time_metric.update(time_metric, graph)
-        return res
+        return self.model(graph)
 
     def training_step(self, graph: Batch):
         if self.train_augm:
@@ -116,7 +114,10 @@ class PONITA_DIFFUSION(pl.LightningModule):
         validation_time = (
             None if self.dataset != "eval-equivariance" else EVAL_EQUIVARIANCE_TIMESTEP
         )
-        loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
+        loss, time_metric = self.diffusion_loss(
+            self, graph, self.t_emb, validation_time
+        )
+        self.time_metric.update(time_metric, graph)
         self.train_metric.update(loss, graph)
         return loss
 
