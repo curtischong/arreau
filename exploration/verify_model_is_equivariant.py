@@ -27,33 +27,38 @@ def prep_rotated_datasets():
             "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
         ]
     )
-    ith_sample = 0
-    lattice = dataset[ith_sample].L0
-    frac_x = dataset[ith_sample].X0
-    atomic_numbers = dataset[ith_sample].A0
-    # fig = plot_crystal(atomic_numbers, lattice, frac_x, show_bonds=False)
-    # fig.show()
+    lattices = []
+    frac_xs = []
+    atomic_numbers = []
+    for i in range(len(dataset)):
+        lattice = dataset[i].L0
+        rotated_lattice = rotate_lattice_about_origin(lattice)
+        lattices.append(rotated_lattice)
+        frac_xs.append(dataset[i].X0)
+        atomic_numbers.append(dataset[i].A0)
 
-    rotated_lattice = rotate_lattice_about_origin(lattice)
-    # fig = plot_crystal(atomic_numbers, rotated_lattice, frac_x, show_bonds=False)
-    # fig.show()
+        # fig = plot_crystal(atomic_numbers, lattice, frac_x, show_bonds=False)
+        # fig.show()
+
+        # fig = plot_crystal(atomic_numbers, rotated_lattice, frac_x, show_bonds=False)
+        # fig.show()
+        # save_dataset(
+        #     "alexandria_ps_000_take1",
+        #     [atomic_numbers],
+        #     np.expand_dims(lattice, axis=0),
+        #     [frac_x],
+        # )
     save_dataset(
-        "alexandria_ps_000_take1",
-        [atomic_numbers],
-        np.expand_dims(lattice, axis=0),
-        [frac_x],
-    )
-    save_dataset(
-        "alexandria_ps_000_take1_rotated",
-        [atomic_numbers],
-        np.expand_dims(rotated_lattice, axis=0),
-        [frac_x],
+        "alexandria_ps_000_take10_rotated",
+        atomic_numbers,
+        lattices,
+        frac_xs,
     )
 
 
 def main():
-    # prep_rotated_datasets()
-    # return
+    prep_rotated_datasets()
+    return
     start_time = time.time()
     subprocess.run(
         [
