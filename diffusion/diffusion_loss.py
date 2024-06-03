@@ -16,6 +16,7 @@ from diffusion.diffusion_helpers import (
     frac_to_cart_coords,
     radius_graph_pbc,
     symmetric_matrix_to_vector,
+    calculate_quadratic_angle_loss,
 )
 from diffusion.lattice_helpers import lattice_from_params, matrix_to_params
 from diffusion.tools.atomic_number_table import (
@@ -287,9 +288,9 @@ class DiffusionLoss(torch.nn.Module):
             F.mse_loss(pred_lengths, target_lengths)
             + (5 * calculate_angle_loss(pred_angles, angles))
             # adding the quadratic angle loss makes the loss spiky
-            # + calculate_quadratic_angle_loss(
-            #     self.lattice_diffusion, noisy_angles, pred_angles, t_int
-            # )
+            + calculate_quadratic_angle_loss(
+                self.lattice_diffusion, noisy_angles, pred_angles, t_int
+            )
         )
 
         loss = (
@@ -468,7 +469,7 @@ class DiffusionLoss(torch.nn.Module):
             if (timestep != self.T - 1) and (
                 (
                     visualization_setting == VisualizationSetting.ALL
-                    and (timestep % 10 == 0)
+                    and (timestep % 100 == 0)
                 )
                 or (visualization_setting == VisualizationSetting.ALL_DETAILED)
             ):
