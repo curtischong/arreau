@@ -95,8 +95,8 @@ class AlexandriaDataset(Dataset):
         return len(self.configs)
 
     def __getitem__(self, idx: int):
-        # default_dtype = torch.float64  # for some reason, the default dtype is float32 in this subprocess. so I set it explicitly
-        default_dtype = torch.float32  # Doing this because equiformer uses float32 linear layers. I don't know why. But if I have precision issues, I'll probably change this. The only reason why I'm okay with float32 is because we're not doing molecular dynamics
+        default_dtype = torch.float64  # for some reason, the default dtype is float32 in this subprocess. so I set it explicitly
+        # default_dtype = torch.float32  # Doing this because equiformer uses float32 linear layers. I don't know why. But if I have precision issues, I'll probably change this. The only reason why I'm okay with float32 is because we're not doing molecular dynamics
         config = self.configs[idx]
 
         num_gpus = torch.cuda.device_count()
@@ -127,18 +127,19 @@ class AlexandriaDataset(Dataset):
         #     ),
         # )
 
-        # x_cart_noisy = (x_frac_start @ cell_start).clone().detach().to(device)
+        x_cart_noisy = (x_frac_start @ cell_start).clone().detach().to(device)
         # # NOTE: we cannot fix the features at this point because when we add noise, the features will change
 
         res = Data(
+            pos=x_cart_noisy,
             # x_cart_noisy=x_cart_noisy,
             X0=x_frac_start,
             # x_frac_noisy=x_frac_noisy,
             A0=atom_type_start,
             # atom_type_noisy=atom_type_noisy,
             L0=cell_start,
-            natoms=torch.tensor(len(config.atomic_numbers), device=device),
-            ith_sample=torch.tensor(idx, dtype=torch.float32),
+            num_atoms=torch.tensor(len(config.atomic_numbers), device=device),
+            # ith_sample=torch.tensor(idx, dtype=torch.float32),
             # timestep=timestep,
         )
         return res
