@@ -110,8 +110,10 @@ class AlexandriaDataset(Dataset):
         atom_type_start = atomic_numbers_to_indices(
             self.z_table, config.atomic_numbers
         ).to(device)
-        cell_start = torch.tensor(config.L0, dtype=default_dtype, device=device).view(
-            -1, 3, 3
+        cell_start = (
+            torch.tensor(config.L0, dtype=default_dtype, device=device)
+            .view(-1, 3, 3)
+            .squeeze(0)
         )
 
         # # get the noisy state

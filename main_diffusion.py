@@ -2,7 +2,6 @@ import argparse
 import os
 from pathlib import Path
 from diffusion.alexandria_dataset import AlexandriaDataset
-from diffusion.lattice_dataset import CrystalDataset
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
