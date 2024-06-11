@@ -136,28 +136,28 @@ class PONITA_DIFFUSION(pl.LightningModule):
             self.train_metric,
             prog_bar=True,
             # on_step=False,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "train coord loss",
             self.train_coord_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "train atom type loss",
             self.train_atom_type_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "train lattice loss",
             self.train_lattice_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
 
@@ -183,21 +183,21 @@ class PONITA_DIFFUSION(pl.LightningModule):
             "valid coord loss",
             self.valid_coord_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "valid atom type loss",
             self.valid_atom_type_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "valid lattice loss",
             self.valid_lattice_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
 
@@ -214,21 +214,21 @@ class PONITA_DIFFUSION(pl.LightningModule):
             "test coord loss",
             self.test_coord_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "test atom type loss",
             self.test_atom_type_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
         self.log(
             "test lattice loss",
             self.test_lattice_metric,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
         )
 

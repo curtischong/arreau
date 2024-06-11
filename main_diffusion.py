@@ -320,8 +320,8 @@ if __name__ == "__main__":
         check_val_every_n_epoch=args.val_interval,
         enable_progress_bar=args.enable_progress_bar,
         profiler=profiler,
-    # )
-     log_every_n_steps=1) # TODO: increase this
+    )
+    #  log_every_n_steps=1) # TODO: increase this
 
     # Do the training
     trainer.fit(model, dataloaders["train"], dataloaders["valid"])
