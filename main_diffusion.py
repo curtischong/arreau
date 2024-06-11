@@ -1,6 +1,7 @@
 import argparse
 import os
 from pathlib import Path
+from diffusion.alexandria_dataset import AlexandriaDataset
 from diffusion.lattice_dataset import CrystalDataset
 from lightning_wrappers.diffusion import PONITA_DIFFUSION
 from torch_geometric.loader import DataLoader
@@ -195,10 +196,8 @@ if __name__ == "__main__":
     # TODO: remove this if statement and put it all into a config
     if args.dataset == "alexandria-dev":
         print("Using dev dataset")
-        dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/alexandria_ps_000_take10.h5",
-            ]
+        dataset = AlexandriaDataset(
+            "datasets/alexandria_hdf5_v2/train_10.h5",
         )
         train_dataset = dataset
         valid_dataset = dataset
@@ -206,26 +205,16 @@ if __name__ == "__main__":
         z_table = train_dataset.z_table
     elif args.dataset == "eval-equivariance":
         train_dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/alexandria_ps_000_take1.h5",
-            ]
+            "datasets/alexandria_hdf5/train_1.h5",
         )
         valid_dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/alexandria_ps_000_take1_rotated.h5",
-            ]
+            "datasets/alexandria_hdf5/val_1.h5",
         )
         test_dataset = valid_dataset
         z_table = train_dataset.z_table
     else:
         dataset = CrystalDataset(
-            [
-                "datasets/alexandria_hdf5/alexandria_ps_000.h5",
-                "datasets/alexandria_hdf5/alexandria_ps_001.h5",
-                "datasets/alexandria_hdf5/alexandria_ps_002.h5",
-                "datasets/alexandria_hdf5/alexandria_ps_003.h5",
-                "datasets/alexandria_hdf5/alexandria_ps_004.h5",
-            ]
+            "datasets/alexandria_hdf5/train_all.h5",
         )
         z_table = dataset.z_table
 
