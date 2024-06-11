@@ -61,8 +61,17 @@ class PONITA_DIFFUSION(pl.LightningModule):
 
         # The metrics to log
         self.train_metric = DiffusionLossMetric()
+        self.train_coord_metric = DiffusionLossMetric()
+        self.train_atom_type_metric = DiffusionLossMetric()
+        self.train_lattice_metric = DiffusionLossMetric()
         self.valid_metric = DiffusionLossMetric()
+        self.valid_coord_metric = DiffusionLossMetric()
+        self.valid_atom_type_metric = DiffusionLossMetric()
+        self.valid_lattice_metric = DiffusionLossMetric()
         self.test_metric = DiffusionLossMetric()
+        self.test_coord_metric = DiffusionLossMetric()
+        self.test_atom_type_metric = DiffusionLossMetric()
+        self.test_lattice_metric = DiffusionLossMetric()
         self.diffusion_loss = DiffusionLoss(args, num_atomic_states)
 
         # Input/output specifications:
@@ -113,8 +122,12 @@ class PONITA_DIFFUSION(pl.LightningModule):
         validation_time = (
             None if self.dataset != "eval-equivariance" else EVAL_EQUIVARIANCE_TIMESTEP
         )
-        loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
+        loss, coord_loss, type_loss, lattice_loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.train_metric.update(loss, graph)
+        self.train_coord_metric.update(coord_loss, graph)
+        self.train_atom_type_metric.update(type_loss, graph)
+        self.train_lattice_metric.update(lattice_loss, graph)   
+
         return loss
 
     def on_train_epoch_end(self):
@@ -122,7 +135,29 @@ class PONITA_DIFFUSION(pl.LightningModule):
             "train loss",
             self.train_metric,
             prog_bar=True,
-            on_step=False,
+            # on_step=False,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "train coord loss",
+            self.train_coord_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "train atom type loss",
+            self.train_atom_type_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "train lattice loss",
+            self.train_lattice_metric,
+            prog_bar=True,
+            on_step=True,
             on_epoch=True,
         )
 
@@ -130,8 +165,11 @@ class PONITA_DIFFUSION(pl.LightningModule):
         validation_time = (
             None if self.dataset != "eval-equivariance" else EVAL_EQUIVARIANCE_TIMESTEP
         )
-        loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
+        loss, coord_loss, type_loss, lattice_loss = self.diffusion_loss(self, graph, self.t_emb, validation_time)
         self.valid_metric.update(loss, graph)
+        self.valid_coord_metric.update(coord_loss, graph)
+        self.valid_atom_type_metric.update(type_loss, graph)
+        self.valid_lattice_metric.update(lattice_loss, graph)
 
     def on_validation_epoch_end(self):
         self.log(
@@ -141,13 +179,58 @@ class PONITA_DIFFUSION(pl.LightningModule):
             on_step=False,
             on_epoch=True,
         )
+        self.log(
+            "valid coord loss",
+            self.valid_coord_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "valid atom type loss",
+            self.valid_atom_type_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "valid lattice loss",
+            self.valid_lattice_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
 
     def test_step(self, graph, batch_idx):
-        loss = self.diffusion_loss(self, graph, self.t_emb)
+        loss, coord_loss, type_loss, lattice_loss = self.diffusion_loss(self, graph, self.t_emb)
         self.test_metric.update(loss, graph)
+        self.test_coord_metric.update(coord_loss, graph)
+        self.test_atom_type_metric.update(type_loss, graph)
+        self.test_lattice_metric.update(lattice_loss, graph)
 
     def on_test_epoch_end(self):
         self.log("test loss", self.test_metric, on_step=False, on_epoch=True)
+        self.log(
+            "test coord loss",
+            self.test_coord_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "test atom type loss",
+            self.test_atom_type_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
+        self.log(
+            "test lattice loss",
+            self.test_lattice_metric,
+            prog_bar=True,
+            on_step=True,
+            on_epoch=True,
+        )
 
     def configure_optimizers(self):
         """

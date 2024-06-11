@@ -61,7 +61,7 @@ class DiffusionLossMetric(torchmetrics.Metric):
         return self.total_loss / self.total_samples
 
     def update(self, loss, batch: Batch):
-        self.total_loss += loss.sum()
+        self.total_loss += loss
         num_batches = torch.unique(batch.batch).size(0)
         self.total_samples += num_batches
 
@@ -291,13 +291,12 @@ class DiffusionLoss(torch.nn.Module):
             #     self.lattice_diffusion, noisy_angles, pred_angles, t_int
             # )
         )
+        coord_loss = self.cost_coord_coeff * error_x
+        type_loss = self.cost_type_coeff * error_h
+        lattice_loss = self.lattice_coeff * error_l
 
-        loss = (
-            self.cost_coord_coeff * error_x
-            + self.cost_type_coeff * error_h
-            + self.lattice_coeff * error_l
-        )
-        return loss.mean()
+        loss = coord_loss + type_loss + lattice_loss
+        return loss, coord_loss, type_loss, lattice_loss
 
     def edge_score_to_symmetric_lattice(
         self,
