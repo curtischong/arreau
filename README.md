@@ -1,5 +1,12 @@
 # Arreau
 
+
+ <p align="center">
+  <img width="30%" src="assets/CaNO.png" alt="A generated crystal."/>
+  <img width="30%" src="assets/NSr.png" alt="A generated crystal."/>
+  <img width="30%" src="assets/OsNO.png" alt="A generated crystal."/>
+</p>
+
 This is a diffusion model to generate new crystal materials!
 
 This repo was heavily inspired by:
